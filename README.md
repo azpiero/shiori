@@ -1,10 +1,10 @@
-# HTML Vault 表示試作
+# shiori 表示試作
 
 Tauri 2＋Rust、sandbox付きiframeによるMac向けの表示試作です。HTMLの正本を変更せず、表示用コピーだけを加工します。
 
 ## 起動
 
-隣接する`../outputs/`フォルダにある **HTML Vault Spike.app** をFinderから開いてください。Apple Silicon向けの開発ビルドです。Node.jsやRustのインストールは起動には不要です。
+隣接する`../outputs/`フォルダにある **shiori.app** をFinderから開いてください。Apple Silicon向けの開発ビルドです。Node.jsやRustのインストールは起動には不要です。
 
 初回は7件の同梱サンプルを表示する構成です。「フォルダを開く」から別のHTMLフォルダも選べます。初めは実データのコピーで確認してください。
 
@@ -60,7 +60,7 @@ Tauri 2＋Rust、sandbox付きiframeによるMac向けの表示試作です。HT
 - ファイルの書き込み、固定ID付与、タグ編集、リンク修復、グラフ、Git操作はありません。
 - フォルダ選択後は全ノートの読み取り終了を待って一覧を出します。初回索引中の段階的表示は後続です。
 - 1ファイル16MBまで。ノート本文はUTF-8のみ。ノート候補は小文字の`.html`です。
-- `.git`・`node_modules`・`.html-vault`は走査から除外し、直下のassets／styles内のHTMLはノートにしません。
+- `.git`・`node_modules`・`.shiori`・`.html-vault`は走査から除外し、直下のassets／styles内のHTMLはノートにしません。
 - 外部変更は通知まで。反映ボタンで再読み込みするとスクロール位置はリセットされます。
 - 画面の時間は開発ビルドでの簡易計測値です。frame loadは描画完了やフレームレートの測定ではありません。リリース性能の判断には使わないでください。
 - ダーク／ライトは同梱共通CSSで対応します。任意の外部HTMLの色を強制的に書き換えるものではありません。
@@ -87,11 +87,13 @@ Rust stableとXcode Command Line Toolsを用意した環境では、ソースフ
 ```sh
 cargo test --manifest-path src-tauri/Cargo.toml --features custom-protocol
 cargo run --manifest-path src-tauri/Cargo.toml --features custom-protocol
+# .appを作る場合
+./scripts/build-macos.sh
 ```
 
 フロントエンドは素のHTML／CSS／JavaScriptで、npm依存はありません。依存バージョンは`src-tauri/Cargo.lock`に保存しています。
 
-この作業環境のRustはworkspace内のwork/toolchainに置き、シェル設定やホーム直下のRust設定を変更していません。
+この作業環境のRustは`../work/toolchain`に置き、シェル設定やホーム直下のRust設定を変更していません。
 
 ## 検証結果
 
@@ -106,10 +108,22 @@ cargo run --manifest-path src-tauri/Cargo.toml --features custom-protocol
 
 ## Git管理とディレクトリ
 
-この`html-vault/`がアプリ開発用Gitリポジトリです。ソース、Cargo.lock、仕様書（`docs/requirements.md`）、検証記録、検証用sample-vaultを管理します。Skill本体は未作成です。
+この`app/`がアプリ開発用Gitリポジトリです。ソース、Cargo.lock、仕様書（`docs/requirements.md`）、検証記録、検証用sample-vaultを管理します。Skill本体は未作成です。
 
-実ノート用の`../my-vault/`は独立したGitリポジトリです。submoduleではありません。アプリの「フォルダを開く」で選択します。実ノートの移行はまだ行っていません。
+実ノート用の`../vault/`は独立したGitリポジトリです。submoduleではありません。アプリの「フォルダを開く」で選択します。実ノートの移行はまだ行っていません。
 
 ビルド結果の`.app`、target、生成スキーマ、SQLiteキャッシュはGit対象外です。現在の配布用アプリは`../outputs/`、この作業環境のRustとビルドキャッシュは`../work/`にあります。
 
-リモートリポジトリは未設定です。ローカルコミットは履歴保存のためのもので、端末間の同期や外部バックアップには別途リモートが必要です。
+アプリのoriginは`https://github.com/azpiero/shiori.git`です。Vault側のリモートは未設定です。リモート設定の有無とpush済みかどうかは別に確認してください。
+
+## 作業ディレクトリ
+
+```text
+~/Documents/shiori/
+├── app/       # このリポジトリ
+├── vault/     # 実ノート用の独立したGitリポジトリ
+├── outputs/   # shiori.app
+└── work/      # 開発ツール・ビルドキャッシュ
+```
+
+開発プロジェクトには`app/`を指定してください。起動するアプリは`../outputs/shiori.app`です。

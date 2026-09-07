@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "HTML Vault Spike",
+  "productName": "shiori",
   "version": "0.1.0",
-  "identifier": "dev.takeru.htmlvaultspike",
+  "identifier": "dev.takeru.shiori",
   "build": { "frontendDist": "../ui" },
   "app": {
     "withGlobalTauri": true,
-    "windows": [{ "label": "main", "title": "HTML Vault · 表示試作", "width": 1280, "height": 850, "minWidth": 800, "minHeight": 560 }],
+    "windows": [{ "label": "main", "title": "shiori · 表示試作", "width": 1280, "height": 850, "minWidth": 800, "minHeight": 560 }],
     "security": { "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src ipc: http://ipc.localhost; frame-src vault:; object-src 'none'; base-uri 'none'" }
   },
   "bundle": { "active": false }

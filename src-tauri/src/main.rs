@@ -26,7 +26,7 @@ fn log(state: &State, kind: &str, path: &str, detail: &str) {
     if let Ok(mut logs) = state.logs.lock() { if logs.len() >= 250 { logs.remove(0); } logs.push(Log { kind:kind.into(), path:path.into(), detail:detail.into() }); }
 }
 fn allowed_entry(entry: &walkdir::DirEntry) -> bool {
-    !matches!(entry.file_name().to_str(), Some(".git" | ".DS_Store" | "node_modules" | ".html-vault"))
+    !matches!(entry.file_name().to_str(), Some(".git" | ".DS_Store" | "node_modules" | ".shiori" | ".html-vault"))
 }
 fn revision(root: &Path) -> String {
     let mut h = DefaultHasher::new();
@@ -136,14 +136,14 @@ fn display_html(source:&str, uri:&Url, state:&State) -> (String,usize) {
                             if let Some(theme) = uri.query_pairs().find(|(k,_)|k=="theme").map(|(_,v)|v.to_string()) { dest.query_pairs_mut().append_pair("theme",&theme); }
                             attrs.insert("href", dest.to_string());
                         },
-                        _ => { attrs.insert("href","#hv-blocked-link".into()); attrs.insert("title",format!("試作では外部遷移を停止: {href}")); log(state,"blocked-link",uri.path(),&href); }
+                        _ => { attrs.insert("href","#shiori-blocked-link".into()); attrs.insert("title",format!("試作では外部遷移を停止: {href}")); log(state,"blocked-link",uri.path(),&href); }
                     }
                 }
             }
         }
     }
     let theme = uri.query_pairs().find(|(k,_)|k=="theme").map(|(_,v)|v.to_string()).unwrap_or("system".into());
-    if let Ok(html) = doc.select_first("html") { html.attributes.borrow_mut().insert("data-hv-theme",theme.clone()); }
+    if let Ok(html) = doc.select_first("html") { html.attributes.borrow_mut().insert("data-shiori-theme",theme.clone()); }
     let q = uri.query_pairs().find(|(k,_)|k=="q").map(|(_,v)|v.into_owned()).unwrap_or_default();
     let mut matches = 0;
     if !q.is_empty() && q.len() <= 512 {
@@ -155,7 +155,7 @@ fn display_html(source:&str, uri:&Url, state:&State) -> (String,usize) {
             let mut out = String::new(); let mut last=0;
             for (i,_) in text.match_indices(&q).take(1000usize.saturating_sub(matches)) {
                 out.push_str(&escape(&text[last..i]));
-                out.push_str(&format!("<mark id=\"hv-hit-{matches}\" class=\"hv-search-hit\">{}</mark>",escape(&q)));
+                out.push_str(&format!("<mark id=\"shiori-hit-{matches}\" class=\"shiori-search-hit\">{}</mark>",escape(&q)));
                 matches+=1; last=i+q.len();
             }
             out.push_str(&escape(&text[last..]));
@@ -163,7 +163,7 @@ fn display_html(source:&str, uri:&Url, state:&State) -> (String,usize) {
             for child in frag.children().collect::<Vec<_>>() { node.insert_before(child); } node.detach();
         }
     }
-    let css = format!("html{{color-scheme:{}}} .hv-search-hit{{background:#ffe290!important;color:#211b0a!important;scroll-margin-top:36px}} .hv-search-hit:target{{outline:3px solid #c68019}}",if theme=="dark"{"dark"}else if theme=="light"{"light"}else{"light dark"});
+    let css = format!("html{{color-scheme:{}}} .shiori-search-hit{{background:#ffe290!important;color:#211b0a!important;scroll-margin-top:36px}} .shiori-search-hit:target{{outline:3px solid #c68019}}",if theme=="dark"{"dark"}else if theme=="light"{"light"}else{"light dark"});
     let style_doc = kuchiki::parse_html().one(format!("<html><head><style>{css}</style></head></html>"));
     doc.select_first("head").unwrap().as_node().append(style_doc.select_first("style").unwrap().as_node().clone());
     (doc.to_string(),matches)
@@ -210,7 +210,7 @@ mod tests {
     #[test] fn display_removes_active_content_and_preserves_text() {
         let source="<html><head><meta http-equiv='refresh' content='0;url=https://example.com'></head><body onload='evil()'><script>evil()</script><iframe src='https://example.com'></iframe><a href='javascript:evil()'>外部</a><p>日本語の検索</p></body></html>";
         let (out,hits)=display_html(source,&Url::parse("vault://localhost/token/n.html?q=検索").unwrap(),&state());
-        assert!(!out.contains("<script")); assert!(!out.contains("<iframe")); assert!(!out.contains("http-equiv")); assert!(!out.contains("onload=")); assert!(!out.contains("href=\"javascript:")); assert!(out.contains("id=\"hv-hit-0\"")); assert_eq!(hits,1);
+        assert!(!out.contains("<script")); assert!(!out.contains("<iframe")); assert!(!out.contains("http-equiv")); assert!(!out.contains("onload=")); assert!(!out.contains("href=\"javascript:")); assert!(out.contains("id=\"shiori-hit-0\"")); assert_eq!(hits,1);
     }
     #[test] fn paths_do_not_escape_vault() {
         let root=std::env::temp_dir().join(uuid::Uuid::new_v4().to_string()); std::fs::create_dir_all(&root).unwrap();
@@ -234,7 +234,7 @@ mod tests {
             u.path_segments_mut().unwrap().pop_if_empty().extend(note.path.split('/'));
             u.query_pairs_mut().append_pair("q","知識").append_pair("theme","dark");
             let p=resolve(&v,&u).unwrap();let source=std::fs::read_to_string(p).unwrap();let (out,_)=display_html(&source,&u,&state());
-            assert!(out.contains("data-hv-theme=\"dark\""));assert!(!out.contains("<script"));assert!(!out.contains("<iframe"));assert!(!out.contains("http-equiv="));
+            assert!(out.contains("data-shiori-theme=\"dark\""));assert!(!out.contains("<script"));assert!(!out.contains("<iframe"));assert!(!out.contains("http-equiv="));
         }
         for (p,b) in files {assert_eq!(std::fs::read(p).unwrap(),b);}
     }

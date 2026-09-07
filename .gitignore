@@ -12,6 +12,7 @@ node_modules/
 .env.*
 !.env.example
 # Device-local derived data
+.shiori/
 .html-vault/
 *.sqlite
 *.sqlite3

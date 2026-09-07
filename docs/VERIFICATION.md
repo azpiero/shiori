@@ -1,4 +1,4 @@
-# 表示試作の検証記録
+# shiori 表示試作の検証記録
 
 実施日：2026-09-08
 
@@ -77,3 +77,12 @@ Computer Useは「permissions are not granted」で利用できず、実画面�
 iframe方式を最初の検証対象として実装した。Text fragmentは比較用ボタンを設け、通常の検索位置移動は表示用HTMLにマーカーを作る方式にした。正本に対する部分書き込みの要件とは別の処理である。
 
 実画面が確認できていないため、iframe方式の採用確定、Text fragmentの実測結果、Tauriの操作感の評価は保留する。子WebView方式もまだ作っていない。
+
+## shioriへの名称変更と移動（2026-09-08）
+
+- 作業ルートを`~/Documents/shiori/`へ移動した。ソースは`app/`、実ノートは`vault/`。
+- Git履歴とアプリ側のorigin（azpiero/shiori）を保持した。
+- アプリ名・Rustパッケージ・識別子・UI・サンプル・仕様書をshioriへ更新した。
+- 新しい場所でRustテスト4件、JavaScript構文チェック、再ビルド、アプリ署名検証が成功。
+- `scripts/build-macos.sh`で同じ配置にshiori.appを再生成できる。
+- 名称変更後の実画面は未確認。旧アプリを終了してoutputs/shiori.appを開き直す必要がある。
