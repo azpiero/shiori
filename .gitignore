@@ -1,0 +1,19 @@
+# Build and generated files
+/target/
+/src-tauri/target/
+/src-tauri/gen/
+/dist/
+*.app/
+*.dmg
+node_modules/
+.DS_Store
+# Local settings and secrets
+.env
+.env.*
+!.env.example
+# Device-local derived data
+.html-vault/
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm

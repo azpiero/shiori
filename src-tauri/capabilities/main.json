@@ -1,0 +1,1 @@
+{"identifier":"main-ui","description":"Only the application UI receives permissions","windows":["main"],"permissions":["core:default","dialog:allow-open"]}
