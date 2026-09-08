@@ -196,7 +196,7 @@ fn display_html(source:&str, uri:&Url) -> (String,usize) {
             for child in frag.children().collect::<Vec<_>>() { node.insert_before(child); } node.detach();
         }
     }
-    let css = format!("html{{color-scheme:{}}} .shiori-search-hit{{background:#ffe290!important;color:#211b0a!important;scroll-margin-top:36px}} .shiori-search-hit:target{{outline:3px solid #c68019}}",if theme=="dark"{"dark"}else if theme=="light"{"light"}else{"light dark"});
+    let css = format!("html{{color-scheme:{}}} @media screen{{body{{padding-top:20px}}}} .shiori-search-hit{{background:#ffe290!important;color:#211b0a!important;scroll-margin-top:36px}} .shiori-search-hit:target{{outline:3px solid #c68019}}",if theme=="dark"{"dark"}else if theme=="light"{"light"}else{"light dark"});
     let style_doc = kuchiki::parse_html().one(format!("<html><head><style>{css}</style></head></html>"));
     doc.select_first("head").unwrap().as_node().append(style_doc.select_first("style").unwrap().as_node().clone());
     (doc.to_string(),matches)

@@ -291,3 +291,10 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - JavaScript: 71 tests passed. Added menu navigation/dismissal, terminal action restrictions, and deferred refresh failure/busy recovery coverage; existing switch, restoration warning, and read-error tests remain passing.
 - Headless Chromium with mocked Tauri IPC verified 760px and 1100px windows, light/dark themes, fixed footer position while scrolling 200 notes, menu viewport bounds, keyboard navigation/Escape/Tab, outside-click dismissal, and bounded diagnostics with 20 read errors. Visually inspected narrow dark and expanded diagnostics screenshots.
 - `git diff --check` passed. Native macOS folder-picker behavior and the packaged viewer remain manual checks.
+
+## Issue #57: tab addition and reader styling
+
+- JavaScript: 73 tests passed. Added same-pane empty-tab creation/focus, shared 12-tab limit and re-enabling, and tagged/untagged/empty-tab icon coverage.
+- Chromium with mocked Tauri IPC verified new-tab focus, arrow navigation, disabled add controls at the combined limit, re-enabling after close, 320px panes with 22 wrapping tags, the 76px tag scroll bound, and fixed pane controls during tab scrolling.
+- Visually inspected light and dark layouts. Native packaged viewer operation remains a manual check.
+- Follow-up spacing adjustments: retained 16px tag top padding, matched horizontal inset to the canonical theme, removed tag bottom padding, and set viewer screen body top padding to 20px. Plus and close icons use centered SVGs. Rechecked Chromium layout and all 73 JavaScript tests; Rust: 32 passed, 1 benchmark ignored.

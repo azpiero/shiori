@@ -717,3 +717,11 @@ This replaces the earlier tag-membership graph described above.
 - Support menu semantics, Enter/Space and arrow-key opening, arrow/Home/End navigation, Escape focus restoration, Tab dismissal, and outside-click dismissal. Terminal sessions disable switching but allow reload.
 - Place Vault warnings and read errors above the footer in a bounded scroll area. Keep the external-change action in the reader.
 - Recent-vault history is outside this change; settings continue to store only `last_vault`.
+
+## Reader tab and tag styling (#57)
+
+- Add a trailing ＋ outside each tablist to open an empty tab in that pane, focus its title, and scroll it into view. Disable both add buttons at the existing combined limit of 12 tabs; closing a tab restores availability.
+- Keep pane controls fixed beside the scrolling tabs. Retain tablist arrow/Home/End navigation and existing iframe preservation.
+- Use the document surface and a raised top/side outline for selected tabs, without bold text or an accent underline. Mute inactive tabs and remove the tabbar bottom border; shape and `aria-selected` supplement color.
+- Add a decorative tag icon, 16px top padding, and no bottom padding to the tag row. Match its horizontal inset to the canonical HTML theme (7% with an 850px centered content width). Remove its bottom border and retain the 76px scroll limit and 320px pane support. Align the trailing SVG plus icon with the tab content height.
+- In the viewer's screen stylesheet, set body top padding to 20px so the document begins closer to the tag row. Vault HTML/CSS files and print styling are unchanged. Render tab close controls as centered 14px SVG icons within 26px-wide buttons.
