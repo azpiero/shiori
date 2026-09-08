@@ -205,8 +205,8 @@ test('tab surface selection follows aria-selected across switches in both panes'
 test('two-action toolbar duplicates the note and preserves the survivor when adding beside it again',()=>{
  const {reader,document}=setup();const pane=i=>document.querySelector('#pane-'+i),button=(i,action)=>pane(i).querySelector(`[data-action="${action}"]`),click=(i,action)=>pane(i).onclick({target:button(i,action)});
  const left=reader.open('a.html','','current','alpha');
- assert.equal(pane(0).querySelector('.pane-actions').querySelectorAll('button').length,2);
- assert.equal(button(0,'close-pane').disabled,true);click(0,'split');const right=reader.model.tab,frame=reader.frames.get(right.id).frame;
+ assert.equal(pane(0).querySelector('.pane-controls').querySelectorAll('button').length,2);
+ assert.equal(button(0,'split').closest('[role="tablist"]'),null);assert.equal(pane(0).querySelector('.reader-tabs').parentNode,pane(0).querySelector('.pane-controls').parentNode);assert.equal(button(0,'close-pane').disabled,true);click(0,'split');const right=reader.model.tab,frame=reader.frames.get(right.id).frame;
  assert.equal(right.path,left.path);assert.equal(right.query,'alpha');assert.notEqual(right.id,left.id);
  for(const i of [0,1])assert.equal(button(i,'split').disabled,true);
  click(1,'split');assert.equal(reader.model.all().length,2);

@@ -116,7 +116,7 @@ terminalPanel=ShioriTerminal.create({document,invoke,listen,getContext:()=>!vaul
 function renderList(){
  if(!vault)return;
  const focused=document.activeElement;
- const focusKey=['path','folder','createFolder','renameFolder'].find(key=>focused?.dataset[key]!==undefined);
+ const focusKey=['path','folder'].find(key=>focused?.dataset[key]!==undefined);
  const focusPath=focused?.dataset[focusKey];
  const focusContainer=focused?.closest('#notes, #currentNote')?.id;
  const matches=ShioriSearch.filter(vault.notes.filter(n=>n.path.startsWith('notes/')),{text:query,tags:activeTags});
@@ -127,7 +127,7 @@ function renderList(){
  const renderFolder=({path,notes,children})=>{
   const expanded=filtered||!collapsedFolders.has(path),id=groupId++;
   const renaming=folderEdit?.mode==='rename'&&folderEdit.path===path;
-  return `<section class="folder-group"><div class="folder-heading" data-folder-heading="${escape(path)}">${renaming?editor():`<button class="folder-row" data-folder="${escape(path)}" aria-expanded="${expanded}" aria-controls="folder-notes-${id}" title="${escape(path)}"><span aria-hidden="true">${expanded?'▾':'▸'}</span><span class="folder-name">${escape(path.split('/').pop())}</span></button><button class="folder-tool" data-create-folder="${escape(path)}" aria-label="${escape(path)}にフォルダを作成" title="子フォルダを作成"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5h6l2 2h10v13H3zM12 10v7M8.5 13.5h7"/></svg></button>`}</div><div class="folder-children" id="folder-notes-${id}" ${expanded?'':'hidden'}>${folderEdit?.mode==='create'&&folderEdit.path===path?editor():''}${children.map(renderFolder).join('')}${notes.map(n=>`<article class="note ${n.path===selected?'active':''}"><button class="note-open" draggable="true" aria-describedby="folderMoveHelp" title="${escape(n.path)}" aria-label="${escape(n.title)} — ${escape(n.path)}" data-path="${escape(n.path)}" ${n.path===selected?'aria-current="true"':''}><span class="note-title">${escape(n.title)}</span></button></article>`).join('')}</div></section>`;
+  return `<section class="folder-group"><div class="folder-heading" data-folder-heading="${escape(path)}">${renaming?editor():`<button class="folder-row" data-folder="${escape(path)}" aria-expanded="${expanded}" aria-controls="folder-notes-${id}" title="${escape(path)}"><svg class="tree-icon folder-icon ${expanded?'open':'closed'}" viewBox="0 0 24 24" aria-hidden="true"><path d="${expanded?'M3 7V5h6l2 2h10v3M3 7h6l2 3h10l-3 10H3z':'M3 7V5h6l2 2h10v13H3z'}"/></svg><span class="folder-name">${escape(path.split('/').pop())}</span></button>`}</div><div class="folder-children" id="folder-notes-${id}" ${expanded?'':'hidden'}>${folderEdit?.mode==='create'&&folderEdit.path===path?editor():''}${children.map(renderFolder).join('')}${notes.map(n=>`<article class="note ${n.path===selected?'active':''}"><button class="note-open" draggable="true" aria-describedby="folderMoveHelp" title="${escape(n.title)} — ${escape(n.path)}" aria-label="${escape(n.title)} — ${escape(n.path)}" data-path="${escape(n.path)}" ${n.path===selected?'aria-current="true"':''}><svg class="tree-icon document-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h9l5 5v13H5zM14 3v6h5M8 13h8M8 17h6"/></svg><span class="note-title">${escape(n.title)}</span></button></article>`).join('')}</div></section>`;
  };
  $('#notes').innerHTML=ShioriFolders.tree(matches,ShioriFolders.folders(vault),filtered).map(renderFolder).join('')||'<div class="empty">一致するノートがありません</div>';
  if(inputFocused&&$('#folderName')){$('#folderName').focus();$('#folderName').setSelectionRange(caret,caret);}
@@ -144,8 +144,6 @@ function renderCurrentNote(){
 }
 function activateNoteList(e){
  const button=e.target.closest('button');if(!button)return;
- if(button.dataset.createFolder!==undefined){editFolder('create',button.dataset.createFolder);return;}
- if(button.dataset.renameFolder!==undefined){editFolder('rename',button.dataset.renameFolder);return;}
  if(button.dataset.folder!==undefined){const path=button.dataset.folder;if(dragNote?.keyboard){const source=dragNote.path;const valid=dropFolder(e);clearDrag();if(valid)beginMove(source,path);return;}if(collapsedFolders.has(path))collapsedFolders.delete(path);else collapsedFolders.add(path);renderList();[...$('#notes').querySelectorAll('[data-folder]')].find(b=>b.dataset.folder===path)?.focus();return;}
  if(button.dataset.path!==undefined)openNote(button.dataset.path,'',e.shiftKey?'side':e.metaKey||e.ctrlKey?'tab':'current');
 }

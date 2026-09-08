@@ -682,3 +682,12 @@ This replaces the earlier tag-membership graph described above.
 - Display at most three notifications at once; queue additional entries without discarding persistent errors. Deduplicate identical type/message pairs across visible and queued entries.
 - Suppress repeated revision-poll failures even after dismissal until a successful poll or a different vault/error. Ignore failures from obsolete polling contexts.
 - Keep routine edit successes and navigation silent. Preserve vault warnings, sidebar read-error details and the external-change notice. Expose loading on the reload control and note list through aria-busy.
+
+## Issues #47 and #50: Reader and tree alignment (2026-09-09)
+
+- Combine the tab strip and pane controls into one row. Tabs scroll horizontally; the two pane icons stay fixed on the right as siblings outside the tablist. Retain their disabled states and existing keyboard behavior.
+- Keep tags and document search in separate rows. Validate the header at 320px and 640px and in split mode with five tags.
+- Match folder labels to note titles: ink color, 12px, weight 550, line height 1.6. Align same-level text and row heights while retaining disclosure arrows, indentation and hierarchy guides.
+- Follow-up: remove the per-row folder creation button. Use the folder context menu (secondary click or Shift+F10) for creation. Prefix folder names and HTML note titles with distinct folder/document icons, retaining aligned labels and existing indentation.
+
+- Tree labels remain on one line and truncate with ellipsis. Remove disclosure arrows; open/closed folder icons convey expansion while aria-expanded retains the accessible state. Full note titles and paths remain available on hover.

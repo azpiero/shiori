@@ -71,7 +71,7 @@ Edits change only `meta[name="note-tag"]` elements in an explicit HTML head. Oth
 
 Save checks the original source hash and refuses external changes. On conflict, cancel, reload the vault, and review the newer note before editing again. Successful saves update both panes, search candidates, and graph data while preserving tabs and queries. Edited notes and any other notes whose source hash changed reload, resetting their scroll/match position; unchanged iframes remain attached. Scan errors after a write are reported as **saved**, with details in the sidebar. A final hash check and atomic replacement cannot eliminate the small race with unrelated external editors; see the [tag editing contract](docs/TAG_EDITING.md).
 
-The active pane has an accented top border. Opening a note from the sidebar or graph normally replaces its active tab. Click inside a pane or move focus into it with Tab to make it active. An empty pane itself is focusable; select it, then choose a note from the sidebar.
+Pane controls stay fixed at the right of the horizontally scrolling tab row. Tags and document search remain on separate rows below it. The active pane has an accented top border. Opening a note from the sidebar or graph normally replaces its active tab. Click inside a pane or move focus into it with Tab to make it active. An empty pane itself is focusable; select it, then choose a note from the sidebar.
 
 | Action | How |
 | --- | --- |
@@ -94,9 +94,9 @@ Reloading the vault restores surviving tabs, their selected pane/tab, and their 
 
 ## Folders and moving notes
 
-The sidebar starts at `notes/`; vault-root files and unrelated directories are not listed. Existing folders below `notes/`, including empty folders, appear in an indented tree with hierarchy guide lines and short folder names. Collapsing a folder hides its entire subtree. Search and tag filters retain matching folders and their ancestors and temporarily expand them. Clearing filters restores the collapsed state.
+The sidebar starts at `notes/`; vault-root files and unrelated directories are not listed. Existing folders below `notes/`, including empty folders, appear in an indented tree with hierarchy guide lines and short folder names. Folder and note labels share the same typography and alignment. Collapsing a folder hides its entire subtree. Search and tag filters retain matching folders and their ancestors and temporarily expand them. Clearing filters restores the collapsed state.
 
-Use the **folder-plus icon** on a folder row to create a child folder. Right-click a folder (secondary click on a trackpad) and choose **名称変更** to rename it directly in its row. Press Enter to save or Escape to cancel. Keyboard users can open the folder menu with Shift+F10 or the Context Menu key. The `notes/` root cannot be renamed. Creating the first folder in an empty vault initializes `notes/`.
+Right-click a folder and choose **新規フォルダ** to create a child folder. Folder and document icons distinguish directories from HTML notes. Open/closed folder icons indicate expansion without separate arrows. Long names stay on one line with an ellipsis; hover to see the full name. Right-click a folder (secondary click on a trackpad) and choose **名称変更** to rename it directly in its row. Press Enter to save or Escape to cancel. Keyboard users can open the folder menu with Shift+F10 or the Context Menu key. The `notes/` root cannot be renamed. Creating the first folder in an empty vault initializes `notes/`.
 
 Drag a note title onto a folder heading to move it there directly, including a folder just created in shiori. There is no per-file move button or destination modal. For keyboard access, focus a note and press Space, Tab to the destination folder, and press Enter; Escape cancels the selection.
 

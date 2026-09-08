@@ -258,3 +258,12 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - JavaScript: 66 tests passed. Covers notification lifetime, roles, safe text rendering, queue/deduplication, hover/focus timer pauses, explicit dismissal focus and polling suppression/recovery.
 - Headless Chromium with mocked IPC verified full-height layout, persistent errors/warnings, information expiry and focus pause, queue promotion, silent tag saving and contained notifications in light/dark themes at 1100px and 780px.
 - Syntax/diff checks and macOS build/signature verification passed. Native WKWebView and screen-reader announcements remain manual checks. Backend commands are unchanged.
+
+## Issues #47 and #50: Reader and tree alignment (2026-09-09)
+
+- JavaScript: 66 tests passed, including tablist/control separation and existing split/remove behavior.
+- Headless Chromium with mocked IPC verified 320px and 640px pane widths, 320px split panes, five tags, fixed controls during tab scrolling, matching folder/note typography and text alignment, light/dark themes, arrow/Home navigation, Delete and keyboard pane removal.
+- Syntax/diff checks and macOS build/signature verification passed. Native WKWebView visual confirmation remains manual.
+- Follow-up: 66 JavaScript tests passed after removing folder creation buttons and adding folder/document icons. Folder creation through the context menu remains covered; browser layout checks confirm same-level label alignment with the icons.
+
+- Follow-up: verified single-line ellipsis for long note titles and changing SVG folder icons on collapse/expand in Chromium. All 66 JavaScript tests and macOS build/signature checks passed.
