@@ -3,6 +3,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import {createRequire} from 'node:module';
+const {filter:filterNotes}=createRequire(import.meta.url)('../ui/search.js');
 import {performance} from 'node:perf_hooks';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
@@ -20,10 +22,9 @@ if (!count) {
   console.log(JSON.stringify(results,null,2));
 } else {
   const source=fs.readFileSync(path.join(path.dirname(self),'../ui/app.js'),'utf8');
-  const filterLine=source.split('\n').find(l=>l.trim().startsWith('const matches=vault.notes.filter'));
   const listLine=source.split('\n').find(l=>l.trim().startsWith("$('#notes').innerHTML=matches.map"));
-  if(!filterLine||!listLine)throw new Error('Production code changed: benchmark extraction must be reviewed');
-  const filter=vm.runInNewContext(`(function(vault,tag,q){${filterLine};return matches;})`);
+  if(!listLine)throw new Error('Production code changed: benchmark extraction must be reviewed');
+  const filter=(vault,tag,q)=>filterNotes(vault.notes,{text:q,tags:tag?[tag]:[]});
   const expression=listLine.trim().replace("$('#notes').innerHTML=",'').replace(/;$/,'');
   const render=vm.runInNewContext(`(function(matches,selected,escape){return ${expression};})`);
   const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

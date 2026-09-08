@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const {build}=require('../ui/graph.js');
+const ShioriSearch=require('../ui/search.js');
 
 // Exercise app event handlers with a small DOM/Tauri adapter. These checks do not
 // simulate WebView rendering, layout, or iframe navigation; those require manual QA.
@@ -14,6 +15,8 @@ async function setup(initialErrors=[]){
   set innerHTML(html){this.html=html;if(this.name==='#app'){for(const match of html.matchAll(/id="([^"]+)"/g))elements.set('#'+match[1],new Element('#'+match[1]));}if(this.name==='#graphSvg')elements.set('#graphSvg .graph-world',new Element('world'));}
   get innerHTML(){return this.html||'';}
   setAttribute(k,v){this.attributes[k]=v;}
+  removeAttribute(k){delete this.attributes[k];}
+  setSelectionRange(start,end){this.selectionStart=start;this.selectionEnd=end;}
   addEventListener(k,fn){this.events[k]=fn;}
   focus(){document.activeElement=this;}
   closest(){return null;}
@@ -26,7 +29,7 @@ async function setup(initialErrors=[]){
  const notes=Array.from({length:160},(_,i)=>({path:`notes/${i}.html`,title:`Note ${i}`,text:'knowledge',tags:[i%2?'odd':'even'],headings:[]}));
  const vault={root:'/test/vault',token:'test-token',revision:'r1',notes,errors:initialErrors,scan_ms:1};
  refreshResult=vault;
- const context=vm.createContext({document,URL,performance,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(){},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
+ const context=vm.createContext({document,URL,performance,ShioriSearch,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(){},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
  const run=code=>vm.runInContext(code,context);
  run(fs.readFileSync(require.resolve('../ui/app.js'),'utf8'));
  await new Promise(resolve=>setImmediate(resolve));
@@ -41,7 +44,7 @@ test('graph exploration survives opening a note and switching back; context chan
  const transform=get('#graphSvg .graph-world').attributes.transform;
  run('openNote("notes/2.html")');served();get('#showGraph').onclick();
  assert.equal(get('#graphSvg .graph-world').attributes.transform,transform);
- assert.equal(run('tag'),'even');assert.equal(get('#showGraph').attributes['aria-pressed'],'true');
+ assert.equal(run('activeTags.join()'),'even');assert.equal(get('#showGraph').attributes['aria-pressed'],'true');
  run('setTag("odd")');assert.equal(run('graphScale'),1);assert.equal(run('graphX'),0);
  run('setTag("");setView(true)');get('#graphNext').onclick();get('#zoomIn').onclick();
  run('openNote("notes/155.html");setView(true)');assert.equal(run('graphPage'),1);assert.equal(run('graphScale'),1.25);
@@ -94,8 +97,8 @@ test('failed refresh keeps update notification and re-enables vault actions',asy
 
 test('Enter waits for IME completion; events from a previous vault are ignored',async()=>{
  const {run,get,events}=await setup();
- get('#search').value='Note 5';get('#search').events.keydown({key:'Enter',isComposing:true});assert.equal(run('selected'),'notes/0.html');
- get('#search').events.keydown({key:'Enter',isComposing:false});assert.equal(run('selected'),'notes/5.html');
+ get('#search').value='Note 5';get('#search').events.keydown({key:'Enter',preventDefault(){},isComposing:true});assert.equal(run('selected'),'notes/0.html');
+ get('#search').events.keydown({key:'Enter',preventDefault(){},isComposing:false});assert.equal(run('selected'),'notes/5.html');
  events.get('note-served')({payload:{path:'stale.html',url:'vault://localhost/old-token/stale.html',hits:9}});
  assert.equal(run('selected'),'notes/5.html');
 });
@@ -121,4 +124,33 @@ test('startup still opens samples; the remaining folder and theme controls work'
  run('setView(true)');get('#theme').onclick();
  assert.equal(get('#theme').attributes['aria-pressed'],'true');assert.equal(run('graphMode'),true);
  get('#theme').onclick();assert.equal(get('#theme').attributes['aria-pressed'],'false');
+});
+
+test('tag syntax and graph selection share one query while highlighting only free text',async()=>{
+ const {run,get,served}=await setup();
+ get('#search').value='knowledge tag: even';run('applySearch();openNote(selected)');served();
+ assert.equal(run('currentMatches.length'),80);
+ assert.equal(new URL(get('#noteFrame').src).searchParams.get('q'),'knowledge');
+ run('setTag("odd")');assert.equal(get('#search').value,'knowledge tag: odd');assert.equal(run('activeTags.join()'),'odd');
+ get('#search').value='tag: odd';run('applySearch()');
+ assert.equal(get('#searchNavigation').hidden,true);assert.equal(new URL(get('#noteFrame').src).searchParams.get('q'),'');
+});
+
+test('keyboard completion changes the filter without opening a note, and Escape dismisses it',async()=>{
+ const {run,get}=await setup();const input=get('#search');
+ input.focus();input.value='tag: ';input.setSelectionRange(5,5);
+ input.events.keydown({key:'ArrowDown',preventDefault(){}});
+ assert.equal(input.attributes['aria-expanded'],'true');assert.equal(input.attributes['aria-activedescendant'],'tag-option-0');
+ input.events.keydown({key:'Enter',preventDefault(){}});
+ assert.equal(input.value,'tag: even ');assert.equal(run('activeTags.join()'),'even');assert.equal(run('selected'),'notes/0.html');assert.equal(input.attributes['aria-expanded'],'false');
+ input.focus();input.value='tag: ';input.setSelectionRange(5,5);input.events.keydown({key:'ArrowUp',preventDefault(){}});
+ assert.equal(input.attributes['aria-activedescendant'],'tag-option-1');
+ input.events.keydown({key:'Escape'});assert.equal(input.attributes['aria-expanded'],'false');assert.equal(input.value,'tag: ');
+});
+
+test('IME composition does not apply partial tag filters or open suggestions',async()=>{
+ const {run,get}=await setup();const input=get('#search');
+ input.events.compositionstart();input.value='tag: odd';run('applySearch();showSuggestions()');
+ assert.equal(run('activeTags.length'),0);assert.equal(input.attributes['aria-expanded'],'false');
+ input.events.compositionend();run('clearTimeout(timer);applySearch()');assert.equal(run('activeTags.join()'),'odd');
 });

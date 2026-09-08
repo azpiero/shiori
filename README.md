@@ -20,7 +20,7 @@ Your vault is a folder of ordinary HTML, CSS, and images. HTML files remain the 
 
 ## Screenshots
 
-Earlier macOS prototype showing the bundled sample vault in dark mode. These screenshots predate the sidebar navigation and simplified header changes; updated captures are pending native UI verification.
+Earlier macOS prototype showing the bundled sample vault in dark mode. These screenshots predate the simplified header, icon navigation, and tag search changes; updated captures are pending native UI verification.
 
 | Read HTML notes | Explore shared tags |
 | --- | --- |
@@ -32,14 +32,31 @@ Earlier macOS prototype showing the bundled sample vault in dark mode. These scr
 - Read HTML with local images, tables, shared CSS, and note-specific styles.
 - Move between highlighted search matches using controls shown only during an active note search.
 - Explore a graph connecting notes to their tags. Select a tag to filter or a note to read it.
-- See titles, paths, and tags in the sidebar. Tag buttons marked ↗ open a tag graph; the filter above the list narrows the results.
+- Browse a compact title-and-tag list. Hover over a note title to see its path; tag buttons marked ↗ open a tag graph and update the search field.
 - Switch between light and dark themes and resize the sidebar.
 - Reload the entire vault from the button beside its name, or apply an external-change notification.
 - Expand the sidebar’s read-error details to see which files could not be loaded and why.
 
-Use the left navigation rail to switch between notes and the tag graph. Returning from a note preserves the graph page, zoom, and pan. Changing the search or tag filter, opening a vault, or refreshing its contents resets graph exploration; switching pages resets zoom and pan. A note excluded by the active filters remains identified in a compact sidebar section.
+Use the square icon buttons in the left navigation rail to switch between notes and the tag graph. Returning from a note preserves the graph page, zoom, and pan. Changing the search or tag filter, opening a vault, or refreshing its contents resets graph exploration; switching pages resets zoom and pan. A note excluded by the active filters remains identified in a compact sidebar section.
 
 The graph displays up to 150 notes per page, follows the current search and tag filter, and supports zoom, pan, and keyboard selection. Its edges represent tag membership; hierarchical tag names use exact matching, and HTML links do not create graph edges.
+
+## Search by text and tag
+
+Type a phrase to search note titles and body text. Add `tag:` clauses to filter by existing tags:
+
+| Query | Meaning |
+| --- | --- |
+| `tag: 開発/IT` | Notes with exactly the tag `開発/IT` |
+| `ownership tag: Rust` | The text `ownership` and the tag `Rust` |
+| `tag: Rust tag: 学習` | Notes containing both tags (AND) |
+| `tag: "machine learning"` | A tag whose name contains spaces |
+
+Tags use case-sensitive exact matching: `tag: 開発` does not include `開発/IT`. Free text remains a single case-insensitive substring search. Only free text is highlighted in the document.
+
+Type `tag:` to see up to eight matching tag suggestions. Use ↑/↓ and Enter to insert a suggestion, Escape to dismiss, or click a candidate. Enter with no candidate selected opens the first matching note. Quoted tag names support JSON escapes such as `\"` and `\\`; names beginning with `tag:` must also be quoted. Empty clauses and unclosed quotes are ignored until completed; a complete but unknown tag returns no matches. IME composition is applied after confirmation.
+
+The search field is the source of filter state. Selecting a tag in the graph or a note's ↗ tag button replaces the tag clauses with that tag while preserving free text. Remove the `tag:` clause to clear its filter. The **NOTES** count shows matching notes rather than a separate vault total.
 
 ## Workflow: AI writes, shiori reads, Git keeps history
 
@@ -109,9 +126,9 @@ cd app
 cargo run --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
 ```
 
-The app starts with seven bundled sample notes. The header contains the app name, folder picker, and theme toggle. Choose **フォルダを開く** (Open folder) to open your vault, **グラフ** (Graph) in the left navigation rail to explore tags, and **更新を反映** (Apply updates) after editing notes externally. To return to the samples, restart the app or open `sample-vault/` through the folder picker.
+The app starts with seven bundled sample notes. The header contains the app name, folder picker, and theme toggle. Choose **フォルダを開く** (Open folder) to open your vault, the graph icon in the left navigation rail to explore tags, and **更新を反映** (Apply updates) after editing notes externally. To return to the samples, restart the app or open `sample-vault/` through the folder picker.
 
-Read-only status remains visible in the sidebar and status bar. The development diagnostics panel and log collection have been removed; failed note reads are listed under **読み取りエラー** (Read errors) in the sidebar. The status bar retains basic load timings.
+Read-only status remains visible in the status bar, including while loading or showing errors. The development diagnostics panel and log collection have been removed; failed note reads are listed under **読み取りエラー** (Read errors) in the sidebar. The status bar retains basic load timings.
 
 ### Build a macOS app bundle
 
@@ -133,9 +150,10 @@ cargo test --locked --manifest-path src-tauri/Cargo.toml --features custom-proto
 node --test tests/*.test.cjs
 node --check ui/app.js
 node --check ui/graph.js
+node --check ui/search.js
 ```
 
-The Rust suite covers vault boundaries, HTML sanitization, and preservation of source files. JavaScript tests cover tag membership, graph pagination, and navigation/search state using a small DOM/Tauri adapter. They do not verify native WebView rendering or layout. The performance benchmark is an opt-in ignored Rust test; see [performance measurements and reproduction steps](docs/PERFORMANCE.md).
+The Rust suite covers vault boundaries, HTML sanitization, and preservation of source files. JavaScript tests cover tag syntax and suggestions, tag membership, graph pagination, and navigation/search state using a small DOM/Tauri adapter. They do not verify native WebView rendering or layout. The performance benchmark is an opt-in ignored Rust test; see [performance measurements and reproduction steps](docs/PERFORMANCE.md).
 
 ## Technology stack
 
