@@ -13,6 +13,7 @@ mod tag_editing;
 mod note_move;
 mod folders;
 mod terminal;
+mod reader_menu;
 
 const MAX_FILE: u64 = 16 * 1024 * 1024;
 const NOTE_CSP: &str = "default-src 'none'; script-src 'none'; style-src vault: 'unsafe-inline'; img-src vault:; font-src vault:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; sandbox";
@@ -227,6 +228,12 @@ fn respond(app: &tauri::AppHandle, request: tauri::http::Request<Vec<u8>>) -> ta
 }
 fn main() {
     tauri::Builder::default()
+        .menu(reader_menu::build)
+        .on_menu_event(|app, event| {
+            if let Some(action) = reader_menu::action(event.id().as_ref()) {
+                let _ = app.emit_to("main", "reader-menu", action);
+            }
+        })
         .manage(State { vault:Mutex::new(None) })
         .manage(terminal::Runner::default())
         .plugin(tauri_plugin_dialog::init())
