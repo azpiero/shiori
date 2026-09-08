@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-const {build}=require('../ui/graph.js');
+const ShioriGraph=require('../ui/graph.js');const ShioriGraphView=require('../ui/graph-view.js');
 const ShioriSearch=require('../ui/search.js');
 const ShioriReader=require('../ui/reader.js');
 const ShioriTagEditor=require('../ui/tag-editor.js');
@@ -21,7 +21,7 @@ async function setup(initialErrors=[],initialWarnings=[]){
  const notes=Array.from({length:160},(_,i)=>({path:`notes/${i}.html`,title:`Note ${i}`,text:'knowledge',tags:[i%2?'odd':'even'],headings:[]}));
  const vault={root:'/test/vault',token:'test-token',revision:'r1',notes,errors:initialErrors,warnings:initialWarnings,scan_ms:1};
  refreshResult=vault;
- const context=vm.createContext({document,URL,performance,ShioriSearch,ShioriReader,ShioriTagEditor,ShioriFolders,ShioriNoteMove,ShioriTerminal,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(fn){intervals.push(fn);},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(commands[name])return commands[name](args);if(name==='terminal_start')return {cwd:'/test/workspace',vault:vault.root};if(name==='terminal_stop')return;if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
+ const context=vm.createContext({document,URL,performance,ShioriSearch,ShioriReader,ShioriTagEditor,ShioriFolders,ShioriNoteMove,ShioriTerminal,ShioriGraph,ShioriGraphView,localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(fn){intervals.push(fn);},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(commands[name])return commands[name](args);if(name==='terminal_start')return {cwd:'/test/workspace',vault:vault.root};if(name==='terminal_stop')return;if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
  const run=code=>vm.runInContext(code,context);
  run(fs.readFileSync(require.resolve('../ui/app.js'),'utf8'));
  await new Promise(resolve=>setImmediate(resolve));
@@ -32,15 +32,15 @@ async function setup(initialErrors=[],initialWarnings=[]){
 
 test('graph exploration survives opening a note and switching back; context changes reset it',async()=>{
  const {run,get,served}=await setup();
- run('setTag("even");setView(true)');get('#zoomIn').onclick();run('graphX=80;graphY=-40;graphTransform()');
- const transform=get('#graphSvg .graph-world').attributes.transform;
+ run('setTag("even");setView(true)');get('#zoomIn').onclick();
+ const transform=run('JSON.stringify(graphView.getState())');
  run('openNote("notes/2.html")');served();get('#showGraph').onclick();
- assert.equal(get('#graphSvg .graph-world').attributes.transform,transform);
+ assert.equal(run('JSON.stringify(graphView.getState())'),transform);
  assert.equal(run('activeTags.join()'),'even');assert.equal(get('#showGraph').attributes['aria-pressed'],'true');
- run('setTag("odd")');assert.equal(run('graphScale'),1);assert.equal(run('graphX'),0);
- run('setTag("");setView(true)');get('#graphNext').onclick();get('#zoomIn').onclick();
- run('openNote("notes/155.html");setView(true)');assert.equal(run('graphPage'),1);assert.equal(run('graphScale'),1.25);
- get('#search').value='Note 1';run('applySearch()');assert.equal(run('graphPage'),0);assert.equal(run('graphScale'),1);
+ run('setTag("odd")');assert.equal(run('graphView.getState().scale'),1);assert.equal(run('graphView.getState().x'),0);
+ run('setTag("");setView(true)');get('#zoomIn').onclick();
+ run('openNote("notes/155.html");setView(true)');assert.equal(run('graphView.getState().scale'),1.25);
+ get('#search').value='Note 1';run('applySearch()');assert.equal(run('graphView.getState().scale'),1);
 });
 
 test('list search does not change an already-open tab search',async()=>{
@@ -71,9 +71,9 @@ test('filtering keeps the current title identifiable while tags appear only in t
 
 test('refresh resets graph after content changes and handles deleted notes and empty vaults',async()=>{
  const {run,get,vault,setRefresh}=await setup();
- run('setView(true)');get('#graphNext').onclick();get('#zoomIn').onclick();
+ run('setView(true)');get('#zoomIn').onclick();
  setRefresh({...vault,revision:'r2',notes:vault.notes.slice(1)});
- await run('refresh()');assert.equal(run('selected'),'');assert.equal(run('graphPage'),0);assert.equal(run('graphScale'),1);assert.equal(run('graphMode'),true);
+ await run('refresh()');assert.equal(run('selected'),'');assert.equal(run('graphView.getState().scale'),1);assert.equal(run('graphMode'),true);
  setRefresh({...vault,revision:'r3',notes:[]});await run('refresh()');
  assert.equal(run('selected'),'');assert.equal(get('#currentNote').hidden,true);assert.equal(run('reader.model.all().length'),0);assert.equal(get('#reload').disabled,false);
 });
@@ -204,7 +204,7 @@ test('tag save refreshes both panes, candidates and graph while preserving queri
  assert.equal(run('reader.model.panes[0].tabs[0].query'),'alpha');assert.equal(run('reader.model.tab.query'),'beta');
  assert.equal(get('#pane-tags-1').querySelector('[data-tag]').dataset.tag,'new');
  run('reader.model.select(0,reader.model.panes[0].tabs[0].id);reader.render()');assert.equal(get('#pane-tags-0').querySelector('[data-tag]').dataset.tag,'new');
- run('setTag("new");setView(true)');assert.equal(run('currentMatches.length'),1);assert.ok(get('#graphSvg').innerHTML.includes('data-value="new"'));
+ run('setTag("new");setView(true)');assert.equal(run('currentMatches.length'),1);assert.equal(run('graphView.getState().nodes'),1);
  assert.equal(calls.filter(c=>c.name==='set_note_tags').length,1);
 });
 

@@ -2,7 +2,7 @@ const boot = performance.now();
 const {invoke} = window.__TAURI__.core;
 const {listen} = window.__TAURI__.event;
 let vault=null, selected='', query='', activeTags=[], theme=localStorage.getItem('theme')||'light', revisionBusy=false, changed=false, composing=false;
-let graphMode=false,graphPage=0,graphScale=1,graphX=0,graphY=0,currentMatches=[],graphKey=null,vaultBusy=false;
+let graphMode=false,currentMatches=[],graphKey=null,vaultBusy=false;
 let terminalPanel=null,terminalBusy=false,tagEditing=false,tagEditor=null,revisionEpoch=0,moving=false,noteMover=null,dragNote=null;
 const collapsedFolders=new Set();let folderEdit=null;
 const metrics={uiReadyMs:0,scanMs:0};
@@ -15,7 +15,7 @@ $('#app').innerHTML=`<div class="layout">
 <path d="M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4"/>
 </svg>
 </button>
-<button id="showGraph" aria-label="タググラフ表示" title="タググラフ表示" aria-pressed="false" aria-controls="graphPanel">
+<button id="showGraph" aria-label="リンクグラフ表示" title="リンクグラフ表示" aria-pressed="false" aria-controls="graphPanel">
 <svg viewBox="0 0 24 24" aria-hidden="true">
 <path d="m6 7 12 2-7 10L6 7"/>
 <circle cx="6" cy="7" r="3"/>
@@ -66,21 +66,19 @@ $('#app').innerHTML=`<div class="layout">
 <section id="graphPanel" hidden>
 <div class="graph-toolbar">
 <div>
-<strong>タグでつながるノート</strong>
+<strong>リンクでつながるノート</strong>
 <div id="graphSummary" class="graph-summary">
 </div>
 </div>
 <div class="graph-actions">
-<button id="graphPrev" aria-label="前のグラフ">←</button>
-<button id="graphNext" aria-label="次のグラフ">→</button>
 <button id="zoomOut" aria-label="縮小">−</button>
 <button id="zoomIn" aria-label="拡大">＋</button>
 <button id="graphReset">全体表示</button>
 </div>
 </div>
-<p class="graph-help">大きい点＝タグ · 小さい点＝ノート。タグを選んで絞り込み、ノートを選んで本文へ。ドラッグで移動。点にカーソルを重ねるとタイトルを表示。</p>
-<svg id="graphSvg" viewBox="0 0 1000 740" aria-label="タグとノートの関係" role="group">
-</svg>
+<p class="graph-help">点＝ノート · 線＝HTMLリンク。ドラッグで移動、点にカーソルを重ねるとタイトルを表示。クリックで開きます。キーボードは矢印でノートを選択、Enterで開きます。</p>
+<span id="graphNodeLabel" class="graph-node-label" role="status"></span>
+<canvas id="graphCanvas" tabindex="0" role="group" aria-label="ノートのリンクグラフ" aria-describedby="graphNodeLabel"></canvas>
 <div id="graphEmpty" class="empty" hidden>一致するノートがありません</div>
 </section>
 </main>
@@ -201,7 +199,7 @@ async function saveFolder(){
   renderList();renderReadErrors();focusFolder(result.path);status(result.snapshot.errors.length?'フォルダ操作は完了しました。一部の読み取りエラーを確認してください':`フォルダを${draft.mode==='create'?'作成':'変更'}しました: ${result.path}`);
  }catch(e){status(String(e));}finally{moving=false;revisionEpoch++;if($('#folderName')){$('#folderName').disabled=false;$('#folderName').focus();}setVaultBusy(vaultBusy);}
 }
-function invalidateGraph(){graphKey=null;graphPage=0;}
+function invalidateGraph(){graphKey=null;}
 function clearNote(){reader.reset();selected='';renderList();status('HTMLノートがありません');}
 function openNote(path,anchor='',mode='current'){
  if(!vault)return;setView(false);reader.open(path,anchor,mode,query.trim());
@@ -232,7 +230,7 @@ async function load(path=null){
  }catch(e){status(String(e));}finally{setVaultBusy(false);}
 }
 $('#open').onclick=async()=>{try{const path=await invoke('plugin:dialog|open',{options:{directory:true,multiple:false,title:'HTMLを保管したフォルダを選択'}});if(path)await load(path);}catch(e){status(String(e));}};
-$('#theme').onclick=()=>{theme=theme==='light'?'dark':'light';setTheme();reader.theme();};
+$('#theme').onclick=()=>{theme=theme==='light'?'dark':'light';setTheme();reader.theme();graphView.redraw();};
 let timer,suggestions=null,suggestionIndex=-1;
 function hideSuggestions(){suggestions=null;suggestionIndex=-1;$('#tagSuggestions').hidden=true;$('#tagSuggestions').innerHTML='';$('#search').setAttribute('aria-expanded','false');$('#search').removeAttribute('aria-activedescendant');$('#suggestionStatus').textContent='';}
 function showSuggestions(){
@@ -302,32 +300,13 @@ function setTag(value){
  $('#search').value=[parsed.text,value?ShioriSearch.formatTag(value):''].filter(Boolean).join(' ');
  clearTimeout(timer);hideSuggestions();applySearch();
 }
-function setView(graph){graphMode=graph;$('#graphPanel').hidden=!graph;$('#readerPanel').hidden=graph;$('#showGraph').setAttribute('aria-pressed',String(graph));$('#showNote').setAttribute('aria-pressed',String(!graph));if(graph)renderGraph();}
-function graphTransform(){const g=$('#graphSvg .graph-world');if(g)g.setAttribute('transform',`translate(${graphX} ${graphY}) translate(500 370) scale(${graphScale}) translate(-500 -370)`);}
-function resetGraph(){graphScale=1;graphX=0;graphY=0;graphTransform();}
+const graphView=ShioriGraphView.create({canvas:$('#graphCanvas'),label:$('#graphNodeLabel'),onOpen:(path,e)=>{openNote(path,'',e.shiftKey?'side':e.metaKey||e.ctrlKey?'tab':'current');$('#showNote').focus();}});
+function setView(graph){graphMode=graph;$('#graphPanel').hidden=!graph;$('#readerPanel').hidden=graph;$('#showGraph').setAttribute('aria-pressed',String(graph));$('#showNote').setAttribute('aria-pressed',String(!graph));graphView.setVisible(graph);if(graph)renderGraph();}
 function renderGraph(){
- const key=JSON.stringify([vault?.token,vault?.revision,query.trim(),activeTags,graphPage]);
- if(graphKey===key){
-  $('#graphSvg').querySelectorAll('.graph-node.note').forEach(n=>n.classList.toggle('selected',n.dataset.value===selected));
-  graphTransform();return;
- }
- graphKey=key;graphScale=1;graphX=0;graphY=0;
- const model=ShioriGraph.build(currentMatches,graphPage);graphPage=model.page;$('#graphSvg').classList.toggle('dense',model.shown>40);
- $('#graphSummary').textContent=`${activeTags.length?activeTags.map(t=>'#'+t).join(' + ')+' · ':''}${model.total}件中 ${model.shown?model.page*150+1:0}〜${model.page*150+model.shown}件 · ${model.page+1}/${model.pages}ページ（最大150ノート/ページ）`;
- $('#graphPrev').disabled=!model.page;$('#graphNext').disabled=model.page+1>=model.pages;$('#graphEmpty').hidden=!!model.shown;
- const byId=new Map(model.nodes.map(n=>[n.id,n]));
- const xs=model.nodes.map(n=>n.x),ys=model.nodes.map(n=>n.y),left=Math.min(0,...xs)-35,top=Math.min(0,...ys)-35;$('#graphSvg').setAttribute('viewBox',`${left} ${top} ${Math.max(1000,...xs)+220-left} ${Math.max(740,...ys)+35-top}`);
- $('#graphSvg').innerHTML='<g class="graph-world">'+model.edges.map(e=>{const a=byId.get(e.source),b=byId.get(e.target);return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`;}).join('')+model.nodes.map(n=>`<g class="graph-node ${n.kind} ${n.path===selected?'selected':''}" tabindex="0" role="button" aria-label="${escape(n.kind==='tag'?'タグで絞り込む: '+n.label:'ノートを開く: '+n.label)}" data-kind="${n.kind}" data-value="${escape(n.kind==='tag'?n.label:n.path)}" transform="translate(${n.x} ${n.y})"><title>${escape(n.label)}</title><circle r="${n.kind==='tag'?15:6}"/><text x="${n.kind==='tag'?21:10}" y="4">${escape(n.kind==='tag'?'#'+n.label:n.label.length>20?n.label.slice(0,20)+'…':n.label)}</text></g>`).join('')+'</g>';
- graphTransform();
+ const key=JSON.stringify([vault?.token,vault?.revision,query.trim(),activeTags]);
+ if(graphKey!==key){graphKey=key;const model=ShioriGraph.build(currentMatches,vault?.notes||[]);graphView.setModel(model);$('#graphSummary').textContent=`${model.total} ノート · ${model.edges.length} リンク${model.unresolved?` · 解決できないHTMLリンク ${model.unresolved} 件`:''}`;$('#graphEmpty').hidden=!!model.total;}
+ graphView.select(selected);
 }
 $('#showGraph').onclick=()=>setView(true);$('#showNote').onclick=()=>setView(false);
-$('#graphPrev').onclick=()=>{graphPage--;renderGraph();};$('#graphNext').onclick=()=>{graphPage++;renderGraph();};
-$('#zoomIn').onclick=()=>{graphScale=Math.min(5,graphScale*1.25);graphTransform();};$('#zoomOut').onclick=()=>{graphScale=Math.max(.25,graphScale/1.25);graphTransform();};$('#graphReset').onclick=resetGraph;
-let graphDrag=null,suppressGraphClick=false;
-$('#graphSvg').onpointerdown=e=>{if(e.button!==0)return;graphDrag={x:e.clientX,y:e.clientY,ox:graphX,oy:graphY};suppressGraphClick=false;};
-$('#graphSvg').onpointermove=e=>{if(!graphDrag)return;const svg=$('#graphSvg'),factor=Math.max(svg.viewBox.baseVal.width/svg.clientWidth,svg.viewBox.baseVal.height/svg.clientHeight);const dx=e.clientX-graphDrag.x,dy=e.clientY-graphDrag.y;if(Math.hypot(dx,dy)>4){suppressGraphClick=true;svg.setPointerCapture(e.pointerId);}graphX=graphDrag.ox+dx*factor;graphY=graphDrag.oy+dy*factor;graphTransform();};
-$('#graphSvg').onpointerup=e=>{graphDrag=null;if($('#graphSvg').hasPointerCapture(e.pointerId))$('#graphSvg').releasePointerCapture(e.pointerId);};
-$('#graphSvg').onpointercancel=()=>{graphDrag=null;suppressGraphClick=true;};
-function activateGraph(e){if(e.type==='keydown'&&!['Enter',' '].includes(e.key))return;if(e.type==='click'&&suppressGraphClick){suppressGraphClick=false;return;}const node=e.target.closest('.graph-node');if(!node)return;e.preventDefault();if(node.dataset.kind==='tag'){setTag(node.dataset.value);$('#showGraph').focus();}else{openNote(node.dataset.value,'',e.shiftKey?'side':e.metaKey||e.ctrlKey?'tab':'current');$('#showNote').focus();}}
-$('#graphSvg').onclick=activateGraph;$('#graphSvg').onkeydown=activateGraph;
+$('#zoomIn').onclick=()=>graphView.zoom(1.25);$('#zoomOut').onclick=()=>graphView.zoom(1/1.25);$('#graphReset').onclick=()=>graphView.reset();
 metrics.uiReadyMs=Math.round(performance.now()-boot);load();

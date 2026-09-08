@@ -655,3 +655,14 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 - Removing closes that pane's tabs; disable it for the sole remaining pane.
 - Keep document search visible whenever a note is open. New tabs remain available through modifier-clicks in the sidebar/graph.
 - Make pane sections keyboard-focusable, including zero-tab panes. Click/focus selects the target; choosing a sidebar note opens there. Closing the last tab restores focus to its pane.
+
+## Issue #33: HTML link graph (2026-09-09)
+
+This replaces the earlier tag-membership graph described above.
+
+- Scan anchor hrefs into note snapshots without writing source files. Share pure path/href resolution in `ui/note-links.js`; the former reader link-list implementation is already removed.
+- Display matching notes as nodes, including isolated notes, and resolved HTML links as undirected edges. Merge reciprocal links and anchor variants, omit self-links and external/resource/outside-vault targets. Prefer exact paths, then an unambiguous NFC fallback.
+- Count unresolved local HTML hrefs per source note in the graph summary. Resolve against the full snapshot so filtered-out targets are not treated as broken. Automatic link repair remains separate.
+- Replace SVG and 150-note pagination with Canvas 2D. Use deterministic initial positions and 60 bounded local-force iterations, one per animation frame. Pause hidden layout and cancel obsolete work; reuse layout and camera when returning from notes.
+- Keep search/tag filtering, click/modifier-click opening, hover titles, and pan/zoom. Keyboard arrows/Home/End select and center nodes; Enter/Space opens them. Accessible status exposes the focused node title and path without creating thousands of DOM elements.
+- No new vendor dependencies. A few thousand notes are the primary target; 10,000 are retained but may render below 60 fps. Worker/WebGL optimization remains future work if measurements require it.

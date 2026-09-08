@@ -81,3 +81,29 @@ node scripts/benchmark-search.mjs ../work/performance-results
 RustがPATHにない場合、この作業環境の`../work/toolchain/cargo`・`../work/toolchain/rustup`をCARGO_HOME・RUSTUP_HOMEへ指定する必要がある。生成器は既存ディレクトリを上書きしない。
 
 計測用Rustモジュールは`cfg(test)`＋ignored testで、通常のアプリには組み込まれない。
+
+## HTML link graph — Issue #33 (2026-09-09)
+
+Reproduce graph construction and the 60 layout iterations without a browser:
+
+```sh
+node scripts/benchmark-graph.cjs
+```
+
+For Canvas rendering, use a locally installed Playwright package and its Chromium browser:
+
+```sh
+node scripts/benchmark-graph.cjs /absolute/path/to/node_modules/playwright
+```
+
+The fixture links each note to its predecessor and its ten-note group root; reciprocal/duplicate edges are merged. All nodes remain present. Browser measurements use a 1000×700 CSS-pixel canvas, 60 layout iterations, 120 animated pan/zoom frames and 60 drawing calls. `layoutMs` is synchronous compute time; `settleMs` includes the animation-frame pacing used in the app. Frame p95 includes browser scheduling/rasterization; draw p95 measures Canvas command submission, not GPU completion.
+
+Measured on Apple M4 Pro in headless Chromium (not native WKWebView); benchmark launcher: Node v24.11.1:
+
+| Nodes | Edges | Build ms | Layout compute ms | Settle ms | Pan/zoom frame p95 ms | Draw submission p95 ms |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 500 | 899 | 2.7 | 35.9 | 965.4 | 17.5 | 1.2 |
+| 2,000 | 3,599 | 8.6 | 116.4 | 981.1 | 17.5 | 2.9 |
+| 10,000 | 17,999 | 37.5 | 616.0 | 3,291.6 | 39.6 | 11.3 |
+
+Canvas removes per-node DOM overhead. Local spatial-grid repulsion bounds neighbor checks, and layout runs one iteration per frame so it can be paused/replaced. The measured 2,000-note case is near 60 fps; the 10,000-note case is closer to 25 fps at the p95 interval. This is not a guarantee for dense graphs or other devices. Worker layout/WebGL rendering remain candidates for #1; this implementation neither paginates nor silently truncates nodes/edges. Search/filter changes and vault refreshes rebuild the graph; resizing fits the existing layout.
