@@ -119,3 +119,57 @@ test('pane tags follow tab selection, internal navigation, reload, and empty tab
  reader.model.close(0,reader.model.tab.id);reader.render();assert.equal(tags(0).hidden,false);
  reader.reset();assert.equal(tags(0).hidden,true);
 });
+
+function splitSetup(){
+ const state=setup(),{reader,document}=state,panel=document.querySelector('#readerPanel'),divider=document.querySelector('#pane-splitter');
+ const styles={};panel.style.setProperty=(key,value)=>styles[key]=value;
+ panel.clientWidth=1005;panel.scrollLeft=0;panel.getBoundingClientRect=()=>({left:100});
+ const callbacks=new Map();let next=0;
+ document.defaultView.requestAnimationFrame=fn=>{callbacks.set(++next,fn);return next;};
+ document.defaultView.cancelAnimationFrame=id=>callbacks.delete(id);
+ const flush=()=>{for(const [id,fn] of callbacks){callbacks.delete(id);fn();}};
+ const key=key=>divider.onkeydown({key,preventDefault(){}});
+ reader.open('a.html');reader.open('b.html','','side');
+ return {...state,panel,divider,styles,key,flush,callbacks};
+}
+
+test('divider has the correct DOM order and keyboard clamps both panes at 320px',()=>{
+ const {panel,divider,styles,key}=splitSetup();
+ assert.deepEqual(panel.children.map(el=>el.id),['pane-0','pane-splitter','pane-1']);
+ assert.equal(divider.hidden,false);assert.equal(divider.getAttribute('role'),'separator');
+ assert.equal(divider.getAttribute('tabindex'),'0');
+ key('ArrowRight');assert.equal(styles['--pane-a'],'550px');
+ for(let i=0;i<20;i++)key('ArrowRight');
+ assert.ok(Math.abs(parseFloat(styles['--pane-a'])-680)<.001);assert.ok(Math.abs(parseFloat(styles['--pane-b'])-320)<.001);
+ key('Home');assert.equal(styles['--pane-a'],'320px');
+ assert.equal(divider.getAttribute('aria-valuemin'),'32');assert.equal(divider.getAttribute('aria-valuemax'),'68');
+ key('End');assert.equal(styles['--pane-a'],'500px');
+ key('ArrowLeft');divider.ondblclick();assert.equal(styles['--pane-a'],'500px');
+});
+
+test('split ratio survives closing either pane, clamps in narrow windows, and resets with the vault',()=>{
+ for(const closed of [0,1]){
+  const {reader,panel,divider,styles,key}=splitSetup();key('ArrowRight');
+  reader.model.closePane(closed);reader.render();assert.equal(divider.hidden,true);
+  reader.open('a.html','','side');assert.equal(divider.hidden,false);assert.equal(styles['--pane-a'],'550px');
+  panel.clientWidth=400;reader.render();assert.equal(styles['--pane-a'],'320px');assert.equal(styles['--pane-b'],'320px');
+  assert.equal(divider.getAttribute('aria-valuenow'),'50');
+  panel.clientWidth=1005;reader.render();assert.equal(styles['--pane-a'],'550px');
+  reader.reset();assert.equal(divider.hidden,true);reader.open('a.html','','side');assert.equal(styles['--pane-a'],'500px');
+ }
+});
+
+test('drag shields iframe input, batches motion, accounts for scroll, and cleans up on release/cancel/reset',()=>{
+ const {reader,document,panel,divider,styles,flush,callbacks}=splitSetup();
+ panel.scrollLeft=50;divider.getBoundingClientRect=()=>({left:550});
+ const down=()=>divider.onpointerdown({button:0,pointerId:1,clientX:552,preventDefault(){}});
+ const shield=()=>document.querySelector('.pane-resize-shield');
+ down();assert.ok(shield());assert.equal(document.activeElement,divider);
+ const frame=reader.frames.values().next().value.frame,url=frame.src;
+ divider.onpointermove({pointerId:2,clientX:900});assert.equal(callbacks.size,0);
+ divider.onpointermove({pointerId:1,clientX:602});divider.onpointermove({pointerId:1,clientX:652});
+ assert.equal(callbacks.size,1);assert.equal(styles['--pane-a'],'500px');flush();assert.equal(styles['--pane-a'],'600px');
+ divider.onpointerup({pointerId:1,clientX:702});assert.equal(styles['--pane-a'],'650px');assert.equal(shield(),null);assert.equal(frame.src,url);
+ down();divider.onpointermove({pointerId:1,clientX:0});divider.onpointercancel();flush();assert.equal(shield(),null);assert.equal(styles['--pane-a'],'650px');
+ down();reader.reset();assert.equal(shield(),null);assert.equal(callbacks.size,0);
+});

@@ -74,13 +74,14 @@ The active pane has an accented top border. Opening a note from the sidebar or g
 | Follow an internal link | Click it in the note to navigate within that same tab |
 | Open a link elsewhere | Expand **このノートのリンク** (Links in this note) and choose a new tab or the adjacent pane |
 | Move focus between panes | Use **ペイン移動** (Move to other pane) |
+| Resize panes | Drag the divider; double-click to restore equal widths. With the divider focused, use ←/→ for 5% steps, Home for minimum left width, or End for equal widths |
 | Remove a pane | Use **分割解除** (Close pane); its tabs close too |
 
 Tab switches keep the existing sandboxed iframe attached, preserving its document scroll and search state. With focus on a tab title, use ←/→ or Home/End to switch tabs and Delete to close one. The buttons are reachable by Tab. Keyboard events inside the sandboxed note do not reach the app: move focus back to the app controls to use tab commands. Modifier-click handling inside note HTML is not available; use the link menu instead.
 
 This first version supports two horizontal panes and up to 12 tabs in one vault. Each pane stays at least 320 px wide; narrow windows scroll the reader workspace horizontally instead of silently closing a pane. The tag graph remains a whole-workspace mode and preserves the open reader tabs when switching back.
 
-Reloading the vault restores surviving tabs, their selected pane/tab, and their search phrases. Tabs whose paths were deleted or renamed close; an empty pane stays available for another note. Reload and theme changes regenerate the documents and reset scroll positions and the current search match. Pane widths are equal, and pane/tab state is not saved across app restarts or vault switches.
+Reloading the vault restores surviving tabs, their selected pane/tab, and their search phrases. Tabs whose paths were deleted or renamed close; an empty pane stays available for another note. Reload and theme changes regenerate the documents and reset scroll positions and the current search match. The split ratio is retained when closing and reopening a pane in the same vault. Narrow windows temporarily clamp the widths to the 320 px minimum; the preferred ratio returns when space is available. Pane widths reset to equal on vault switches and app restarts; pane/tab state is not saved.
 
 ## Workflow: AI writes, shiori reads, Git keeps history
 
