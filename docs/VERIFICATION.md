@@ -182,3 +182,7 @@ iframe方式を最初の検証対象として実装した。Text fragmentは比�
 - macOS build, ad-hoc signing, and signature verification passed. Vendored npm archives were verified against published integrity hashes; both MIT license notices are included.
 - Native graphical verification remains pending: Computer Use could not connect to shiori (`timeoutReached`, -10005). Verify xterm rendering, Japanese IME, copy/paste, actual Codex/Claude TUIs and their trust prompts, shell login configuration, and application quit during foreground work. No AI tool was automatically launched or paid AI request made.
 - shiori does not save terminal transcripts. Shell history, CLI logs, and deliberately detached processes follow normal tool/shell behavior.
+
+### Claude project Skill discovery
+
+Terminal workspace setup now copies both bundled Skills, including their supporting assets, into `.claude/skills/`. The workspace test verifies both Skill definitions match the bundled originals and the shared stylesheet is present. The focused Rust workspace test passed. Claude slash-command discovery itself still requires a native CLI check.

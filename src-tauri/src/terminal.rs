@@ -52,7 +52,8 @@ fn copy_skills(source:&Path,dest:&Path)->Result<(),String>{
 fn workspace(base:&Path,vault:&Path,skills:&Path)->Result<PathBuf,String>{
     let mut hash=DefaultHasher::new();vault.hash(&mut hash);let cwd=base.join(format!("{:016x}",hash.finish()));
     copy_skills(skills,&cwd.join("skills"))?;
-    let guide=format!("# shiori terminal workspace\n\nThis directory contains authoring skills; it is not the HTML vault.\nThe current vault is this absolute path (JSON string): {}\n\nUnless the user specifies another destination, create HTML notes in that vault's notes/ directory and supporting files in its assets/ and styles/ directories. Inspect existing vault conventions first. Never use this workspace or the application bundle as the default note destination.\n\nRead skills/shiori-notes/SKILL.md for metadata, IDs, tags, and links. Read skills/shiori-readable-notes/SKILL.md for prose, templates, and shared CSS. Preserve existing note IDs when editing. No particular note is selected for you. Git operations require the user's instruction.\n\nSHIORI_VAULT and SHIORI_SKILLS contain the same absolute paths in the shell environment. Tool sandbox permissions may require granting access to the vault; do not disable protections automatically.\n",serde_json::to_string(vault).map_err(|e|e.to_string())?);
+    copy_skills(skills,&cwd.join(".claude/skills"))?;
+    let guide=format!("# shiori terminal workspace\n\nThis directory contains authoring skills; it is not the HTML vault.\nThe current vault is this absolute path (JSON string): {}\n\nUnless the user specifies another destination, create HTML notes in that vault's notes/ directory and supporting files in its assets/ and styles/ directories. Inspect existing vault conventions first. Never use this workspace or the application bundle as the default note destination.\n\nRead skills/shiori-notes/SKILL.md for metadata, IDs, tags, and links. Read skills/shiori-readable-notes/SKILL.md for prose, templates, and shared CSS. Preserve existing note IDs when editing. No particular note is selected for you. Git operations require the user's instruction.\n\nClaude project skills are installed in .claude/skills; invoke /shiori-readable-notes or /shiori-notes.\n\nSHIORI_VAULT and SHIORI_SKILLS contain the same absolute paths in the shell environment. Tool sandbox permissions may require granting access to the vault; do not disable protections automatically.\n",serde_json::to_string(vault).map_err(|e|e.to_string())?);
     for name in ["AGENTS.md","CLAUDE.md"]{std::fs::write(cwd.join(name),&guide).map_err(|e|e.to_string())?;}
     Ok(cwd)
 }
@@ -130,6 +131,10 @@ mod tests {
   let f=Fixture::new();let vault=f.0.join("日本語 vault $notes");std::fs::create_dir(&vault).unwrap();
   let cwd=workspace(&f.0.join("sessions"),&vault,&skills_dir()).unwrap();
   assert!(cwd.join("skills/shiori-notes/SKILL.md").is_file());
+  for name in ["shiori-notes","shiori-readable-notes"] {
+   assert_eq!(std::fs::read(cwd.join(".claude/skills").join(name).join("SKILL.md")).unwrap(),std::fs::read(skills_dir().join(name).join("SKILL.md")).unwrap());
+  }
+  assert!(cwd.join(".claude/skills/shiori-readable-notes/assets/shiori-document.css").is_file());
   for file in ["AGENTS.md","CLAUDE.md"]{let guide=std::fs::read_to_string(cwd.join(file)).unwrap();assert!(guide.contains(&serde_json::to_string(&vault).unwrap()));assert!(guide.contains("notes/"));}
   assert_eq!(std::fs::read_dir(&vault).unwrap().count(),0);
   let other=workspace(&f.0.join("sessions"),&f.0,&skills_dir()).unwrap();assert_ne!(cwd,other);

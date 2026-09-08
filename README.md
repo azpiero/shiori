@@ -117,7 +117,7 @@ Configure a remote and push with your Git client when you want to sync. The vaul
 
 Select **>_** in the left rail to open an interactive shell inside shiori. Run `codex`, `claude`, or any other installed command yourself. There is no selected-note prompt, model picker, or tool-specific execution mode. The native PTY and locally bundled xterm.js support terminal input, ANSI output, Ctrl-C, and resizing.
 
-The shell starts in a vault-specific workspace under the app data directory's `terminal-workspaces/`. It contains `skills/`, `AGENTS.md`, and `CLAUDE.md`; the two instruction files name the currently selected vault as the default destination for HTML notes and point to the bundled authoring Skills. The workspace is distinct from the vault, so app helper files do not enter your notes repository. The shell also receives:
+The shell starts in a vault-specific workspace under the app data directory's `terminal-workspaces/`. It contains `skills/`, `.claude/skills/`, `AGENTS.md`, and `CLAUDE.md`; the two instruction files name the currently selected vault as the default destination for HTML notes and point to the bundled authoring Skills. The workspace is distinct from the vault, so app helper files do not enter your notes repository. Claude discovers the project Skills under `.claude/skills/`; use `/shiori-readable-notes` or `/shiori-notes`. Reopen the shell after updating shiori to refresh these files, and restart Claude if its command list has not refreshed. The shell also receives:
 
 | Variable | Value |
 | --- | --- |
