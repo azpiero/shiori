@@ -239,3 +239,6 @@ mod tests {
         for (p,b) in files {assert_eq!(std::fs::read(p).unwrap(),b);}
     }
 }
+
+#[cfg(test)]
+mod benchmark;
