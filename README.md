@@ -33,7 +33,7 @@ Earlier macOS prototype showing the bundled sample vault in dark mode. These scr
 - Compare notes in two side-by-side panes, each with its own tabs and document search.
 - Move between highlighted matches independently in each tab.
 - Explore a graph connecting notes to their tags. Select a tag to filter or a note to read it.
-- Browse a compact title-and-tag list. Hover over a note title to see its path; tag buttons marked ↗ open a tag graph and update the search field.
+- Browse a compact title list and hover over a note title to see its path. Tags appear below each reader pane’s tab bar; buttons marked ↗ open the tag graph and update the search field.
 - Switch between light and dark themes and resize the sidebar.
 - Reload the entire vault from the button beside its name, or apply an external-change notification.
 - Expand the sidebar’s read-error details to see which files could not be loaded and why.
@@ -57,9 +57,11 @@ Tags use case-sensitive exact matching: `tag: 開発` does not include `開発/I
 
 Type `tag:` to see up to eight matching tag suggestions. Use ↑/↓ and Enter to insert a suggestion, Escape to dismiss, or click a candidate. Enter with no candidate selected opens the first matching note. Quoted tag names support JSON escapes such as `\"` and `\\`; names beginning with `tag:` must also be quoted. Empty clauses and unclosed quotes are ignored until completed; a complete but unknown tag returns no matches. IME composition is applied after confirmation.
 
-The search field is the source of filter state. Selecting a tag in the graph or a note's ↗ tag button replaces the tag clauses with that tag while preserving free text. Remove the `tag:` clause to clear its filter. The **NOTES** count shows matching notes rather than a separate vault total.
+The search field is the source of filter state. Selecting a tag in the graph or a reader pane's ↗ tag button replaces the tag clauses with that tag while preserving free text. Remove the `tag:` clause to clear its filter. The **NOTES** count shows matching notes rather than a separate vault total.
 
 ## Read with panes and tabs
+
+Each pane shows the tags of its selected tab below the tab bar, or **タグなし** for an untagged note. Empty tabs have no tag row. Many tags wrap within a bounded, scrollable row. The sidebar keeps titles only, including the reminder for a current note outside the filter; discover tags through `tag:` suggestions or the graph. Tag editing is not implemented; see the [proposed editing design](docs/TAG_EDITING.md).
 
 The active pane has an accented top border. Opening a note from the sidebar or graph normally replaces its active tab. Click inside a pane or use its pane button to make it active.
 

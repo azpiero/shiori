@@ -98,3 +98,24 @@ test('an internal link updates only its originating tab even while the other pan
  assert.equal(left.path,'b.html');assert.equal(left.query,'alpha');assert.equal(left.hits,4);
  assert.equal(right.path,'c.html');assert.equal(right.query,'gamma');assert.equal(selected(),'c.html');
 });
+
+
+test('pane tags follow tab selection, internal navigation, reload, and empty tabs',()=>{
+ const {reader,document,vault,setVault}=setup();
+ vault.notes[0].tags=['design','<tag "quoted">'];vault.notes[1].tags=['Rust'];vault.notes[2].tags=[];
+ const left=reader.open('a.html');reader.open('b.html','','side');
+ const tags=i=>document.querySelector('#pane-tags-'+i);
+ assert.deepEqual(tags(0).querySelectorAll('[data-tag]').map(b=>b.dataset.tag),vault.notes[0].tags);
+ assert.equal(tags(0).querySelectorAll('tag').length,0);
+ assert.equal(tags(1).querySelector('[data-tag]').dataset.tag,'Rust');
+ reader.activate(0);const c=reader.open('c.html','','tab');assert.match(tags(0).innerHTML,/タグなし/);
+ reader.model.select(0,left.id);reader.render();assert.equal(tags(0).querySelector('[data-tag]').dataset.tag,'design');
+ const focused=tags(0).querySelector('[data-tag]');focused.focus();reader.render();assert.equal(tags(0).querySelector('[data-tag]'),focused);
+ const url=new URL(left.url);url.pathname='/vault-token/b.html';reader.served({path:'b.html',url:url.href,hits:0});
+ assert.equal(tags(0).querySelector('[data-tag]').dataset.tag,'Rust');
+ setVault({...vault,revision:'v2',notes:vault.notes.map(n=>({...n,tags:['updated']}))});reader.refresh();
+ for(const i of [0,1])assert.equal(tags(i).querySelector('[data-tag]').dataset.tag,'updated');
+ reader.open('','','tab');assert.equal(tags(0).hidden,true);assert.equal(tags(0).innerHTML,'');
+ reader.model.close(0,reader.model.tab.id);reader.render();assert.equal(tags(0).hidden,false);
+ reader.reset();assert.equal(tags(0).hidden,true);
+});
