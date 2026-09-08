@@ -4,36 +4,22 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const {build}=require('../ui/graph.js');
 const ShioriSearch=require('../ui/search.js');
+const ShioriReader=require('../ui/reader.js');
+const {createDocument}=require('./dom.cjs');
 
 // Exercise app event handlers with a small DOM/Tauri adapter. These checks do not
 // simulate WebView rendering, layout, or iframe navigation; those require manual QA.
 async function setup(initialErrors=[]){
- const elements=new Map(),events=new Map(),calls=[];let refreshResult,refreshError;
- const document={activeElement:null,body:{append(){}},documentElement:{style:{setProperty(){}},classList:{toggle(){}}}};
- class Element{
-  constructor(name){this.name=name;this.id=name.startsWith('#')?name.slice(1):'';this.dataset={};this.attributes={};this.events={};this.hidden=false;this.value='';this.textContent='';this.classes=new Set();this.classList={add:k=>this.classes.add(k),remove:k=>this.classes.delete(k),toggle:(k,on)=>on?this.classes.add(k):this.classes.delete(k)};this.style={};}
-  set innerHTML(html){this.html=html;if(this.name==='#app'){for(const match of html.matchAll(/id="([^"]+)"/g))elements.set('#'+match[1],new Element('#'+match[1]));}if(this.name==='#graphSvg')elements.set('#graphSvg .graph-world',new Element('world'));}
-  get innerHTML(){return this.html||'';}
-  setAttribute(k,v){this.attributes[k]=v;}
-  removeAttribute(k){delete this.attributes[k];}
-  setSelectionRange(start,end){this.selectionStart=start;this.selectionEnd=end;}
-  addEventListener(k,fn){this.events[k]=fn;}
-  focus(){document.activeElement=this;}
-  closest(){return null;}
-  querySelectorAll(){return [];}
- }
- elements.set('#app',new Element('#app'));
- for(const name of ['.frame-wrap','.view-nav'])elements.set(name,new Element(name));
- document.querySelector=name=>{const el=elements.get(name);assert.ok(el,'Unknown selector: '+name);return el;};
- document.createElement=()=>new Element('new');
+ const events=new Map(),calls=[];let refreshResult,refreshError;
+ const document=createDocument();
  const notes=Array.from({length:160},(_,i)=>({path:`notes/${i}.html`,title:`Note ${i}`,text:'knowledge',tags:[i%2?'odd':'even'],headings:[]}));
  const vault={root:'/test/vault',token:'test-token',revision:'r1',notes,errors:initialErrors,scan_ms:1};
  refreshResult=vault;
- const context=vm.createContext({document,URL,performance,ShioriSearch,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(){},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
+ const context=vm.createContext({document,URL,performance,ShioriSearch,ShioriReader,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(){},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
  const run=code=>vm.runInContext(code,context);
  run(fs.readFileSync(require.resolve('../ui/app.js'),'utf8'));
  await new Promise(resolve=>setImmediate(resolve));
- const get=id=>elements.get(id);
+ const get=id=>id==='#noteFrame'?run('reader.frames.get(reader.model.tab?.id)?.frame'):document.querySelector(id);
  const served=(count=3)=>events.get('note-served')({payload:{path:run('selected'),url:get('#noteFrame').src,hits:count}});
  return {run,get,served,events,vault,calls,setRefresh(result,error){refreshResult=result;refreshError=error;}};
 }
@@ -51,18 +37,14 @@ test('graph exploration survives opening a note and switching back; context chan
  get('#search').value='Note 1';run('applySearch()');assert.equal(run('graphPage'),0);assert.equal(run('graphScale'),1);
 });
 
-test('search controls describe only the displayed query and hide outside note search',async()=>{
+test('list search does not change an already-open tab search',async()=>{
  const {run,get,served}=await setup();
- assert.equal(get('#searchNavigation').hidden,true);
  get('#search').value='knowledge';run('applySearch();openNote(selected)');served();
- assert.equal(get('#searchNavigation').hidden,false);assert.equal(get('#hitCount').textContent,'本文内 1 / 3');
- get('#next').onclick();assert.match(get('#noteFrame').src,/#shiori-hit-1$/);
- get('#showGraph').onclick();assert.equal(get('#searchNavigation').hidden,true);
- get('#showNote').onclick();assert.equal(get('#searchNavigation').hidden,false);
- get('#search').value='Note';run('applySearch()');assert.equal(get('#searchNavigation').hidden,true);
- run('openNote(selected)');served(0);assert.equal(get('#hitCount').textContent,'本文内 0件');assert.equal(get('#next').disabled,true);
- get('#search').value='';run('applySearch()');assert.equal(get('#searchNavigation').hidden,true);
- assert.equal(new URL(get('#noteFrame').src).searchParams.get('q'),'');
+ assert.equal(run('reader.model.tab.query'),'knowledge');
+ assert.equal(get('#pane-hits-0').textContent,'1 / 3');
+ run('reader.moveHit(0,1)');assert.match(get('#noteFrame').src,/#shiori-hit-1$/);
+ get('#search').value='Note';run('applySearch()');assert.equal(run('reader.model.tab.query'),'knowledge');
+ get('#showGraph').onclick();get('#showNote').onclick();assert.equal(run('reader.model.tab.hit'),1);
 });
 
 test('filtering keeps the current note identifiable without putting tag buttons inside note buttons',async()=>{
@@ -83,9 +65,9 @@ test('refresh resets graph after content changes and handles deleted notes and e
  const {run,get,vault,setRefresh}=await setup();
  run('setView(true)');get('#graphNext').onclick();get('#zoomIn').onclick();
  setRefresh({...vault,revision:'r2',notes:vault.notes.slice(1)});
- await run('refresh()');assert.equal(run('selected'),'notes/1.html');assert.equal(run('graphPage'),0);assert.equal(run('graphScale'),1);assert.equal(run('graphMode'),true);
+ await run('refresh()');assert.equal(run('selected'),'');assert.equal(run('graphPage'),0);assert.equal(run('graphScale'),1);assert.equal(run('graphMode'),true);
  setRefresh({...vault,revision:'r3',notes:[]});await run('refresh()');
- assert.equal(run('selected'),'');assert.equal(get('#currentNote').hidden,true);assert.equal(get('#searchNavigation').hidden,true);assert.equal(get('#noteFrame').src,'about:blank');assert.equal(get('#reload').disabled,false);
+ assert.equal(run('selected'),'');assert.equal(get('#currentNote').hidden,true);assert.equal(run('reader.model.all().length'),0);assert.equal(get('#reload').disabled,false);
 });
 
 test('failed refresh keeps update notification and re-enables vault actions',async()=>{
@@ -133,7 +115,7 @@ test('tag syntax and graph selection share one query while highlighting only fre
  assert.equal(new URL(get('#noteFrame').src).searchParams.get('q'),'knowledge');
  run('setTag("odd")');assert.equal(get('#search').value,'knowledge tag: odd');assert.equal(run('activeTags.join()'),'odd');
  get('#search').value='tag: odd';run('applySearch()');
- assert.equal(get('#searchNavigation').hidden,true);assert.equal(new URL(get('#noteFrame').src).searchParams.get('q'),'');
+ assert.equal(run('reader.model.tab.query'),'knowledge');assert.equal(new URL(get('#noteFrame').src).searchParams.get('q'),'knowledge');
 });
 
 test('keyboard completion changes the filter without opening a note, and Escape dismisses it',async()=>{
