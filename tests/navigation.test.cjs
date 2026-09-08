@@ -253,3 +253,32 @@ test('native reader-menu events reveal the reader and focus its document search'
  const {run,get,events}=await setup();run('setView(true)');events.get('reader-menu')({payload:'find'});assert.equal(run('graphMode'),false);assert.equal(run('document.activeElement.id'),'pane-query-0');assert.equal(get('#pane-search-0').hidden,false);
  run('setView(true)');events.get('reader-menu')({payload:'paste'});assert.equal(run('graphMode'),true);
 });
+
+test('vault footer menu supports keyboard navigation, dismissal, and terminal restrictions',async()=>{
+ const {run,get}=await setup();const trigger=get('#vaultSwitch'),menu=get('#vaultMenu');
+ const key=(element,key)=>element.onkeydown({key,preventDefault(){},stopPropagation(){}});
+ assert.equal(trigger.getAttribute('aria-haspopup'),'menu');assert.equal(menu.hidden,true);
+ assert.ok(get('#root').closest('#vaultMenu'));assert.ok(get('#readErrors').closest('.vault-footer'));
+ trigger.onclick();assert.equal(trigger.getAttribute('aria-expanded'),'true');assert.equal(run('document.activeElement.id'),'open');
+ key(menu,'ArrowDown');assert.equal(run('document.activeElement.id'),'reload');
+ key(menu,'ArrowDown');assert.equal(run('document.activeElement.id'),'open');
+ key(menu,'End');assert.equal(run('document.activeElement.id'),'reload');
+ key(menu,'Home');assert.equal(run('document.activeElement.id'),'open');
+ key(menu,'Escape');assert.equal(menu.hidden,true);assert.equal(run('document.activeElement.id'),'vaultSwitch');
+ key(trigger,'ArrowUp');assert.equal(run('document.activeElement.id'),'reload');
+ key(menu,'Tab');assert.equal(menu.hidden,true);assert.equal(trigger.getAttribute('aria-expanded'),'false');
+ run('terminalBusy=true;setVaultBusy(false)');trigger.onclick();assert.equal(get('#open').disabled,true);assert.equal(run('document.activeElement.id'),'reload');
+ key(menu,'ArrowUp');assert.equal(run('document.activeElement.id'),'reload');
+ run("document.body.events.pointerdown({target:document.querySelector('#search')})");assert.equal(menu.hidden,true);
+});
+
+test('vault footer exposes refresh busy state and recovers after failure',async()=>{
+ const {run,get,commands}=await setup();let reject;
+ commands.refresh_vault=()=>new Promise((_,r)=>reject=r);
+ get('#vaultSwitch').onclick();const refresh=get('#reload').onclick();
+ assert.equal(get('#vaultMenu').hidden,true);assert.equal(get('#vaultSwitch').getAttribute('aria-busy'),'true');
+ assert.equal(get('#reload').disabled,true);get('#vaultSwitch').onclick();assert.equal(get('#vaultMenu').hidden,true);
+ reject(new Error('Refresh unavailable'));await refresh;
+ assert.equal(get('#vaultSwitch').getAttribute('aria-busy'),'false');assert.equal(get('#reload').disabled,false);
+ get('#vaultSwitch').onclick();assert.equal(get('#vaultMenu').hidden,false);assert.match(get('.toast [role="alert"]').textContent,/Refresh unavailable/);
+});

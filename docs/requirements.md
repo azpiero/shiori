@@ -709,3 +709,11 @@ This replaces the earlier tag-membership graph described above.
 - Preserve existing note IDs, heading anchors, tag spelling, and directory conventions. Never overwrite a different user stylesheet; select a separate canonical copy for requested notes.
 - Refresh terminal instructions and retire old generated Skill copies outside discovery directories without losing their contents. Remove obsolete bundled resources on app rebuild.
 - Keep real-vault migration outside this app change: [shiori-vault #1](https://github.com/azpiero/shiori-vault/issues/1) covers 19 external hrefs, the DI note reformat, and the old document stylesheet. The sample isolation note's external href is an intentional security fixture and remains unchanged.
+
+## Compact Vault footer menu (#54)
+
+- Place search first and the Vault name in a compact, non-scrolling sidebar footer. Show the full path only in its tooltip and menu.
+- Reuse the folder-menu styling for Open/switch vault and Reload; retain existing command IDs and operation locks. Show refresh busy state on the footer row and note list.
+- Support menu semantics, Enter/Space and arrow-key opening, arrow/Home/End navigation, Escape focus restoration, Tab dismissal, and outside-click dismissal. Terminal sessions disable switching but allow reload.
+- Place Vault warnings and read errors above the footer in a bounded scroll area. Keep the external-change action in the reader.
+- Recent-vault history is outside this change; settings continue to store only `last_vault`.
