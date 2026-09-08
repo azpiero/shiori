@@ -148,7 +148,7 @@ cd app
 cargo run --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
 ```
 
-The app starts with seven bundled sample notes. The header contains the app name, folder picker, and theme toggle. Choose **フォルダを開く** (Open folder) to open your vault, the graph icon in the left navigation rail to explore tags, and **更新を反映** (Apply updates) after editing notes externally. To return to the samples, restart the app or open `sample-vault/` through the folder picker.
+The app starts with seven bundled sample notes. Use the folder icon next to reload in the sidebar (**フォルダを開く** / Open folder) to open your vault, the graph icon in the left navigation rail to explore tags, and **更新を反映** (Apply updates) after editing notes externally. To return to the samples, restart the app or open `sample-vault/` through the folder picker. The theme toggle sits at the bottom of the left navigation rail; there is no app header above the workspace.
 
 Read-only status remains visible in the status bar, including while loading or showing errors. The development diagnostics panel and log collection have been removed; failed note reads are listed under **読み取りエラー** (Read errors) in the sidebar. The status bar retains basic load timings.
 

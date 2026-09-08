@@ -138,3 +138,10 @@ iframe方式を最初の検証対象として実装した。Text fragmentは比�
 - Rustテスト5件成功。内部リンクに呼出元のview/request/q/theme/vだけが継承されることと、外部リンクの遮断を追加確認。既存のVault境界と元ファイル維持のテストも成功。
 - 実WebViewのスクロール位置、キー操作、iframeフォーカス、左右配置・狭い幅・テーマ表示、およびREADME画像の更新は未確認。今回もComputer Use接続がtimeoutReached（-10005）。DOMアダプタによる検証は実画面の証拠として扱わない。
 - #3の追加実機確認項目：異なるペインからのリンク遷移を交互に行っても他方の選択・ハイライトが変わらないこと、全iframeのsandboxが空であること、ノートからのIPC・外部通信の遮断が複数ペインでも維持されること。
+
+## Issue #13: Remove the app header (2026-09-08)
+
+- Removed the app icon/name header and its 64px grid row. Moved the folder picker beside vault reload and the theme toggle to the bottom of the navigation rail.
+- Retained the existing folder/theme handlers, accessible names, theme pressed state, and loading-time disabled state. Folder selection remains present without a selected vault.
+- Validation: all 28 JavaScript tests passed, including folder selection and theme switching while graph mode is active. JavaScript syntax and diff checks passed. The macOS build and ad-hoc signature verification passed.
+- Native visual verification remains pending: Computer Use could not connect to shiori (`timeoutReached`, -10005). Check the layout at narrow widths, keyboard focus, light/dark reader rendering, and the folder picker after a startup failure. Existing README screenshots still show an earlier UI.
