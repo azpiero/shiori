@@ -4,8 +4,6 @@ use std::{collections::BTreeMap, fs, io::Write, path::{Path, PathBuf}};
 #[derive(Default, Deserialize, Serialize)]
 struct Settings {
     last_vault: Option<PathBuf>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    claude_path: Option<PathBuf>,
     #[serde(flatten)]
     other: BTreeMap<String, serde_json::Value>,
 }
@@ -35,14 +33,6 @@ pub fn restore(settings: &Path, sample: &Path) -> Result<(PathBuf, Vec<String>),
         Ok(None) => Ok((validate(sample)?, vec![])),
         Err(e) => Ok((validate(sample)?, vec![format!("前回のVaultを復元できないためサンプルを開きました: {e}")])),
     }
-}
-
-pub fn claude_path(path: &Path) -> Result<Option<PathBuf>, String> { Ok(read(path)?.claude_path) }
-
-pub fn save_claude(path: &Path, executable: Option<PathBuf>) -> Result<(), String> {
-    let mut settings = read(path)?;
-    settings.claude_path = executable;
-    write(path, &settings)
 }
 
 pub fn save(path: &Path, root: &Path) -> Result<(), String> {
@@ -84,16 +74,6 @@ mod tests {
         fn sample(&self) -> PathBuf { self.0.join("sample") }
     }
     impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
-    #[test]
-    fn executable_setting_preserves_vault_and_other_preferences() {
-        let f=Fixture::new();let root=validate(&f.sample()).unwrap();
-        save(&f.settings(),&root).unwrap();
-        save_claude(&f.settings(),Some(PathBuf::from("/local/claude"))).unwrap();
-        assert_eq!(restore(&f.settings(),&f.sample()).unwrap().0,root);
-        save(&f.settings(),&validate(&f.0.join("日本語 vault")).unwrap()).unwrap();
-        assert_eq!(claude_path(&f.settings()).unwrap(),Some(PathBuf::from("/local/claude")));
-        save_claude(&f.settings(),None).unwrap();assert_eq!(claude_path(&f.settings()).unwrap(),None);
-    }
     #[test]
     fn first_launch_and_saved_path_round_trip() {
         let f = Fixture::new();

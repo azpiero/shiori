@@ -9,7 +9,7 @@ use url::Url;
 use walkdir::WalkDir;
 
 mod settings;
-mod claude;
+mod terminal;
 
 const MAX_FILE: u64 = 16 * 1024 * 1024;
 const NOTE_CSP: &str = "default-src 'none'; script-src 'none'; style-src vault: 'unsafe-inline'; img-src vault:; font-src vault:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; sandbox";
@@ -65,9 +65,9 @@ fn scan(vault: &Vault) -> Snapshot {
 #[tauri::command]
 async fn open_vault(path: Option<String>, app: tauri::AppHandle) -> Result<Snapshot,String> {
     let (vault, warnings) = {
-    let runner = app.state::<claude::Runner>();
+    let runner = app.state::<terminal::Runner>();
     let guard = runner.0.lock().map_err(|_| "実行状態エラー")?;
-    if guard.is_some() { return Err("Claudeの終了または中断後にVaultを切り替えてください".into()); }
+    if guard.is_some() { return Err("ターミナルを終了してからVaultを切り替えてください".into()); }
     let config = app.path().app_config_dir().map(|dir| dir.join("settings.json"));
     let mut warnings = Vec::new();
     if let Err(e) = &config { warnings.push(format!("設定フォルダを取得できません: {e}")); }
@@ -219,12 +219,12 @@ fn respond(app: &tauri::AppHandle, request: tauri::http::Request<Vec<u8>>) -> ta
 fn main() {
     tauri::Builder::default()
         .manage(State { vault:Mutex::new(None) })
-        .manage(claude::Runner::default())
+        .manage(terminal::Runner::default())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![open_vault,refresh_vault,vault_revision,claude::claude_config,claude::claude_configure,claude::claude_start,claude::claude_stop])
+        .invoke_handler(tauri::generate_handler![open_vault,refresh_vault,vault_revision,terminal::terminal_start,terminal::terminal_write,terminal::terminal_resize,terminal::terminal_ack,terminal::terminal_stop])
         .register_asynchronous_uri_scheme_protocol("vault",|ctx,request,responder| { let app=ctx.app_handle().clone(); std::thread::spawn(move || responder.respond(respond(&app,request))); })
         .build(tauri::generate_context!()).expect("Tauri app failed")
-        .run(|app,event| { if matches!(event,tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit) { app.state::<claude::Runner>().stop(); } });
+        .run(|app,event| { if matches!(event,tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit) { app.state::<terminal::Runner>().stop(); } });
 }
 
 #[cfg(test)]

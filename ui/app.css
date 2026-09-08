@@ -83,8 +83,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pane-tags{display:flex;flex-wrap:wrap;gap:5px;flex-shrink:0;max-height:76px;overflow:auto;padding:7px 10px;border-bottom:1px solid var(--line)}
 
 .workspace{min-width:0;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto}
-.claude-panel{min-height:0;max-height:42vh;overflow:auto;border-top:1px solid var(--line);padding:12px;background:var(--surface);display:flex;flex-direction:column;gap:8px}
-.claude-heading,.claude-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.claude-heading #claudeState{flex:1;font-size:11px;overflow-wrap:anywhere}
-.claude-help,.claude-target,.claude-actions span,.claude-panel details{font-size:11px;margin:0;overflow-wrap:anywhere}.claude-help{color:var(--muted)}
-.claude-panel input,.claude-panel textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:7px;max-width:100%}.claude-panel textarea{width:100%;resize:vertical;min-height:56px;flex-shrink:0}.claude-panel input{width:340px}
-.claude-panel pre{margin:0;min-height:80px;max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg);padding:10px;flex-shrink:0;font-size:11px}.claude-panel summary{cursor:pointer}.claude-panel button{font-size:11px;padding:5px 8px}
+.terminal-panel{min-height:200px;height:36vh;max-height:65vh;resize:vertical;overflow:hidden;border-top:1px solid var(--line);padding:8px 12px;background:var(--surface);display:flex;flex-direction:column;gap:6px}
+.terminal-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.terminal-heading #terminalState{flex:1;font-size:11px;overflow-wrap:anywhere}.terminal-heading button{font-size:11px;padding:5px 8px}
+.terminal-context{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+#terminalScreen{flex:1;min-height:0;min-width:0;background:#171c19;padding:5px}.terminal-panel .xterm{height:100%}
