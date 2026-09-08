@@ -1,11 +1,9 @@
-const boot = performance.now();
 const {invoke} = window.__TAURI__.core;
 const {listen} = window.__TAURI__.event;
 let vault=null, selected='', query='', activeTags=[], theme=localStorage.getItem('theme')||'light', revisionBusy=false, changed=false, composing=false;
 let graphMode=false,currentMatches=[],graphKey=null,vaultBusy=false;
 let terminalPanel=null,terminalBusy=false,tagEditing=false,tagEditor=null,revisionEpoch=0,moving=false,noteMover=null,dragNote=null;
 const collapsedFolders=new Set();let folderEdit=null;
-const metrics={uiReadyMs:0,scanMs:0};
 const $=s=>document.querySelector(s);
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 $('#app').innerHTML=`<div class="layout">
@@ -85,33 +83,30 @@ $('#app').innerHTML=`<div class="layout">
 <section id="terminalPanel" class="terminal-panel" aria-label="ターミナル" hidden></section>
 </div>
 </div>
-<footer class="statusbar">
-<span class="read-only" title="本文は閲覧専用です。タグ編集とフォルダ移動はファイルに反映されます。ターミナルの外部プロセスも編集できます。">本文は閲覧・タグ編集／移動可</span>
-<span id="status">準備中</span>
-<span id="timing">Tauri + Rust · sandboxed iframe · WKWebView</span>
-</footer>`;
+`;
 function setTheme(){document.documentElement.classList.toggle('theme-dark',theme==='dark');localStorage.setItem('theme',theme);$('#theme').setAttribute('aria-pressed',String(theme==='dark'));}
 setTheme();
-function status(s){$('#status').textContent=s;}
-const reader=ShioriReader.create({document,getVault:()=>vault,getTheme:()=>theme,onSelect:path=>{selected=path;renderList();tagEditor?.contextChanged();terminalPanel?.contextChanged();status(path?`表示中: ${path}`:'一覧からノートを開いてください');},onStatus:status,onTag:setTag,onEditTags:(path,remove,host)=>{if(!vaultBusy&&!moving&&!tagEditing)tagEditor.open(path,remove,host);}});
+const notifications=ShioriToasts.create({document});
+const showError=message=>notifications.error(message);
+const reader=ShioriReader.create({document,getVault:()=>vault,getTheme:()=>theme,onSelect:path=>{selected=path;renderList();tagEditor?.contextChanged();terminalPanel?.contextChanged();},onStatus:showError,onTag:setTag,onEditTags:(path,remove,host)=>{if(!vaultBusy&&!moving&&!tagEditing)tagEditor.open(path,remove,host);}});
 
-tagEditor=ShioriTagEditor.create({document,getVault:()=>vault,getTarget:()=>({path:reader.model.tab?.path,host:$('#pane-tags-'+reader.model.activePane)}),invoke,onError:status,onBusy:busy=>{tagEditing=busy;revisionEpoch++;reader.tagBusy(busy);setVaultBusy(vaultBusy);},onSaved:(result,path)=>{
+tagEditor=ShioriTagEditor.create({document,getVault:()=>vault,getTarget:()=>({path:reader.model.tab?.path,host:$('#pane-tags-'+reader.model.activePane)}),invoke,onError:showError,onBusy:busy=>{tagEditing=busy;revisionEpoch++;reader.tagBusy(busy);setVaultBusy(vaultBusy);},onSaved:(result,path)=>{
  if(result.snapshot.token!==vault?.token)return;
  const previous=new Map(vault.notes.map(n=>[n.path,n.source_hash]));
  const reloadPaths=new Set(result.snapshot.notes.filter(n=>n.path===path||previous.get(n.path)!==n.source_hash).map(n=>n.path));
- vault=result.snapshot;metrics.scanMs=vault.scan_ms;invalidateGraph();hideSuggestions();changed=false;$('#notice').classList.remove('show');
+ vault=result.snapshot;invalidateGraph();hideSuggestions();changed=false;$('#notice').classList.remove('show');
  reader.metadataRefresh(reloadPaths);renderList();renderReadErrors();
- status(result.warning||'タグを保存しました');
+ if(result.warning)notifications.warning(result.warning);
 }});
 
-noteMover=ShioriNoteMove.create({document,getVault:()=>vault,invoke,onError:status,onBusy:busy=>{moving=busy;revisionEpoch++;setVaultBusy(vaultBusy);},onMoved:result=>{
+noteMover=ShioriNoteMove.create({document,getVault:()=>vault,invoke,onError:showError,onBusy:busy=>{moving=busy;revisionEpoch++;setVaultBusy(vaultBusy);},onMoved:result=>{
  if(result.snapshot.token!==vault?.token)return;
  const previous=new Map(vault.notes.map(n=>[n.path,n.source_hash]));
  const reloadPaths=new Set(result.snapshot.notes.filter(n=>n.path===result.path||previous.get(n.path)!==n.source_hash).map(n=>n.path));
- vault=result.snapshot;metrics.scanMs=vault.scan_ms;invalidateGraph();hideSuggestions();changed=false;$('#notice').classList.remove('show');
+ vault=result.snapshot;invalidateGraph();hideSuggestions();changed=false;$('#notice').classList.remove('show');
  collapsedFolders.delete(ShioriFolders.parent(result.path));reader.moved(result.old_path,result.path,reloadPaths);renderList();renderReadErrors();
- status(result.warnings?.join(' / ')||`移動しました: ${result.old_path} → ${result.path}`);
- if(!result.warnings?.length&&result.review?.references.length)status(`移動しました: ${result.path}（参照先が変わるリンクがあります）`);
+ if(result.warnings?.length)notifications.warning(result.warnings.join(' / '));
+ if(!result.warnings?.length&&result.review?.references.length)notifications.warning(`移動しました: ${result.path}（参照先が変わるリンクがあります）`);
  [...$('#notes').querySelectorAll('[data-path]')].find(b=>b.dataset.path===result.path)?.focus();
 }});
 function beginMove(path,folder){if(!vaultBusy&&!tagEditing&&!moving)return noteMover.open(path,folder);}
@@ -166,8 +161,8 @@ $('#notes').onkeydown=e=>{
  if(e.target.id==='folderName'){if(e.isComposing)return;if(e.key==='Enter'){e.preventDefault();saveFolder();}if(e.key==='Escape'&&!moving){e.preventDefault();const path=folderEdit.path;folderEdit=null;renderList();focusFolder(path);}return;}
  const row=e.target.closest('[data-folder]');
  if(row&&(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10'))){e.preventDefault();showFolderMenu(row.dataset.folder,row.getBoundingClientRect());return;}
- if(e.key==='Escape'){clearDrag();status('移動を取消しました');}
- if(e.key===' '&&!moving&&!tagEditing&&!vaultBusy){const button=e.target.closest('[data-path]');if(button){e.preventDefault();dragNote={token:vault.token,path:button.dataset.path,keyboard:true};status('移動先のフォルダへTabで移動し、Enterで格納します。Escapeで取消。');}}
+ if(e.key==='Escape'){clearDrag();}
+ if(e.key===' '&&!moving&&!tagEditing&&!vaultBusy){const button=e.target.closest('[data-path]');if(button){e.preventDefault();dragNote={token:vault.token,path:button.dataset.path,keyboard:true};notifications.info('移動先のフォルダへTabで移動し、Enterで格納します。Escapeで取消。');}}
 };
 function focusFolder(path){[...$('#notes').querySelectorAll('[data-folder]')].find(b=>b.dataset.folder===path)?.focus();}
 let menuPath=null;
@@ -195,11 +190,11 @@ async function saveFolder(){
   if(result.snapshot.token!==vault?.token)return;
   folderEdit=null;vault=result.snapshot;changed=false;$('#notice').classList.remove('show');invalidateGraph();hideSuggestions();collapsedFolders.clear();
   if(result.old_path){const paths=new Set(vault.notes.filter(n=>n.path.startsWith(result.path+'/')).map(n=>n.path));reader.moved(result.old_path,result.path,paths);}else reader.render();
-  renderList();renderReadErrors();focusFolder(result.path);status(result.snapshot.errors.length?'フォルダ操作は完了しました。一部の読み取りエラーを確認してください':`フォルダを${draft.mode==='create'?'作成':'変更'}しました: ${result.path}`);
- }catch(e){status(String(e));}finally{moving=false;revisionEpoch++;if($('#folderName')){$('#folderName').disabled=false;$('#folderName').focus();}setVaultBusy(vaultBusy);}
+  renderList();renderReadErrors();focusFolder(result.path);
+ }catch(e){showError(String(e));}finally{moving=false;revisionEpoch++;if($('#folderName')){$('#folderName').disabled=false;$('#folderName').focus();}setVaultBusy(vaultBusy);}
 }
 function invalidateGraph(){graphKey=null;}
-function clearNote(){reader.reset();selected='';renderList();status('HTMLノートがありません');}
+function clearNote(){reader.reset();selected='';renderList();}
 function openNote(path,anchor='',mode='current'){
  if(!vault)return;setView(false);reader.open(path,anchor,mode,query.trim());
 }
@@ -210,25 +205,23 @@ function renderReadErrors(){
  $('#readErrors').hidden=!errors.length;
  $('#readErrorsSummary').textContent=`読み取りエラー ${errors.length}件`;
  $('#readErrorsList').innerHTML=errors.map(error=>`<li>${escape(error)}</li>`).join('');
- if(errors.length)status(`${errors.length}件の読み取りエラー（サイドバーで詳細を確認）`);
- else $('#readErrors').open=false;
+ if(!errors.length)$('#readErrors').open=false;
 }
-function setVaultBusy(busy){vaultBusy=busy;for(const id of ['reload','update','open'])$('#'+id).disabled=busy||tagEditing||moving||(id==='open'&&terminalBusy);$('#reload').setAttribute('aria-busy',String(busy));terminalPanel?.contextChanged();}
+function setVaultBusy(busy){vaultBusy=busy;for(const id of ['reload','update','open'])$('#'+id).disabled=busy||tagEditing||moving||(id==='open'&&terminalBusy);$('#reload').setAttribute('aria-busy',String(busy));$('#notes').setAttribute('aria-busy',String(busy));terminalPanel?.contextChanged();}
 
 async function load(path=null){
  if(vaultBusy||terminalBusy||tagEditing||moving)return;setVaultBusy(true);clearTimeout(timer);
- status('HTMLを解析しています…');
  try{
-  vault=await invoke('open_vault',{path});metrics.scanMs=vault.scan_ms;
+  vault=await invoke('open_vault',{path});
   $('#vaultWarnings').textContent=(vault.warnings||[]).join('\n');$('#vaultWarnings').hidden=!vault.warnings?.length;
   folderEdit=null;closeFolderMenu();collapsedFolders.clear();clearDrag();reader.reset();terminalPanel.reset();selected='';invalidateGraph();activeTags=[];query='';$('#search').value='';hideSuggestions();setView(false);
   $('#root').textContent=vault.root;$('#root').title=vault.root;$('#vaultName').textContent=vault.root.split('/').pop();$('#vaultName').title=vault.root;
   $('#notice').classList.remove('show');changed=false;
   renderList();const first=vault.notes.find(n=>n.path.startsWith('notes/'));if(first)openNote(first.path);else clearNote();
-  renderReadErrors();$('#timing').textContent=`UI ${metrics.uiReadyMs} ms · scan ${metrics.scanMs} ms`;
- }catch(e){status(String(e));}finally{setVaultBusy(false);}
+  renderReadErrors();
+ }catch(e){showError(String(e));}finally{setVaultBusy(false);}
 }
-$('#open').onclick=async()=>{try{const path=await invoke('plugin:dialog|open',{options:{directory:true,multiple:false,title:'HTMLを保管したフォルダを選択'}});if(path)await load(path);}catch(e){status(String(e));}};
+$('#open').onclick=async()=>{try{const path=await invoke('plugin:dialog|open',{options:{directory:true,multiple:false,title:'HTMLを保管したフォルダを選択'}});if(path)await load(path);}catch(e){showError(String(e));}};
 $('#theme').onclick=()=>{theme=theme==='light'?'dark':'light';setTheme();reader.theme();graphView.redraw();};
 let timer,suggestions=null,suggestionIndex=-1;
 function hideSuggestions(){suggestions=null;suggestionIndex=-1;$('#tagSuggestions').hidden=true;$('#tagSuggestions').innerHTML='';$('#search').setAttribute('aria-expanded','false');$('#search').removeAttribute('aria-activedescendant');$('#suggestionStatus').textContent='';}
@@ -281,18 +274,23 @@ $('#search').addEventListener('keydown',e=>{
 });
 
 async function refresh(){
- if(vaultBusy||tagEditing||moving||!vault)return;setVaultBusy(true);hideSuggestions();status('Vault全体を再読込しています…');
+ if(vaultBusy||tagEditing||moving||!vault)return;setVaultBusy(true);hideSuggestions();
  try{
   const wasGraph=graphMode;
-  vault=await invoke('refresh_vault');metrics.scanMs=vault.scan_ms;invalidateGraph();
+  vault=await invoke('refresh_vault');invalidateGraph();
   changed=false;$('#notice').classList.remove('show');
   reader.refresh();renderList();
   setView(wasGraph);
-  renderReadErrors();$('#timing').textContent=`UI ${metrics.uiReadyMs} ms · scan ${metrics.scanMs} ms`;
- }catch(e){status(String(e));}finally{setVaultBusy(false);}
+  renderReadErrors();
+ }catch(e){showError(String(e));}finally{setVaultBusy(false);}
 }
 $('#reload').onclick=refresh;$('#update').onclick=refresh;
-setInterval(async()=>{if(!vault||vaultBusy||tagEditing||moving||revisionBusy||changed)return;revisionBusy=true;const epoch=revisionEpoch,token=vault.token;try{const rev=await invoke('vault_revision');if(epoch===revisionEpoch&&token===vault?.token&&!vaultBusy&&rev!==vault.revision){changed=true;$('#notice').classList.add('show');}}catch(e){status(String(e));}finally{revisionBusy=false;}},2000);
+let pollError=null;
+setInterval(async()=>{if(!vault||vaultBusy||tagEditing||moving||revisionBusy||changed)return;revisionBusy=true;const epoch=revisionEpoch,token=vault.token;
+ try{const rev=await invoke('vault_revision');if(epoch===revisionEpoch&&token===vault?.token&&!vaultBusy){pollError=null;if(rev!==vault.revision){changed=true;$('#notice').classList.add('show');}}}
+ catch(e){if(epoch===revisionEpoch&&token===vault?.token&&!vaultBusy){const key=token+':'+String(e);if(pollError!==key){pollError=key;showError(String(e));}}}
+ finally{revisionBusy=false;}
+},2000);
 $('#splitter').onpointerdown=e=>{e.preventDefault();const shield=document.createElement('div');Object.assign(shield.style,{position:'fixed',inset:'0',zIndex:50,cursor:'col-resize'});document.body.append(shield);const move=e=>document.documentElement.style.setProperty('--sidebar',`${Math.max(210,Math.min(460,window.innerWidth-$('.view-nav').offsetWidth-325,e.clientX-$('.view-nav').getBoundingClientRect().right))}px`);shield.onpointermove=move;shield.onpointerup=()=>shield.remove();};
 function setTag(value){
  const parsed=ShioriSearch.parse($('#search').value);
@@ -308,4 +306,4 @@ function renderGraph(){
 }
 $('#showGraph').onclick=()=>setView(true);$('#showNote').onclick=()=>setView(false);
 $('#zoomIn').onclick=()=>graphView.zoom(1.25);$('#zoomOut').onclick=()=>graphView.zoom(1/1.25);$('#graphReset').onclick=()=>graphView.reset();
-metrics.uiReadyMs=Math.round(performance.now()-boot);load();
+load();

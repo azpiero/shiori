@@ -674,3 +674,11 @@ This replaces the earlier tag-membership graph described above.
 - Use existing tag suggestions with a combobox/listbox. Arrow keys select, Enter or a pointer click fills the input, and the next Enter saves. Composition events and isComposing prevent premature IME submission.
 - Retain blank/control-character/256-byte/128-tag validation, fresh source hashes and backend conflict checks. Disable tag controls in both panes for the complete read/write operation; report failures through the status bar.
 - Successful writes refresh both panes and search/graph metadata through the existing revision-epoch flow. Scan warnings remain saved outcomes. Late completion does not steal focus from a different pane/note.
+
+## Issue #39: Notifications instead of a status bar (2026-09-09)
+
+- Remove the footer, reading-mode label, selected-path status and UI/scan timing display. The app layout occupies the full window height.
+- Show errors and warnings in bottom-right, dismissible notifications with alert semantics. They do not expire. Show informational guidance with status semantics and a five-second timer, paused while hovered/focused.
+- Display at most three notifications at once; queue additional entries without discarding persistent errors. Deduplicate identical type/message pairs across visible and queued entries.
+- Suppress repeated revision-poll failures even after dismissal until a successful poll or a different vault/error. Ignore failures from obsolete polling contexts.
+- Keep routine edit successes and navigation silent. Preserve vault warnings, sidebar read-error details and the external-change notice. Expose loading on the reload control and note list through aria-busy.
