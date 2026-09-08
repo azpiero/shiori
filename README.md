@@ -20,7 +20,7 @@ Your vault is a folder of ordinary HTML, CSS, and images. HTML files remain the 
 
 ## Screenshots
 
-Actual macOS app windows showing the bundled sample vault in dark mode.
+Earlier macOS prototype showing the bundled sample vault in dark mode. These screenshots predate the sidebar navigation changes; updated captures are pending native UI verification.
 
 | Read HTML notes | Explore shared tags |
 | --- | --- |
@@ -30,11 +30,13 @@ Actual macOS app windows showing the bundled sample vault in dark mode.
 
 - Open a local vault and browse notes by title, text, or tag.
 - Read HTML with local images, tables, shared CSS, and note-specific styles.
-- Jump to headings and highlighted search matches.
+- Move between highlighted search matches using controls shown only during an active note search.
 - Explore a graph connecting notes to their tags. Select a tag to filter or a note to read it.
-- See tags in the note list and above the document; open a tag's graph directly from a note.
+- See titles, paths, and tags in the sidebar. Tag buttons marked ↗ open a tag graph; the filter above the list narrows the results.
 - Switch between light and dark themes and resize the sidebar.
-- Detect external file changes and reload them on demand.
+- Reload the entire vault from the button beside its name, or apply an external-change notification.
+
+Use the left navigation rail to switch between notes and the tag graph. Returning from a note preserves the graph page, zoom, and pan. Changing the search or tag filter, opening a vault, or refreshing its contents resets graph exploration; switching pages resets zoom and pan. A note excluded by the active filters remains identified in a compact sidebar section.
 
 The graph displays up to 150 notes per page, follows the current search and tag filter, and supports zoom, pan, and keyboard selection. Its edges represent tag membership; hierarchical tag names use exact matching, and HTML links do not create graph edges.
 
@@ -106,7 +108,7 @@ cd app
 cargo run --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
 ```
 
-The app starts with seven bundled sample notes. Choose **フォルダを開く** (Open folder) to open your vault, **タググラフ** (Tag graph) to explore tags, and **更新を反映** (Apply updates) after editing notes externally.
+The app starts with seven bundled sample notes. Choose **フォルダを開く** (Open folder) to open your vault, **グラフ** (Graph) in the left navigation rail to explore tags, and **更新を反映** (Apply updates) after editing notes externally.
 
 ### Build a macOS app bundle
 
@@ -125,12 +127,12 @@ Run from `app/`:
 
 ```sh
 cargo test --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
-node --test tests/graph.test.cjs
+node --test tests/*.test.cjs
 node --check ui/app.js
 node --check ui/graph.js
 ```
 
-The Rust suite covers vault boundaries, HTML sanitization, and preservation of source files. JavaScript tests cover tag membership and graph pagination. The performance benchmark is an opt-in ignored Rust test; see [performance measurements and reproduction steps](docs/PERFORMANCE.md).
+The Rust suite covers vault boundaries, HTML sanitization, and preservation of source files. JavaScript tests cover tag membership, graph pagination, and navigation/search state using a small DOM/Tauri adapter. They do not verify native WebView rendering or layout. The performance benchmark is an opt-in ignored Rust test; see [performance measurements and reproduction steps](docs/PERFORMANCE.md).
 
 ## Technology stack
 
