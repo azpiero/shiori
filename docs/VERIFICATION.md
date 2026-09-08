@@ -227,7 +227,7 @@ Terminal workspace setup now copies both bundled Skills, including their support
 
 - Removed YOUR LIBRARY and adjusted sidebar top padding at both breakpoints.
 - Tab wrappers own the complete selected/hover surface, including the always-visible close button. Tab semantics and keyboard behavior are unchanged.
-- Terminal steady-state text and startup toolbar button are removed. An information popover contains full selectable paths and the stop action. Exit/failure exposes a keyboard-accessible restart button in the terminal area; transition/error messages and missing-vault guidance remain visible.
-- JavaScript: 57 tests passed, including selected tab class/ARIA agreement, live terminal paths, Escape dismissal, deferred stop, startup failure and restart.
-- Headless Chromium with actual xterm and mocked IPC checked light/dark themes at 1100px and 780px, popover containment, Escape/outside-click dismissal, focus restoration and stop/restart. Native shell execution was not part of this UI check.
+- Terminal steady-state text and startup toolbar button are removed. An information popover contains full selectable paths only; shell termination uses `exit` at the prompt. Exit/failure exposes a keyboard-accessible restart button in the terminal area; transition/error messages and missing-vault guidance remain visible.
+- JavaScript: 57 tests passed, including selected tab class/ARIA agreement, live terminal paths, Escape dismissal, startup failure and restart.
+- Headless Chromium with actual xterm and mocked IPC checked light/dark themes at 1100px and 780px, popover containment, Escape/outside-click dismissal, focus restoration and shell-exit/restart. Native shell execution was not part of this UI check.
 - macOS build and signature verification passed. Native WKWebView visual confirmation remains manual.

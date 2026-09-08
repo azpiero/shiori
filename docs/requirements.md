@@ -645,5 +645,5 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 - Remove the redundant YOUR LIBRARY label and reduce only sidebar top padding.
 - Render each reader tab as one surface containing separate transparent title and close buttons. Preserve accessible tab semantics, keyboard navigation, truncation and always-visible close controls.
 - Keep the terminal heading on one row. Show transitions, failures, exits and missing-vault guidance, but omit routine ready/input status.
-- Put full selectable HTML destination/working-directory paths and shell termination inside an information popover. Support expanded/control ARIA state, Escape/outside-click dismissal and focus restoration. Context updates remain live.
-- Preserve automatic shell startup when opening the panel and deferred termination during startup. Offer an explicit restart button in the terminal area after exit or startup failure. Hiding the panel still preserves its shell.
+- Put full selectable HTML destination/working-directory paths inside an information popover. Do not show a shell termination button; use `exit` at the shell prompt. Support expanded/control ARIA state, Escape/outside-click dismissal and focus restoration. Context updates remain live.
+- Preserve automatic shell startup when opening the panel. Offer an explicit restart button in the terminal area after exit or startup failure. Hiding the panel still preserves its shell.
