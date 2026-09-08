@@ -1,149 +1,202 @@
 <p align="center">
-  <img src="docs/assets/shiori-logo.png" alt="shiori — 栞をモチーフにしたロゴ" width="240">
+  <img src="docs/assets/shiori-logo.png" alt="shiori — a bookmark for your knowledge" width="240">
 </p>
 
-# shiori 表示試作
+# shiori
 
-Tauri 2＋Rust、sandbox付きiframeによるMac向けの表示試作です。HTMLの正本を変更せず、表示用コピーだけを加工します。
+A local HTML knowledge library. Let an AI assistant write and update your notes, read them in shiori, and keep their history in Git.
 
-## 起動
+Your vault is a folder of ordinary HTML, CSS, and images. HTML files remain the source of truth: shiori reads them without rewriting the originals, preserving the layouts, tables, and illustrations that make each note useful.
 
-隣接する`../outputs/`フォルダにある **shiori.app** をFinderから開いてください。Apple Silicon向けの開発ビルドです。Node.jsやRustのインストールは起動には不要です。
+**Status:** early, read-only desktop prototype for macOS. The interface and bundled sample notes are currently in Japanese.
 
-初回は7件の同梱サンプルを表示する構成です。「フォルダを開く」から別のHTMLフォルダも選べます。初めは実データのコピーで確認してください。
+## Screenshots
 
-**確認状況：ユーザーのスクリーンショットで起動とHTMLの読み込みを確認しました。** 本文が上部だけで見切れるレイアウト不具合を修正し、再ビルド・署名検証済みです。アプリを終了してから開き直すと修正版になります。修正後の実画面と、他の操作項目の検証は未完了です。
+Actual macOS app windows showing the bundled sample vault in dark mode.
 
-## できること（実装済み・画面での確認待ち）
-
-- サンプルまたは任意のHTMLフォルダを読み取る
-- タイトル・タグ・本文・見出しの抽出
-- ノート一覧、簡易な本文部分一致、タグの絞り込み
-- 表・画像・共通CSS・ノート固有CSSの表示
-- サイドバー幅変更、ライト／ダーク切替
-- 見出しへの移動
-- 検索文字列を表示用コピーに`mark`と`id`で挿入し、通常のフラグメントで移動
-- HTML／資産の更新を約2秒間隔で検知し、手動更新の通知を表示
-- Rust側の配信・拒否ログ、簡易なロード時間の表示
-
-## 試す順序
-
-1. 「知識を、読めるかたちに。」が表示されるか確認する。
-2. 一覧から「文章・表・画像を、一つのノートに。」へ切り替え、画像・表・CSSを確認する。
-3. 「日本語と特殊文字のリンク」で、生の日本語・エンコード済みURL・合成／分解形のリンクを確認する。
-4. 検索欄へ日本語IMEで「知識」を入力し、変換確定後にEnterを押す。↑↓で検索箇所を移動する。
-5. 見出し選択からページ内を移動する。
-6. 「長い表をスクロールする」の2,000行をスクロールし、末尾リンクを試す。
-7. サイドバー境界をドラッグし、◐でテーマを切り替える。
-8. 「隔離チェック」を表示する。外部画像・絶対パス・範囲外参照は表示されず、JavaScript実行や自動遷移が起こらないことを確認する。
-9. 検証ログでRust側の拒否を確認する。WebView内のCSPブロックはRustログに届かないため、Network／Consoleの検証は別途必要。
-10. 任意のコピーVaultを選び、HTMLまたはCSSを外部編集する。更新通知から再読み込みする。
-
-## 隔離の実装
-
-- iframeは`sandbox=""`で表示し、スクリプト・同一オリジン権限・フォーム・ポップアップ等を許可しません。
-- `vault://localhost/<セッションID>/…`で許可したVaultの内容を配信します。
-- パスをデコードした後、実パスとシンボリックリンクの解決結果がVault内にあることを確認します。
-- ノートのレスポンスにはCSPを設定し、ノートのスクリプト・外部資産・フレーム等を制限します。
-- 表示用HTMLからscript・iframe・meta http-equiv・イベント属性・フォームの送信先などを除きます。正本は書き換えません。
-- 外部リンクは試作では無効化します。既定ブラウザを開く機能は未実装です。
-- アプリUIだけがTauriコマンドを使用します。ノート側からのIPC拒否は実WebViewでの追加検証が必要です。
-
-## 検索と位置移動の制限
-
-- SQLite、FTS5、永続索引はまだ導入していません。表示試作では抽出した本文をUIメモリに持ち、単純検索します。
-- 単一の検索文字列を扱います。複数語AND、正規表現、順位付けの本実装は後続です。
-- 一覧の絞り込みは大文字小文字を無視しますが、表示ハイライトは完全な文字列一致です。
-- ハイライトは同じテキストノード内の一致に限定します。タグをまたぐ一致、空白正規化、CSSで非表示の文字への一致は未対応です。
-- 1ノートあたり最大1,000箇所をマークします。
-- 「Text fragment検証」は比較用です。iframeでのText fragmentを機能要件として期待せず、表示コピーの通常アンカーを代替にしています。実WebViewでの挙動は未確認です。
-- ノート内リンクから別ノートへ移動した場合も、Rustから表示ノートの情報を通知する構成です。履歴・戻る／進むは未実装です。
-
-## 試作のその他の制限
-
-- ファイルの書き込み、固定ID付与、タグ編集、リンク修復、グラフ、Git操作はありません。
-- フォルダ選択後は全ノートの読み取り終了を待って一覧を出します。初回索引中の段階的表示は後続です。
-- 1ファイル16MBまで。ノート本文はUTF-8のみ。ノート候補は小文字の`.html`です。
-- `.git`・`node_modules`・`.shiori`・`.html-vault`は走査から除外し、直下のassets／styles内のHTMLはノートにしません。
-- 外部変更は通知まで。反映ボタンで再読み込みするとスクロール位置はリセットされます。
-- 画面の時間は開発ビルドでの簡易計測値です。frame loadは描画完了やフレームレートの測定ではありません。リリース性能の判断には使わないでください。
-- ダーク／ライトは同梱共通CSSで対応します。任意の外部HTMLの色を強制的に書き換えるものではありません。
-- 別WebView構成との比較は未実施です。iframeが実用条件を満たさない場合に追加する段階的な進め方です。
-
-## サンプル
-
-| ファイル | 確認内容 |
+| Read HTML notes | Explore shared tags |
 | --- | --- |
-| 00-はじめに.html | 通常のレイアウト、検索、見出し |
-| 01-表現のサンプル.html | 表、約2MBのPNG、独自CSS |
-| 02-日本語 #%.html | 日本語・空白・#・%・URLエンコード |
-| 03-長いノート.html | 2,000行の表、ページ内移動 |
-| 04-が.html | NFC／NFDの参照 |
-| 05-隔離チェック.html | script、外部画像、CSS import、範囲外パス、フォーム、自動遷移 |
-| 06-更新の確認.html | 外部編集後の更新通知 |
+| ![shiori displaying a sample HTML note with a local image](docs/assets/screenshot-reader.jpg) | ![shiori displaying the sample vault as a graph of notes and tags](docs/assets/screenshot-graph.jpg) |
 
-ソース側のsample-vaultには、このリポジトリ内の`fixtures/outside-vault.png`を指す相対シンボリックリンクがあります。実データやOSのファイルを参照せず、Vault境界を検証するためのものです。アプリバンドルには署名整合性のため含めていません。同梱サンプルでは当該参照は単に欠落画像になります。シンボリックリンク拒否はRustテストでも確認しています。
+## Features
 
-## ビルド
+- Open a local vault and browse notes by title, text, or tag.
+- Read HTML with local images, tables, shared CSS, and note-specific styles.
+- Jump to headings and highlighted search matches.
+- Explore a graph connecting notes to their tags. Select a tag to filter or a note to read it.
+- See tags in the note list and above the document; open a tag's graph directly from a note.
+- Switch between light and dark themes and resize the sidebar.
+- Detect external file changes and reload them on demand.
 
-Rust stableとXcode Command Line Toolsを用意した環境では、ソースフォルダで以下を実行します。
+The graph displays up to 150 notes per page, follows the current search and tag filter, and supports zoom, pan, and keyboard selection. Its edges represent tag membership; hierarchical tag names use exact matching, and HTML links do not create graph edges.
 
-```sh
-cargo test --manifest-path src-tauri/Cargo.toml --features custom-protocol
-cargo run --manifest-path src-tauri/Cargo.toml --features custom-protocol
-# .appを作る場合
-./scripts/build-macos.sh
-```
+## Workflow: AI writes, shiori reads, Git keeps history
 
-フロントエンドは素のHTML／CSS／JavaScriptで、npm依存はありません。依存バージョンは`src-tauri/Cargo.lock`に保存しています。
+1. Choose a vault folder, separate from the application source.
+2. Give your AI assistant the path to the bundled [shiori-notes Skill](skills/shiori-notes/SKILL.md) and the target vault.
+3. Ask it to create or update HTML notes. The Skill describes existing-tag reuse, generated UUIDs, stable heading IDs, relative links, and local assets.
+4. Open the folder in shiori, or apply the external-change notification to read the updated files.
+5. Review the changes and commit or sync the vault using your usual Git tools.
 
-この作業環境のRustは`../work/toolchain`に置き、シェル設定やホーム直下のRust設定を変更していません。
-
-## 検証結果
-
-- Rustのビルド：成功
-- Rust自動テスト：4件成功
-- JavaScript構文チェック：成功
-- Macアプリのad-hoc署名・整合性検証：成功
-- 7ノートの読み取りと表示コピー生成、元ファイルのバイト列維持：自動テストで成功
-- 実WebView表示、クリック、CSPによる実通信の遮断、日本語IME、スクロール：未確認
-
-詳細は`docs/VERIFICATION.md`を参照してください。
-
-## Git管理とディレクトリ
-
-この`app/`がアプリ開発用Gitリポジトリです。ソース、Cargo.lock、仕様書（`docs/requirements.md`）、検証記録、検証用sample-vaultを管理します。Skill本体は未作成です。
-
-実ノート用の`../vault/`は独立したGitリポジトリです。submoduleではありません。アプリの「フォルダを開く」で選択します。実ノートの移行はまだ行っていません。
-
-ビルド結果の`.app`、target、生成スキーマ、SQLiteキャッシュはGit対象外です。現在の配布用アプリは`../outputs/`、この作業環境のRustとビルドキャッシュは`../work/`にあります。
-
-アプリのoriginは`https://github.com/azpiero/shiori.git`です。Vault側のリモートは未設定です。リモート設定の有無とpush済みかどうかは別に確認してください。
-
-## 作業ディレクトリ
+Example prompt, from the application repository:
 
 ```text
-~/Documents/shiori/
-├── app/       # このリポジトリ
-├── vault/     # 実ノート用の独立したGitリポジトリ
-├── outputs/   # shiori.app
-└── work/      # 開発ツール・ビルドキャッシュ
+Read skills/shiori-notes/SKILL.md and follow it to create a note about Rust
+ownership in ../vault. Check related notes and existing tags first, reuse
+relevant tags, and link to existing notes where useful. Write the note in English.
 ```
 
-開発プロジェクトには`app/`を指定してください。起動するアプリは`../outputs/shiori.app`です。
+The Skill is included as a file; it is not automatically installed into an AI tool. Use an assistant that can read the Skill and edit files in your chosen vault. shiori itself does not call an AI service, edit notes, or run Git commands. Commit and push are separate actions you request from your tools.
 
-## タググラフとノートのタグ
+A vault can be its own Git repository. For example, after creating a new vault:
 
-「タググラフ」で、ノートと共有タグの関係を表示します。大きい点はタグ、小さい点はノートです。タグをクリックすると絞り込み、ノートをクリックすると本文を開きます。検索欄の条件も反映します。「すべて」でタグの絞り込みを解除できます。
+```sh
+git -C ../vault init
+git -C ../vault status
+git -C ../vault diff
+# Stage the note and asset files you have reviewed, then commit them.
+```
 
-グラフは最大150ノートずつページ表示します。線は表示中のノートとタグの所属関係です。全Vaultの関係を一度に描くものではなく、タグの暗黙の親子関係やHTMLリンクの辺は生成しません。タグなしノートも独立した点として表示します。拡大・縮小、ドラッグ移動、全体表示、キーボードのTabとEnterに対応します。
+Configure a remote and push with your Git client when you want to sync. The vault repository is independent of this app repository; no submodule is required.
 
-ノート一覧と本文上部にタグを表示します。本文上部のタグを選ぶと、そのタグのグラフへ移動します。HTMLの正本には書き込みません。
+## Supported operating systems
 
-AI向け記述規約は `skills/shiori-notes/SKILL.md` に同梱しています。AIへ「このSKILL.mdを読み、指定したVaultにノートを作成して」とパス付きで依頼できます。例：`skills/shiori-notes/SKILL.md に従い、../vault の既存タグを調べてRustの学習ノートを作って`。自動検出される場所へのインストールは行っていません。
+| Platform | Current status |
+| --- | --- |
+| macOS / Apple Silicon | Current development and manual testing platform |
+| macOS / Intel | Not yet validated; no verified build provided |
+| Windows / Linux | Not currently supported or tested by this project |
 
-グラフのデータ検証は `node --test tests/graph.test.cjs` で実行できます。
+The macOS bundle declares macOS 12.0 as its minimum version; compatibility across all versions from 12.0 onward has not been verified. Tauri's platform support does not imply that shiori has been tested on those platforms.
 
-## ロゴ
+## Build and run
 
-栞の形にSの曲線を合わせた、深緑のロゴを使用しています。文字付きロゴは `docs/assets/shiori-logo.png`、アプリアイコンは `src-tauri/icons/shiori.icns` です。アプリの画面内にも同じマークを使用しています。
+### Prerequisites
+
+- macOS with Xcode Command Line Tools (`xcode-select --install`). See the [official Tauri prerequisites](https://v2.tauri.app/start/prerequisites/#macos).
+- Rust stable and Cargo available on your `PATH`.
+- Git to clone the repository.
+- Python 3 to assemble the `.app` bundle.
+- Node.js with `node --test` support for JavaScript tests only.
+
+There is no npm install step, frontend bundler, or Tauri CLI requirement. Rust and Node.js are not needed to launch an already-built app.
+
+### Get the source
+
+This layout keeps build outputs and your personal vault outside the source repository:
+
+```sh
+mkdir shiori-workspace
+cd shiori-workspace
+git clone https://github.com/azpiero/shiori.git app
+cd app
+```
+
+### Run from source
+
+```sh
+cargo run --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
+```
+
+The app starts with seven bundled sample notes. Choose **フォルダを開く** (Open folder) to open your vault, **タググラフ** (Tag graph) to explore tags, and **更新を反映** (Apply updates) after editing notes externally.
+
+### Build a macOS app bundle
+
+```sh
+./scripts/build-macos.sh
+open ../outputs/shiori.app
+```
+
+The script builds a development binary for the host architecture, copies the sample vault and icon, and applies and verifies an ad-hoc signature. It produces `../outputs/shiori.app`; this is not a notarized release package. Close the running app and reopen it after rebuilding.
+
+By default, the script stores build artifacts in `../work/target`. Set `CARGO_TARGET_DIR` to override that location. Its fallback to `../work/toolchain` is for the maintainer's local setup; a normal installation with Cargo on `PATH` does not need that directory.
+
+### Tests
+
+Run from `app/`:
+
+```sh
+cargo test --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
+node --test tests/graph.test.cjs
+node --check ui/app.js
+node --check ui/graph.js
+```
+
+The Rust suite covers vault boundaries, HTML sanitization, and preservation of source files. JavaScript tests cover tag membership and graph pagination. The performance benchmark is an opt-in ignored Rust test; see [performance measurements and reproduction steps](docs/PERFORMANCE.md).
+
+## Technology stack
+
+| Layer | Technology |
+| --- | --- |
+| Desktop shell | Tauri 2 with a Rust backend |
+| macOS rendering | System WKWebView, with a sandboxed iframe for notes |
+| Interface | Plain HTML, CSS, and JavaScript; SVG for the tag graph |
+| HTML processing | `kuchiki` for parsing and display-copy transformation |
+| Files and metadata | `walkdir`, `serde`, `serde_json`, URL and Unicode utilities |
+| Storage | Local HTML files and assets; extracted text held in memory |
+| Version control | External Git tools for the app and, optionally, a separate vault repository |
+
+Dependency versions are pinned in [Cargo.lock](src-tauri/Cargo.lock). SQLite, persistent caches, and FTS5 are not implemented; their use is being evaluated in [#1](https://github.com/azpiero/shiori/issues/1).
+
+## Directory structure
+
+Suggested workspace layout; your vault can live elsewhere:
+
+```text
+shiori-workspace/
+├── app/                    # This Git repository
+│   ├── ui/                 # HTML/CSS/JavaScript interface and graph
+│   ├── src-tauri/          # Rust backend, Tauri config, icons, Cargo.lock
+│   ├── skills/
+│   │   └── shiori-notes/   # Instructions for AI-assisted note authoring
+│   ├── sample-vault/       # Seven demonstration and test notes
+│   ├── fixtures/           # Test assets, including vault-boundary fixtures
+│   ├── tests/              # JavaScript graph tests
+│   ├── scripts/            # macOS packaging and benchmark tools
+│   └── docs/               # Requirements, verification, performance, images
+├── vault/                  # Your notes; optionally a separate Git repository
+│   ├── notes/              # UTF-8 .html files
+│   ├── assets/             # Images and other local assets
+│   └── styles/             # Shared CSS
+├── outputs/                # Generated shiori.app
+└── work/                   # Build cache and disposable benchmark data
+```
+
+The `notes/`, `assets/`, and `styles/` layout is the Skill's default for a new vault. Keep existing vault conventions when editing an established collection. `.git`, `node_modules`, `.shiori`, and `.html-vault` directories are excluded from scans; HTML under root-level `assets/` and `styles/` is not treated as notes.
+
+## Limitations and security model
+
+This prototype is read-only. In-app editing, automatic link repair, navigation history, and Git synchronization are not implemented.
+
+Notes are served through a vault-scoped protocol after resolving paths and symlinks. A sandboxed iframe, Content Security Policy, and display-copy sanitization restrict scripts, forms, frames, and external resources. Original HTML remains unchanged. External links are currently disabled.
+
+These controls have backend tests, but full verification of external-communication and IPC blocking in the real WebView remains open in [#3](https://github.com/azpiero/shiori/issues/3).
+
+Other current limits:
+
+- Notes must be UTF-8 files with a lowercase `.html` extension. The file-size limit is 16 MiB.
+- Search uses one substring, without multi-term AND or regular expressions. List filtering ignores case; highlighting is case-sensitive and does not span HTML text nodes. At most 1,000 matches are marked per note.
+- Opening or refreshing a vault reparses all notes. Large vaults can be slow; see [#1](https://github.com/azpiero/shiori/issues/1).
+- Applying external changes resets the document's scroll position.
+- Theme switching does not force arbitrary user HTML to adopt the app's colors.
+
+## Contributing and roadmap
+
+Bug reports and focused pull requests are welcome. Check [existing issues](https://github.com/azpiero/shiori/issues) before opening a new one. For bugs, include your macOS version, CPU architecture, reproduction steps, expected and actual behavior, and a small sample note when relevant. Use synthetic examples instead of private vault contents.
+
+For code changes, describe the user-visible behavior, run the relevant tests above, and record manual UI checks when changing rendering or interaction. Discuss substantial architecture changes in an issue first.
+
+Current work includes [large-vault performance](https://github.com/azpiero/shiori/issues/1), [WebView isolation verification](https://github.com/azpiero/shiori/issues/3), [interaction testing](https://github.com/azpiero/shiori/issues/4), [navigation history](https://github.com/azpiero/shiori/issues/5), and [Skill workflow validation](https://github.com/azpiero/shiori/issues/6).
+
+## Documentation
+
+Detailed working documents are currently in Japanese:
+
+- [Requirements and design decisions](docs/requirements.md)
+- [Verification records](docs/VERIFICATION.md)
+- [Performance measurements](docs/PERFORMANCE.md)
+- [AI note-authoring Skill](skills/shiori-notes/SKILL.md)
+
+## License
+
+A project license has not yet been selected. This repository currently does not include a `LICENSE` file.
