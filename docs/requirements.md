@@ -647,3 +647,11 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 - Keep the terminal heading on one row. Show transitions, failures, exits and missing-vault guidance, but omit routine ready/input status.
 - Put full selectable HTML destination/working-directory paths inside an information popover. Do not show a shell termination button; use `exit` at the shell prompt. Support expanded/control ARIA state, Escape/outside-click dismissal and focus restoration. Context updates remain live.
 - Preserve automatic shell startup when opening the panel. Offer an explicit restart button in the terminal area after exit or startup failure. Hiding the panel still preserves its shell.
+
+## Issue #31: Minimal pane toolbar (2026-09-09)
+
+- Keep only Add adjacent pane and Remove this pane as toolbar buttons, using pane-frame icons with + and −. Omit visible pane labels; the active border indicates the target, while accessible pane labels retain its state.
+- Adding duplicates the current note, anchor and query into the vacant pane; disable it at two panes. Use adjacent wording because closing the left pane retains the right slot and re-adding fills the left slot without relocating its iframe.
+- Removing closes that pane's tabs; disable it for the sole remaining pane.
+- Keep document search visible whenever a note is open. New tabs remain available through modifier-clicks in the sidebar/graph.
+- Make pane sections keyboard-focusable, including zero-tab panes. Click/focus selects the target; choosing a sidebar note opens there. Closing the last tab restores focus to its pane.
