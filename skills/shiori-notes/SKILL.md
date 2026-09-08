@@ -11,10 +11,14 @@ Use the user's specified vault, or the current vault identified by the workspace
 
 Inspect related notes, existing metadata, and directory conventions first. Keep notes below `notes/`; use existing supporting directories, or `assets/` and `styles/` when none exist. Use NFC for new filenames without renaming existing files in bulk. Restrict changes to the requested notes and necessary assets. Do not write derived SQLite data. Commit and push require separate user instructions.
 
+The integrated terminal installs this Skill in both `skills/` and `.claude/skills/`; Claude can invoke `/shiori-notes`. Those helper directories are not note destinations. Reopen the shell after an app update to refresh the copies.
+
+The app can create/rename folders under `notes/` and move notes by dragging. Moves preserve IDs and source bytes but do not repair relative links. After a requested move, check incoming/outgoing links and CSS/image paths; repair only within the requested scope. Tags can also be added or removed inline in the app, so reread the current file before saving to preserve concurrent edits.
+
 ## Metadata and links
 
 - Use UTF-8, doctype, `html lang`, charset, viewport, title, and exactly one h1 describing the same subject.
-- Generate a UUID with a tool for each new note's single `note-id`. Preserve existing note and heading IDs when editing or renaming. A duplicate created as a separate note needs a new UUID. Repair missing IDs only in requested files; keep heading IDs unique and stable.
+- Generate a UUID with a tool for each new note's single `note-id`. Preserve existing note and heading IDs when editing or renaming. A duplicate created as a separate note needs a new UUID. A note created or edited by this Skill must have a valid `note-id`; add a generated UUID when it is missing in a requested file. The viewer can still read legacy notes without IDs; paths currently drive navigation and moves, and IDs do not imply automatic link repair. Repair missing IDs only in requested files; keep heading IDs unique and stable.
 - Inspect `meta[name="note-tag"]` in related notes and reuse exact spellings. Add necessary new tags, one meta element per tag; no comma-separated values, duplicate tags, or leading `#`. Hierarchical tags such as `技術/Rust` are literal values; filtering uses exact matches without implied parents. The link graph connects notes through HTML links, not shared tags.
 - Verify internal targets before writing relative links. URL-encode each path segment while preserving `/`: encode filename `#` as `%23`, `%` as `%25`, and spaces as `%20`. Append a heading fragment after the path; HTML-escape attribute values as well.
 - External source URLs must be readable plain text, optionally inside `code`, rather than `a href="https://…"`: shiori removes external navigation links. Link only to local notes and local heading anchors.

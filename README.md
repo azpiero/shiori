@@ -20,154 +20,76 @@ Your vault is a folder of ordinary HTML, CSS, and images. HTML files remain the 
 
 ## Screenshots
 
-Earlier macOS prototype showing the bundled sample vault in dark mode. These screenshots predate the simplified sidebar and multi-pane reader; updated captures are pending native UI verification.
+Current macOS app with the bundled sample vault in dark mode. The first capture shows the reader and integrated terminal together; the second shows the HTML link graph.
 
-| Read HTML notes | Explore shared tags |
+| Read notes and use the terminal | Explore note links |
 | --- | --- |
-| ![shiori displaying a sample HTML note with a local image](docs/assets/screenshot-reader.jpg) | ![shiori displaying the sample vault in the earlier tag-graph interface](docs/assets/screenshot-graph.jpg) |
+| ![shiori sample note with tags, folder tree, and integrated terminal](docs/assets/screenshot-reader.jpg) | ![shiori sample vault with eight notes in the HTML link graph](docs/assets/screenshot-graph.jpg) |
+
 
 ## Features
 
-- Open a local vault and browse notes by title, text, or tag.
-- Read HTML with local images, tables, shared CSS, and note-specific styles.
-- Compare notes in two side-by-side panes, each with its own tabs and document search.
-- Move between highlighted matches independently in each tab.
-- Explore HTML links between notes, including isolated notes. Select a node to read it.
-- Browse notes grouped by folder and hover over a note title to see its path. Tags appear below each reader pane’s tab bar; tag names filter the sidebar without leaving the reader. Use × or ＋ to prepare a tag edit.
-- Switch between light and dark themes and resize the sidebar.
-- Reload the entire vault from the button beside its name, or apply an external-change notification.
-- Expand the sidebar’s read-error details to see which files could not be loaded and why.
+- Read local HTML notes with images, tables, shared CSS, and static diagrams.
+- Search titles and text, filter by tags, and edit a note's tags inline.
+- Compare notes in two panes with independent tabs and document search.
+- Browse folders, create or rename directories, and drag notes between them.
+- Explore the HTML links between notes in a local graph.
+- Open a shell with **>_** in the left rail and run `claude`, `codex`, or other installed tools yourself.
+- Switch light/dark themes, resize panes, and apply external file changes.
 
-Use the square icon buttons in the left navigation rail to switch between notes and the link graph. Returning from a note preserves graph layout, zoom, and pan. Changing the search or tag filter, opening a vault, or refreshing its contents resets graph exploration. A note excluded by the active filters remains identified in a compact sidebar section.
+## Quick start
 
-The Canvas graph displays all matching notes without pagination. Lines represent internal HTML links; reciprocal links and multiple anchors to the same note share one undirected edge. Tags remain search filters and do not create edges. Isolated notes are retained. Hover to see a title, click to open, or focus the graph and use arrow keys/Home/End to select a note and Enter to open it. Modifier keys retain the sidebar's new-tab and adjacent-pane behavior.
+Build and launch the app using the steps below. The first launch opens `sample-vault`; later launches restore the last selected vault. Use the Vault name at the bottom of the sidebar to open your own folder. Keep notes under `notes/` and supporting files in `assets/` and `styles/`.
 
-Relative HTML links resolve against the source note path, including percent-encoded names and unambiguous NFC Unicode fallback. External URLs, assets, styles and self-links do not create edges. The reader strips HTML `base` elements, so they also do not affect graph resolution. The summary counts unresolved local HTML references from matching notes (unique hrefs per source); destinations merely hidden by filters are not counted as broken. Links are not repaired automatically.
-
-A deterministic local-force layout advances across 60 animation frames and pauses while hidden. Hundreds to a few thousand notes are the primary target; all 10,000 notes remain visible, but dense large graphs can render below 60 fps. See [graph performance measurements](docs/PERFORMANCE.md).
-
-## Search by text and tag
-
-Type a phrase to search note titles and body text. Add `tag:` clauses to filter by existing tags:
-
-| Query | Meaning |
+| Action | Control |
 | --- | --- |
-| `tag: 開発/IT` | Notes with exactly the tag `開発/IT` |
-| `ownership tag: Rust` | The text `ownership` and the tag `Rust` |
-| `tag: Rust tag: 学習` | Notes containing both tags (AND) |
-| `tag: "machine learning"` | A tag whose name contains spaces |
+| Open/switch vault or reload | Bottom sidebar Vault menu → **Vaultを開く（切り替え）** / **再読込** |
+| Search notes | Top sidebar search field; add `tag: Rust` or `tag: "machine learning"` |
+| Filter by multiple tags | `tag: Rust tag: 学習` (exact, case-sensitive matches; AND) |
+| Filter by a displayed tag | Click its name below the tab bar |
+| Add/remove a tag | Tag row **＋** → type and Enter to save; tag **×** removes immediately |
+| Add an empty tab | **＋** at the end of the tab row |
+| Open a note in a new tab / beside it | ⌘/Ctrl-click / Shift-click a sidebar item or graph node |
+| Switch/close tabs | Click a title / **×**; focused title: ←/→, Home/End, Delete |
+| Add/remove a pane | **pane ＋ / −** buttons at the right of the tab row |
+| Resize panes | Drag the divider; double-click for equal widths |
+| Find in the current document | ⌘F, type a phrase, Enter; ⌘G / ⌘⇧G moves between matches |
+| Clear document search | Escape in its input, **×**, or Edit → Find → Clear Note Search |
+| Create/rename a folder | Right-click a folder → **新規フォルダ** / **名称変更**; Enter saves, Escape cancels |
+| Move a note | Drag its title onto a folder; keyboard: Space on note, Tab to folder, Enter |
+| Open graph / terminal | Graph icon / **>_** in the left rail |
+| Apply external edits | **更新を反映** in the change notification |
+| Change theme | Theme button at the bottom of the left rail |
 
-Tags use case-sensitive exact matching: `tag: 開発` does not include `開発/IT`. Free text remains a single case-insensitive substring search. When opening a note from the list or graph, only free text is copied into that tab’s document search. Changing the sidebar search does not change already-open tabs.
-
-Type `tag:` to see up to eight matching tag suggestions. Use ↑/↓ and Enter to insert a suggestion, Escape to dismiss, or click a candidate. Enter with no candidate selected opens the first matching note. Quoted tag names support JSON escapes such as `\"` and `\\`; names beginning with `tag:` must also be quoted. Empty clauses and unclosed quotes are ignored until completed; a complete but unknown tag returns no matches. IME composition is applied after confirmation.
-
-The search field is the source of filter state. Selecting a reader pane's tag-name button replaces the tag clauses with that tag while preserving free text. Remove the `tag:` clause to clear its filter.
-
-## Read with panes and tabs
-
-Each pane shows the tags of its selected tab below the tab bar, or **タグなし** for an untagged note. Empty tabs have no tag row. Many tags wrap within a bounded, scrollable row. The sidebar groups note titles by folder and includes a reminder for a current note outside the filter; discover tags through `tag:` suggestions. Use **×** beside a tag to remove and save it immediately. Use **＋** to show an inline input, then press Enter to add and save. Existing tags are suggested as you type: ↑/↓ selects a candidate, Enter inserts it, and a second Enter saves. Clicking a candidate also fills the input. Escape or moving focus away discards unsaved input. IME confirmation does not save a partial tag. Tag controls are disabled while reading/saving, and failures appear in persistent error notifications. To undo a removal, add the tag again; no separate undo action is provided. Tag-name clicks only filter and never write a file. Use the navigation rail to open the graph.
-
-Edits change only `meta[name="note-tag"]` elements in an explicit HTML head. Other source bytes are retained. Supported notes are UTF-8, at most 16 MiB, with unambiguous head markup; malformed or unsupported head structures, read-only files, and symlink targets are rejected. A note can have up to 128 exact, case-sensitive tags, each at most 256 UTF-8 bytes without control characters. Empty or whitespace-only tags are rejected; duplicate values are removed.
-
-Save checks the original source hash and refuses external changes. On conflict, cancel, reload the vault, and review the newer note before editing again. Successful saves update both panes, search candidates, and graph data while preserving tabs and queries. Edited notes and any other notes whose source hash changed reload, resetting their scroll/match position; unchanged iframes remain attached. Scan errors after a write are reported as **saved**, with details in the sidebar. A final hash check and atomic replacement cannot eliminate the small race with unrelated external editors; see the [tag editing contract](docs/TAG_EDITING.md).
-
-The **＋** at the end of each tab row adds an empty tab to that pane and focuses its title. It sits outside the tablist and is disabled at the shared limit of 12 tabs across both panes. Pane controls stay fixed at the right while the tabs and their trailing ＋ scroll horizontally. Selected tabs have the document background and a raised outline, without accent underlines or bold text; inactive tabs use muted text. Tags appear below with a tag icon and vertical spacing, without a divider line; long tag lists scroll within 76px. Document search is hidden until invoked with ⌘F or Edit → Find → Find in Note. The active pane has an accented top border. Opening a note from the sidebar or graph normally replaces its active tab. Click inside a pane or move focus into it with Tab to make it active. An empty pane itself is focusable; select it, then choose a note from the sidebar.
-
-| Action | How |
-| --- | --- |
-| Open a new tab | ⌘/Ctrl-click a list item or graph note |
-| Open beside the current note | Use the **pane +** icon to duplicate the current note into a second pane, or Shift-click a list item or graph note |
-| Switch or close a tab | Select its title or use its × button |
-| Search one document | ⌘F (Ctrl+F outside macOS) shows the search row and selects its text in the active pane. Enter a phrase and press Enter |
-| Next / previous search match | ⌘G / ⌘⇧G (Ctrl+G / Ctrl+Shift+G outside macOS), or ↑/↓ in the search row |
-| Clear document search | Use ×, Escape while in the search input, or **Edit → Find → Clear Note Search** to clear and hide the search row |
-| Follow an internal link | Click it in the note to navigate within that same tab |
-| Move focus between panes | Click in the destination pane or use Tab to focus its controls |
-| Resize panes | Drag the divider; double-click to restore equal widths. With the divider focused, use ←/→ for 5% steps, Home for minimum left width, or End for equal widths |
-| Remove a pane | Use the **pane −** icon; its tabs close too. Disabled when only one pane remains |
-
-At most two panes are available. Adding a pane is disabled while split. If the left pane was removed, adding an adjacent pane fills the vacant left side without moving the surviving document.
-
-Tab switches keep the existing sandboxed iframe attached, preserving its document scroll and search state. With focus on a tab title, use ←/→ or Home/End to switch tabs and Delete to close one. The buttons are reachable by Tab. Find shortcuts are native menu accelerators and work even when the sandboxed note has focus. Other keyboard events inside the note do not reach the app: move focus back to app controls to use tab commands. The default native editing menu, including copy/paste/select all, is preserved. Modifier-click handling inside note HTML is not available. To open another note in a new tab or beside the current note, use ⌘/Ctrl-click or Shift-click respectively on its sidebar list entry or graph node.
-
-This first version supports two horizontal panes and up to 12 tabs in one vault. Each pane stays at least 320 px wide; narrow windows scroll the reader workspace horizontally instead of silently closing a pane. The link graph remains a whole-workspace mode and preserves the open reader tabs when switching back.
-
-Reloading the vault restores surviving tabs, their selected pane/tab, and their search phrases. Tabs whose paths were deleted or renamed close; an empty pane stays available for another note. Reload and theme changes regenerate the documents and reset scroll positions and the current search match. The split ratio is retained when closing and reopening a pane in the same vault. Narrow windows temporarily clamp the widths to the 320 px minimum; the preferred ratio returns when space is available. Pane widths reset to equal on vault switches and app restarts; pane/tab state is not saved.
-
-## Folders and moving notes
-
-The sidebar starts at `notes/`; vault-root files and unrelated directories are not listed. Existing folders below `notes/`, including empty folders, appear in an indented tree with hierarchy guide lines and short folder names. Folder and note labels share the same typography and alignment. Collapsing a folder hides its entire subtree. Search and tag filters retain matching folders and their ancestors and temporarily expand them. Clearing filters restores the collapsed state.
-
-Right-click a folder and choose **新規フォルダ** to create a child folder. Folder and document icons distinguish directories from HTML notes. Open/closed folder icons indicate expansion without separate arrows. Long names stay on one line with an ellipsis; hover to see the full name. Right-click a folder (secondary click on a trackpad) and choose **名称変更** to rename it directly in its row. Press Enter to save or Escape to cancel. Keyboard users can open the folder menu with Shift+F10 or the Context Menu key. The `notes/` root cannot be renamed. Creating the first folder in an empty vault initializes `notes/`.
-
-Drag a note title onto a folder heading to move it there directly, including a folder just created in shiori. There is no per-file move button or destination modal. For keyboard access, focus a note and press Space, Tab to the destination folder, and press Enter; Escape cancels the selection.
-
-Moves retain the filename, original bytes, and note ID. Existing destination names are never overwritten. The backend checks the active vault, source hash, revision, and destination before renaming; stale state, excluded paths, symbolic links, and unsupported cross-filesystem moves are rejected. Folder renames preserve the contents and update open tabs for every descendant note.
-
-A file drop triggers static reference analysis and then the move. If links may change, a brief status message appears; no persistent reference report occupies the sidebar. No automatic link repair is performed, including during folder renames. Analysis covers common HTML URLs, srcset candidates, and embedded CSS URLs/imports, but is bounded and does not fully index dynamic references or references outside scanned HTML notes.
-
-Open tabs follow the new paths and retain their queries. Moved documents reload, resetting scroll and current search-match position. Folder groups, tag suggestions, and graph data update from the returned snapshot. Scan failures after a successful operation are reported as completed. Finder drag/drop, moving across filesystems, and automatic link repair remain outside this feature. Final validation does not lock out unrelated external filesystem changes.
+Two panes and 12 tabs share one vault. Switching tabs preserves document scroll; reload and theme changes reset it. Folder moves preserve note IDs and source bytes but do not repair links automatically. The graph uses HTML links, not shared tags. See [detailed behavior](docs/requirements.md#detailed-usage-contracts-moved-from-readme-42) and the [tag-editing contract](docs/TAG_EDITING.md).
 
 ## Workflow: AI writes, shiori reads, Git keeps history
 
-1. Choose a vault folder, separate from the application source.
-2. Give your AI assistant the path to the bundled [shiori-notes Skill](skills/shiori-notes/SKILL.md) and the target vault.
-3. Ask it to create or update HTML notes. This single Skill covers prose, compact shared styling, existing-tag reuse, generated UUIDs, stable heading IDs, relative links, and local assets.
-4. Open the folder in shiori, or apply the external-change notification to read the updated files.
-5. Review the changes and commit or sync the vault using your usual Git tools.
-
-Example prompt, from the application repository:
+Choose a vault separate from the app source. Give an assistant the [shiori-notes Skill](skills/shiori-notes/SKILL.md) and that vault's path:
 
 ```text
-Read skills/shiori-notes/SKILL.md.
-Follow it to create a note about Rust ownership in ../vault. Check related notes and existing tags first, reuse
-relevant tags, and link to existing notes where useful. Write the note in English.
+Read skills/shiori-notes/SKILL.md. Create a note about Rust ownership in ../vault.
+Check related notes and existing tags first. Write the note in English.
 ```
 
-The Skill is included as files. The integrated terminal installs a project copy; outside that workspace, supply its path or install it yourself. Use an assistant that can read the Skill and edit files in your chosen vault. The viewer does not edit notes. The integrated terminal runs your shell; you choose whether to start Codex, Claude, Git, or other installed tools. Those commands may edit files or contact external services. Commit and push are separate actions you request from your tools.
+The Skill covers IDs, tags, links, prose, and the [HTML template](skills/shiori-notes/assets/note.html) with its [shared theme](skills/shiori-notes/assets/theme.css). Existing user themes are not overwritten. Review the resulting files, apply the app's change notification, and commit or sync the vault with your usual Git tools. The vault may be a separate Git repository; shiori does not commit or push automatically.
 
-The unified Skill includes a [starter HTML file](skills/shiori-notes/assets/note.html) and [shared CSS](skills/shiori-notes/assets/theme.css) to copy into the vault. It uses OS fonts, static SVG, plain code, and explicit light/dark theme hooks without scripts or remote dependencies. The [eighth sample note](sample-vault/notes/07-readable-notes.html) demonstrates the style. Editorial sources and reuse decisions are documented in [sources.md](skills/shiori-notes/references/sources.md).
+## Integrated terminal
 
-The bundled `theme.css` is canonical and preserves the existing compact green design (14px body, 12px code, 12.5px tables). The sample copy is byte-identical. Reuse an identical vault stylesheet; never overwrite a different user theme. The Skill selects a separate `shiori-theme.css` or a content-hash filename on collision and changes only the requested notes. External reference URLs appear as plain text because the viewer removes external navigation links. Real-vault cleanup is tracked separately in [shiori-vault #1](https://github.com/azpiero/shiori-vault/issues/1).
+The terminal starts your shell in a helper workspace containing the Skill, not in the vault. Start your preferred AI CLI yourself. Claude discovers `/shiori-notes` under `.claude/skills/`; generated instructions and `SHIORI_VAULT` identify the current vault as the default HTML destination. `SHIORI_SKILLS` identifies the workspace's Skills directory.
 
-To install the single Skill for Claude outside shiori's terminal, run this from the app repository, replacing the destination with your Claude project:
+Hiding the terminal preserves the session. **ⓘ** shows its paths; `exit` ends the shell. Close it before switching vaults. Reopen it after updating shiori to refresh the Skill, and restart your AI CLI if needed. Commands run with your user privileges; the working directory is not a sandbox. See [terminal details](docs/requirements.md#integrated-terminal).
+
+Outside shiori, install the Skill in your Claude project from this repository:
 
 ```sh
 project_dir="/absolute/path/to/your/project"
 mkdir -p "$project_dir/.claude/skills"
-# For a fresh installation; inspect an existing shiori-notes directory before updating it.
+# Fresh install: inspect an existing copy before updating it.
 cp -R skills/shiori-notes "$project_dir/.claude/skills/"
 ```
 
-Start or restart Claude in that project, invoke `/shiori-notes`, and specify the target vault. If upgrading a manual installation, move the old `shiori-readable-notes` directory outside `.claude/skills` after reviewing any custom changes. The app does not modify these external installations.
-
-A vault can be its own Git repository. For example, after creating a new vault:
-
-```sh
-git -C ../vault init
-git -C ../vault status
-git -C ../vault diff
-# Stage the note and asset files you have reviewed, then commit them.
-```
-
-Configure a remote and push with your Git client when you want to sync. The vault repository is independent of this app repository; no submodule is required.
-
-## Integrated terminal
-
-Select **>_** in the left rail to open an interactive shell inside shiori. Run `codex`, `claude`, or any other installed command yourself. There is no selected-note prompt, model picker, or tool-specific execution mode. The native PTY and locally bundled xterm.js support terminal input, ANSI output, Ctrl-C, and resizing.
-
-The shell starts in a vault-specific workspace under the app data directory's `terminal-workspaces/`. It contains `skills/`, `.claude/skills/`, `AGENTS.md`, and `CLAUDE.md`; the two instruction files name the currently selected vault as the default destination for HTML notes and point to the bundled authoring Skills. The workspace is distinct from the vault, so app helper files do not enter your notes repository. Claude discovers the project Skills under `.claude/skills/`; use `/shiori-notes`. Reopen the shell after updating shiori to refresh these files, and restart Claude if its command list has not refreshed. On upgrade, old generated `shiori-readable-notes` copies move into `retired-skills/` outside the discovery directories, preserving their contents. The shell also receives:
-
-| Variable | Value |
-| --- | --- |
-| `SHIORI_VAULT` | Absolute path of the current vault |
-| `SHIORI_SKILLS` | Absolute path of the workspace's Skills directory |
-
-For example, after starting an AI tool, ask it to “Create an HTML note about this topic in the configured vault using the provided Skills.” Tools that read [AGENTS.md](https://developers.openai.com/codex/guides/agents-md) or [CLAUDE.md](https://code.claude.com/docs/en/memory) can obtain the destination from those instructions. This is a default instruction, not a forced output redirection: arbitrary commands use their own paths, and tool sandbox/trust settings may require explicitly allowing access to the vault. The app does not automatically launch an AI tool or bypass its approvals.
-
-The user's default shell starts with its normal environment/login setup. Install and authenticate tools as usual. Hiding the panel preserves the shell; the **ⓘ** popover shows the full, copyable HTML destination and working directory. To end the shell, run `exit` at its prompt. After the shell exits or startup fails, use **シェルを再起動** in the terminal area to start a new session. Escape or an outside click dismisses the popover. Close the shell before switching vaults, then reopen it to receive the new destination. A normal vault refresh stays available while the terminal is open, and external edits trigger **更新を反映** without an automatic scroll reset.
-
-The terminal runs with your user privileges and can execute arbitrary commands; its cwd is not a filesystem sandbox. The reader iframe remains isolated from terminal IPC. On Unix, closing a session or quitting the app terminates the shell and foreground process group; intentionally detached jobs may survive, as in other terminals. Scrollback is limited to 2,000 lines and output delivery waits for renderer acknowledgements. shiori does not save terminal transcripts; shell history and CLI logs follow those tools' settings. Generated workspace files persist and are refreshed when opening a session; keep notes in the vault. Native operation is currently verified only through macOS PTY tests, with graphical TUI checks still pending.
+Then start Claude there, invoke `/shiori-notes`, and specify the vault. Other assistants can read the Skill directly. For an older manual installation, move `shiori-readable-notes` outside the discovery directory after reviewing custom changes.
 
 ## Supported operating systems
 
@@ -178,6 +100,7 @@ The terminal runs with your user privileges and can execute arbitrary commands; 
 | Windows / Linux | Not currently supported or tested by this project |
 
 The macOS bundle declares macOS 12.0 as its minimum version; compatibility across all versions from 12.0 onward has not been verified. Tauri's platform support does not imply that shiori has been tested on those platforms.
+
 
 ## Build and run
 
@@ -208,14 +131,6 @@ cd app
 cargo run --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
 ```
 
-On first launch, the app opens eight bundled sample notes. Subsequent launches restore the last folder you selected. Click the Vault name at the bottom of the sidebar and choose **Vaultを開く（切り替え）** (Open/switch vault) to open your vault, the graph icon in the left navigation rail to explore note links, and **更新を反映** (Apply updates) after editing notes externally. To return to the samples, open `sample-vault/` through the folder picker. The theme toggle sits at the bottom of the left navigation rail; there is no app header above the workspace.
-
-Search is at the top of the sidebar. The compact Vault row stays fixed below the scrolling note list; its menu shows the full path and **再読込** (Reload). Enter/Space or ↑/↓ opens the menu, ↑/↓ and Home/End navigate available items, and Escape closes it and restores focus. Tab or an outside click also closes the menu. While the terminal is running, switching vaults is disabled but reload remains available. The app remembers only the last vault; this menu does not add recent-vault history.
-
-The canonical vault path is stored as `last_vault` in `settings.json` under Tauri's app configuration directory (on macOS, `~/Library/Application Support/dev.takeru.shiori/`). Vault tokens and reader tabs are not stored. If the saved folder is unavailable or settings cannot be read, the app opens the samples and displays the reason in the sidebar. The saved path is retained so a temporarily disconnected volume can be restored on a later launch. Selecting another folder replaces it; a settings write failure is shown without preventing the folder from opening. To reset the remembered folder, quit the app and remove `settings.json`. Theme preferences remain in local storage.
-
-There is no status bar or load-timing display. Errors and warnings appear in dismissible notifications at the bottom right and remain until closed. Informational notifications expire after five seconds, paused while hovered or focused. Up to three notifications appear at once; additional notifications wait until space is available. Identical pending notifications are deduplicated, and a repeated revision-poll failure stays suppressed even after dismissal until polling recovers. Routine successful edits and note navigation are silent. Persistent vault warnings and **読み取りエラー** (Read errors) appear above the bottom Vault row in a bounded scrollable area; the external-change notice remains above the reader. Loading state is exposed on the Vault row and note list; performance measurements are available through the documented benchmarks.
-
 ### Build a macOS app bundle
 
 ```sh
@@ -234,14 +149,10 @@ Run from `app/`:
 ```sh
 cargo test --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
 node --test tests/*.test.cjs
-node --check ui/app.js
-node --check ui/graph.js
-node --check ui/search.js
-node --check ui/workspace.js
-node --check ui/reader.js
 ```
 
 The Rust suite covers vault boundaries, HTML sanitization, and preservation of source files. JavaScript tests cover tag syntax and suggestions, HTML link resolution, graph layout, pane routing, tab lifetime, and navigation/search state using a small DOM/Tauri adapter. They do not verify native WebView rendering or layout. The performance benchmark is an opt-in ignored Rust test; see [performance measurements and reproduction steps](docs/PERFORMANCE.md).
+
 
 ## Technology stack
 
@@ -250,12 +161,14 @@ The Rust suite covers vault boundaries, HTML sanitization, and preservation of s
 | Desktop shell | Tauri 2 with a Rust backend |
 | macOS rendering | System WKWebView, with a sandboxed iframe for notes |
 | Interface | Plain HTML, CSS, and JavaScript; Canvas 2D for the link graph |
+| Terminal | Native PTY (`portable-pty`), locally bundled xterm.js and addon-fit |
 | HTML processing | `kuchiki` for parsing and display-copy transformation |
 | Files and metadata | `walkdir`, `serde`, `serde_json`, URL and Unicode utilities |
 | Storage | Local HTML files and assets; extracted text held in memory |
 | Version control | External Git tools for the app and, optionally, a separate vault repository |
 
 Dependency versions are pinned in [Cargo.lock](src-tauri/Cargo.lock). SQLite, persistent caches, and FTS5 are not implemented; their use is being evaluated in [#1](https://github.com/azpiero/shiori/issues/1).
+
 
 ## Directory structure
 
@@ -270,7 +183,7 @@ shiori-workspace/
 │   │   └── shiori-notes/   # Vault conventions, prose, theme.css, and HTML template
 │   ├── sample-vault/       # Eight demonstration and test notes
 │   ├── fixtures/           # Test assets, including vault-boundary fixtures
-│   ├── tests/              # JavaScript graph tests
+│   ├── tests/              # JavaScript behavior tests
 │   ├── scripts/            # macOS packaging and benchmark tools
 │   └── docs/               # Requirements, verification, performance, images
 ├── vault/                  # Your notes; optionally a separate Git repository
@@ -283,39 +196,25 @@ shiori-workspace/
 
 The `notes/`, `assets/`, and `styles/` layout is the Skill's default for a new vault. Keep existing vault conventions when editing an established collection. `.git`, `node_modules`, `.shiori`, and `.html-vault` directories are excluded from scans; HTML under root-level `assets/` and `styles/` is not treated as notes.
 
+
 ## Limitations and security model
 
-The reader can add and remove tags through an explicit save and move notes between folders by dragging, but does not edit body content. Commands in the terminal can edit source files. Global tag renaming, automatic link repair, navigation history, and Git synchronization are not implemented.
+shiori is a prototype: body editing, automatic link repair, navigation history, and Git sync are not implemented. Notes must be UTF-8 `.html` files, at most 16 MiB. Vault reloads reparse the notes, so large collections can be slow; see [performance measurements](docs/PERFORMANCE.md).
 
-Notes are served through a vault-scoped protocol after resolving paths and symlinks. A sandboxed iframe, Content Security Policy, and display-copy sanitization restrict scripts, forms, frames, and external resources. Original HTML remains unchanged. External links are currently disabled.
+The viewer sanitizes display copies in a sandboxed iframe with a vault-scoped protocol and CSP; scripts and external links/resources are disabled. Source files are preserved except for explicit tag edits and file operations. Full native WebView isolation verification remains tracked in [#3](https://github.com/azpiero/shiori/issues/3). See the [security details](docs/requirements.md#limitations-and-security-model) and [verification record](docs/VERIFICATION.md).
 
-These controls have backend tests, but full verification of external-communication and IPC blocking in the real WebView remains open in [#3](https://github.com/azpiero/shiori/issues/3).
+## Contributing
 
-Other current limits:
-
-- Notes must be UTF-8 files with a lowercase `.html` extension. The file-size limit is 16 MiB.
-- Search uses one substring, without multi-term AND or regular expressions. List filtering ignores case; highlighting is case-sensitive and does not span HTML text nodes. At most 1,000 matches are marked per note.
-- Opening or refreshing a vault reparses all notes. Large vaults can be slow; see [#1](https://github.com/azpiero/shiori/issues/1).
-- Applying external changes or changing the theme resets document scroll positions in all open tabs.
-- Theme switching does not force arbitrary user HTML to adopt the app's colors.
-
-## Contributing and roadmap
-
-Bug reports and focused pull requests are welcome. Check [existing issues](https://github.com/azpiero/shiori/issues) before opening a new one. For bugs, include your macOS version, CPU architecture, reproduction steps, expected and actual behavior, and a small sample note when relevant. Use synthetic examples instead of private vault contents.
-
-For code changes, describe the user-visible behavior, run the relevant tests above, and record manual UI checks when changing rendering or interaction. Discuss substantial architecture changes in an issue first.
-
-Current work includes [large-vault performance](https://github.com/azpiero/shiori/issues/1), [WebView isolation verification](https://github.com/azpiero/shiori/issues/3), [interaction testing](https://github.com/azpiero/shiori/issues/4), [navigation history](https://github.com/azpiero/shiori/issues/5), and [Skill workflow validation](https://github.com/azpiero/shiori/issues/6).
+Bug reports and focused PRs are welcome in [GitHub issues](https://github.com/azpiero/shiori/issues). Include reproduction steps and a synthetic sample; run relevant tests and record UI checks. See [contribution checks](docs/requirements.md#contribution-checks).
 
 ## Documentation
 
-Detailed working documents are currently in Japanese:
-
-- [Requirements and design decisions](docs/requirements.md)
+- [Requirements and detailed behavior](docs/requirements.md)
 - [Verification records](docs/VERIFICATION.md)
 - [Performance measurements](docs/PERFORMANCE.md)
 - [AI note-authoring Skill](skills/shiori-notes/SKILL.md)
+- [Dependency licenses](docs/DEPENDENCIES.md)
 
 ## License
 
-A project license has not yet been selected. This repository currently does not include a `LICENSE` file.
+Licensed under the [MIT License](LICENSE), copyright © 2026 azpiero. This covers the application, Skills, sample notes, and project images/logos. Third-party components retain their own licenses; see [notices](NOTICE.md) and the [dependency inventory](docs/DEPENDENCIES.md).

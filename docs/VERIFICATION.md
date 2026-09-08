@@ -298,3 +298,11 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - Chromium with mocked Tauri IPC verified new-tab focus, arrow navigation, disabled add controls at the combined limit, re-enabling after close, 320px panes with 22 wrapping tags, the 76px tag scroll bound, and fixed pane controls during tab scrolling.
 - Visually inspected light and dark layouts. Native packaged viewer operation remains a manual check.
 - Follow-up spacing adjustments: retained 16px tag top padding, matched horizontal inset to the canonical theme, removed tag bottom padding, and set viewer screen body top padding to 20px. Plus and close icons use centered SVGs. Rechecked Chromium layout and all 73 JavaScript tests; Rust: 32 passed, 1 benchmark ignored.
+
+## Issue #42: README and Skill maintenance
+
+- Reduced the README from roughly 4,680 to 1,800 English words, consolidating controls in one table. Moved detailed reader/folder/search/terminal/security behavior into requirements; removed the stale roadmap list and updated the terminal feature/stack descriptions.
+- Updated the unified Skill for app tag edits, folder moves without automatic link repair, generated terminal-workspace installation, and required IDs in authored notes while retaining compatibility with legacy viewer notes.
+- Skill structure validation passed. Generated a reproducible inventory of 307 target-filtered Cargo dependencies, including build dependencies and license-expression counts. Identified 32 crate archives without standalone notice files; binary-distribution attribution remains a release prerequisite.
+- Replaced both historical screenshots with maintainer-supplied native captures: reader plus terminal, and link graph. Recorded actual dimensions, conversion, and known/unknown capture conditions in assets/GENERATION.md. Automated native capture remained unavailable (service timeout / Apple Events denial); no browser mocks were substituted.
+- Maintainer approved MIT for the application, Skills, sample notes, and images/logos, with copyright name azpiero. Added LICENSE and Cargo metadata; third-party terms remain separate.
