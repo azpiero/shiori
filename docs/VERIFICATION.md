@@ -214,13 +214,11 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - Headless Chromium with mocked IPC confirmed the panel is absent and Shift-click / Meta-click from both the sidebar and graph open adjacent panes / new tabs.
 - Syntax and diff checks passed. macOS app build and ad-hoc signature verification passed. Native app appearance and modifier-click behavior remain manual checks.
 
-## Issue #28: Folder navigation and note moves (2026-09-09)
+## Issue #28: Notes folders and direct moves (revised 2026-09-09)
 
-- Added collapsible sidebar groups with full folder paths and existing empty destinations. Search/tag filters show matching groups expanded; clearing filters restores collapse state. Scan exclusions and root assets/styles are omitted.
-- Sidebar HTML5 dragging and a keyboard-accessible move button open the same preview/confirmation dialog. External drag payloads are ignored. Native webview drag-drop interception is disabled to permit frontend HTML5 handling.
-- The backend reports potentially changed HTML URL attributes, srcset candidates, CSS URLs/imports, and incoming references from other notes. Unreadable or unsupported references generate warnings. Source hashes and vault revisions bind confirmation to the preview; moves use native no-overwrite rename and preserve source bytes.
-- JavaScript: 52 tests passed. Coverage includes folder grouping/filtering, exclusions, valid drop targets, cancellation, stale previews, duplicate operations, keyboard moves, both-pane path updates, and graph/sidebar refresh.
-- Rust: 28 tests passed; 1 opt-in benchmark ignored. New tests cover empty folders, excluded paths, Unicode filenames, byte/permission preservation, reference previews, CSS and image candidates, collisions, stale hashes/revisions/tokens, symlinks, read-only sources, concurrent moves, and completed-with-scan-error responses.
-- Headless Chromium with mocked IPC verified actual HTML5 drag/drop, preview/cancel, keyboard confirmation, tab path tracking, collapse restoration after filtering, and dialog/sidebar rendering. No user vault files were moved during validation; native filesystem tests use temporary fixtures.
-- Syntax and diff checks passed. macOS build and ad-hoc signature verification passed. Native WKWebView drag behavior and an end-to-end move in the built app remain manual checks.
-- Cross-filesystem moves, folder creation, Finder drag/drop, and automatic link repair are outside this implementation. Static reference analysis is bounded and does not eliminate races with unrelated external filesystem changes.
+- Sidebar folder groups are rooted at notes/. Folder creation and renaming use inline controls. Per-file move buttons and the destination modal are removed; dropping onto a folder moves directly. Space followed by Enter on a folder provides the keyboard route.
+- File moves run reference/hash checks before a native no-overwrite rename and show reference impacts afterward. Folder renames retain contents, refuse collisions/stale revisions, and update descendant tab paths.
+- JavaScript: 53 tests passed. Rust: 29 tests passed; 1 opt-in benchmark ignored. Coverage includes notes scope, empty folders, create/rename boundaries and collisions, byte preservation, descendant tab tracking, direct drops, keyboard moves, reference checks, and duplicate operation guards.
+- Headless Chromium with mocked IPC verified inline folder creation, actual dragging into the created folder without a modal, directory renaming, open-tab tracking, and Space/Enter moves. Native filesystem tests use temporary fixtures; no user vault files were moved.
+- Syntax and diff checks passed. macOS app build and ad-hoc signature verification passed. Native WKWebView dragging and end-to-end folder operations in the built app remain manual checks.
+- Reference reports are static and bounded; folder rename reports a general relative-reference reminder. Automatic repair, Finder drag/drop and cross-filesystem moves are not implemented.

@@ -11,6 +11,7 @@ use walkdir::WalkDir;
 mod settings;
 mod tag_editing;
 mod note_move;
+mod folders;
 mod terminal;
 
 const MAX_FILE: u64 = 16 * 1024 * 1024;
@@ -228,7 +229,7 @@ fn main() {
         .manage(State { vault:Mutex::new(None) })
         .manage(terminal::Runner::default())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![note_move::preview_note_move,note_move::move_note,tag_editing::get_note_tags,tag_editing::set_note_tags,open_vault,refresh_vault,vault_revision,terminal::terminal_start,terminal::terminal_write,terminal::terminal_resize,terminal::terminal_ack,terminal::terminal_stop])
+        .invoke_handler(tauri::generate_handler![folders::create_note_folder,folders::rename_note_folder,note_move::preview_note_move,note_move::move_note,tag_editing::get_note_tags,tag_editing::set_note_tags,open_vault,refresh_vault,vault_revision,terminal::terminal_start,terminal::terminal_write,terminal::terminal_resize,terminal::terminal_ack,terminal::terminal_stop])
         .register_asynchronous_uri_scheme_protocol("vault",|ctx,request,responder| { let app=ctx.app_handle().clone(); std::thread::spawn(move || responder.respond(respond(&app,request))); })
         .build(tauri::generate_context!()).expect("Tauri app failed")
         .run(|app,event| { if matches!(event,tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit) { app.state::<terminal::Runner>().stop(); } });

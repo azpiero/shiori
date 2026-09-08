@@ -1,12 +1,12 @@
 (function(root){
  const blocked=new Set(['.git','.ds_store','node_modules','.shiori','.html-vault']);
  const parent=path=>path.includes('/')?path.slice(0,path.lastIndexOf('/')):'';
- function allowed(path){return typeof path==='string'&&!/[\\\u0000]/.test(path)&&(path===''||path.split('/').every(p=>p&&p!=='.'&&p!=='..'&&!blocked.has(p.toLowerCase())))&&!['assets','styles'].includes(path.split('/')[0].toLowerCase());}
+ function allowed(path){return typeof path==='string'&&!/[\\\u0000]/.test(path)&&((path==='notes'||path.startsWith('notes/'))&&path.split('/').every(p=>p&&p!=='.'&&p!=='..'&&!blocked.has(p.toLowerCase())))&&!['assets','styles'].includes(path.split('/')[0].toLowerCase());}
  function folders(vault){
-  const result=new Set(['']);
+  const result=new Set();
   for(const path of [...(vault?.folders||[]),...(vault?.notes||[]).map(n=>parent(n.path))]){
    if(!allowed(path))continue;
-   result.add(path);let p=parent(path);while(p){result.add(p);p=parent(p);}
+   result.add(path);let p=parent(path);while(p&&allowed(p)){result.add(p);p=parent(p);}
   }
   return [...result].sort((a,b)=>a.localeCompare(b));
  }

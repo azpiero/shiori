@@ -12,7 +12,7 @@ pub struct Reference { note: String, attribute: String, value: String, before: S
 pub struct Preview { path: String, destination: String, expected_hash: String, expected_revision: String, references: Vec<Reference>, omitted: usize, warnings: Vec<String> }
 #[derive(Serialize)]
 pub struct Moved { moved: bool, old_path: String, path: String, snapshot: Snapshot, warnings: Vec<String> }
-fn folder(vault:&Vault,path:&str)->Result<PathBuf,String>{
+pub(super) fn folder(vault:&Vault,path:&str)->Result<PathBuf,String>{
     if path.contains(['\\','\0'])||vault.root.canonicalize().map_err(|e|e.to_string())?!=vault.root {return Err("不正なVaultまたはフォルダです".into());}
     let mut result=vault.root.clone();
     for part in Path::new(path).components(){
@@ -25,6 +25,7 @@ fn folder(vault:&Vault,path:&str)->Result<PathBuf,String>{
     if !result.is_dir() {return Err("移動先フォルダがありません".into());}Ok(result)
 }
 fn destination(vault:&Vault,path:&str,to:&str)->Result<(PathBuf,PathBuf,String),String>{
+    if !path.starts_with("notes/")||!(to=="notes"||to.starts_with("notes/")){return Err("ノートの移動先はnotes以下にしてください".into());}
     let from=tag_editing::target(vault,path)?;let directory=folder(vault,to)?;
     let dest=directory.join(from.file_name().ok_or("ノート名がありません")?);
     if dest==from{return Err("現在と異なるフォルダを選んでください".into());}
@@ -117,20 +118,20 @@ fn preview(vault:&Vault,path:&str,to:&str)->Result<Preview,String>{
     Ok(Preview{path:path.into(),destination:new_path,expected_hash:tag_editing::digest(&bytes),expected_revision:start,references,omitted:total.saturating_sub(200),warnings})
 }
 #[cfg(target_os="macos")]
-fn rename_no_replace(from:&Path,to:&Path)->Result<(),String>{
+pub(super) fn rename_no_replace(from:&Path,to:&Path)->Result<(),String>{
     use std::{ffi::CString,os::unix::ffi::OsStrExt};
     let from=CString::new(from.as_os_str().as_bytes()).map_err(|e|e.to_string())?;let to=CString::new(to.as_os_str().as_bytes()).map_err(|e|e.to_string())?;
     // RENAME_EXCL refuses an existing destination, including a race after validation.
     if unsafe{libc::renamex_np(from.as_ptr(),to.as_ptr(),libc::RENAME_EXCL)}!=0{return Err(std::io::Error::last_os_error().to_string());}Ok(())
 }
 #[cfg(target_os="linux")]
-fn rename_no_replace(from:&Path,to:&Path)->Result<(),String>{
+pub(super) fn rename_no_replace(from:&Path,to:&Path)->Result<(),String>{
     use std::{ffi::CString,os::unix::ffi::OsStrExt};
     let from=CString::new(from.as_os_str().as_bytes()).map_err(|e|e.to_string())?;let to=CString::new(to.as_os_str().as_bytes()).map_err(|e|e.to_string())?;
     if unsafe{libc::renameat2(libc::AT_FDCWD,from.as_ptr(),libc::AT_FDCWD,to.as_ptr(),libc::RENAME_NOREPLACE)}!=0{return Err(std::io::Error::last_os_error().to_string());}Ok(())
 }
 #[cfg(not(any(target_os="macos",target_os="linux")))]
-fn rename_no_replace(_: &Path,_:&Path)->Result<(),String>{Err("このOSでは安全な上書き禁止の移動に未対応です".into())}
+pub(super) fn rename_no_replace(_: &Path,_:&Path)->Result<(),String>{Err("このOSでは安全な上書き禁止の移動に未対応です".into())}
 fn perform(vault:&Vault,path:&str,to:&str,hash:&str,expected_revision:&str)->Result<String,String>{
     let (from,dest,new_path)=destination(vault,path,to)?;
     if revision(&vault.root)!=expected_revision||tag_editing::digest(&tag_editing::read(&from)?.0)!=hash{return Err("Vaultまたはノートが変更されました。取消して再読込し、移動前の確認をやり直してください".into());}
@@ -159,14 +160,14 @@ fn move_locked(state:&State,token:&str,path:&str,to:&str,hash:&str,expected_revi
 mod tests {
  use super::*;
  struct Fixture(Vault);
- impl Fixture {fn new()->Self{let root=std::env::temp_dir().join(format!("shiori-move-{}",uuid::Uuid::new_v4()));fs::create_dir_all(root.join("notes/deep")).unwrap();fs::create_dir_all(root.join("empty")).unwrap();Self(Vault{root:root.canonicalize().unwrap(),token:"t".into()})}fn write(&self,path:&str,bytes:impl AsRef<[u8]>){fs::write(self.0.root.join(path),bytes).unwrap();}}
+ impl Fixture {fn new()->Self{let root=std::env::temp_dir().join(format!("shiori-move-{}",uuid::Uuid::new_v4()));fs::create_dir_all(root.join("notes/deep")).unwrap();fs::create_dir_all(root.join("notes/empty")).unwrap();Self(Vault{root:root.canonicalize().unwrap(),token:"t".into()})}fn write(&self,path:&str,bytes:impl AsRef<[u8]>){fs::write(self.0.root.join(path),bytes).unwrap();}}
  impl Drop for Fixture{fn drop(&mut self){let _=fs::remove_dir_all(&self.0.root);}}
  const HTML:&str="<!doctype html>\r\n<html><head><meta name='note-id' content='keep'><meta name='note-tag' content='tag'></head><body>日本語</body></html>";
  #[test]fn existing_empty_folders_are_scanned_but_excluded_and_symlink_folders_are_not(){
   let f=Fixture::new();f.write("notes/a.html",HTML);
   for path in [".git/private","node_modules/pkg",".shiori/cache",".html-vault/cache","assets/images","styles/theme"]{fs::create_dir_all(f.0.root.join(path)).unwrap();}
-  #[cfg(unix)]std::os::unix::fs::symlink(f.0.root.join("empty"),f.0.root.join("alias")).unwrap();
-  assert_eq!(scan(&f.0).folders,vec!["","empty","notes","notes/deep"]);
+  #[cfg(unix)]std::os::unix::fs::symlink(f.0.root.join("notes/empty"),f.0.root.join("alias")).unwrap();
+  assert_eq!(scan(&f.0).folders,vec!["","notes","notes/deep","notes/empty"]);
  }
  #[test]fn preview_reports_outgoing_assets_srcset_css_and_incoming_links_without_writing(){
   let f=Fixture::new();let source=HTML.replace("</head>","<link href='../styles/a.css'></head>").replace("日本語","<img src='../assets/a.png'><a href='other.html'>other</a><a href='#here'>self</a><a href='a.html#here'>self name</a><a href='https://example.com'>external</a><img srcset='../assets/a.png 1x'><p style='background:url(../assets/a.png)'>日本語</p>");
@@ -175,31 +176,31 @@ mod tests {
   assert!(p.references.iter().any(|r|r.note=="incoming.html"));assert!(p.references.iter().any(|r|r.attribute=="src"&&r.after=="/notes/assets/a.png"));assert_eq!(fs::read_to_string(f.0.root.join("notes/a.html")).unwrap(),source);
  }
  #[test]fn move_preserves_bytes_id_permissions_and_updates_snapshot(){
-  let f=Fixture::new();f.write("notes/日本 語.html",HTML);let p=preview(&f.0,"notes/日本 語.html","empty").unwrap();
+  let f=Fixture::new();f.write("notes/日本 語.html",HTML);let p=preview(&f.0,"notes/日本 語.html","notes/empty").unwrap();
   #[cfg(unix)]{use std::os::unix::fs::PermissionsExt;fs::set_permissions(f.0.root.join("notes/日本 語.html"),fs::Permissions::from_mode(0o640)).unwrap();}
-  let new=perform(&f.0,"notes/日本 語.html","empty",&p.expected_hash,&p.expected_revision).unwrap();assert_eq!(new,"empty/日本 語.html");assert!(!f.0.root.join("notes/日本 語.html").exists());assert_eq!(fs::read(f.0.root.join(&new)).unwrap(),HTML.as_bytes());
+  let new=perform(&f.0,"notes/日本 語.html","notes/empty",&p.expected_hash,&p.expected_revision).unwrap();assert_eq!(new,"notes/empty/日本 語.html");assert!(!f.0.root.join("notes/日本 語.html").exists());assert_eq!(fs::read(f.0.root.join(&new)).unwrap(),HTML.as_bytes());
   #[cfg(unix)]{use std::os::unix::fs::PermissionsExt;assert_eq!(fs::metadata(f.0.root.join(&new)).unwrap().permissions().mode()&0o777,0o640);}
   assert_eq!(scan(&f.0).notes[0].path,new);
  }
  #[test]fn rejects_collision_same_folder_invalid_paths_and_stale_source_or_vault(){
-  let f=Fixture::new();f.write("notes/a.html",HTML);let p=preview(&f.0,"notes/a.html","empty").unwrap();
+  let f=Fixture::new();f.write("notes/a.html",HTML);let p=preview(&f.0,"notes/a.html","notes/empty").unwrap();
   for to in ["notes","../outside","/tmp","missing","notes/a.html","assets",".git"]{assert!(preview(&f.0,"notes/a.html",to).is_err(),"{to}");}
-  for from in ["../a.html","/a.html","notes",".git/a.html"]{assert!(preview(&f.0,from,"empty").is_err());}
-  f.write("empty/a.html","existing");assert!(perform(&f.0,"notes/a.html","empty",&p.expected_hash,&p.expected_revision).is_err());assert_eq!(fs::read_to_string(f.0.root.join("empty/a.html")).unwrap(),"existing");fs::remove_file(f.0.root.join("empty/a.html")).unwrap();
-  let p=preview(&f.0,"notes/a.html","empty").unwrap();f.write("notes/a.html",HTML.replace("日本語","changed"));assert!(perform(&f.0,"notes/a.html","empty",&p.expected_hash,&p.expected_revision).is_err());
-  let p=preview(&f.0,"notes/a.html","empty").unwrap();f.write("new.html",HTML);assert!(perform(&f.0,"notes/a.html","empty",&p.expected_hash,&p.expected_revision).is_err());
-  assert!(tag_editing::active(&Some(f.0.clone()),"stale").is_err());assert!(!f.0.root.join("empty/a.html").exists());
+  for from in ["../a.html","/a.html","notes",".git/a.html"]{assert!(preview(&f.0,from,"notes/empty").is_err());}
+  f.write("notes/empty/a.html","existing");assert!(perform(&f.0,"notes/a.html","notes/empty",&p.expected_hash,&p.expected_revision).is_err());assert_eq!(fs::read_to_string(f.0.root.join("notes/empty/a.html")).unwrap(),"existing");fs::remove_file(f.0.root.join("notes/empty/a.html")).unwrap();
+  let p=preview(&f.0,"notes/a.html","notes/empty").unwrap();f.write("notes/a.html",HTML.replace("日本語","changed"));assert!(perform(&f.0,"notes/a.html","notes/empty",&p.expected_hash,&p.expected_revision).is_err());
+  let p=preview(&f.0,"notes/a.html","notes/empty").unwrap();f.write("new.html",HTML);assert!(perform(&f.0,"notes/a.html","notes/empty",&p.expected_hash,&p.expected_revision).is_err());
+  assert!(tag_editing::active(&Some(f.0.clone()),"stale").is_err());assert!(!f.0.root.join("notes/empty/a.html").exists());
  }
  #[cfg(unix)]
  #[test]fn rejects_symlink_source_and_target_and_readonly_files(){
   use std::os::unix::fs::{symlink,PermissionsExt};let f=Fixture::new();let outside=Fixture::new();f.write("notes/a.html",HTML);
-  symlink(f.0.root.join("notes/a.html"),f.0.root.join("alias.html")).unwrap();symlink(outside.0.root.join("empty"),f.0.root.join("alias-dir")).unwrap();
-  assert!(preview(&f.0,"alias.html","empty").is_err());assert!(preview(&f.0,"notes/a.html","alias-dir").is_err());
-  let p=preview(&f.0,"notes/a.html","empty").unwrap();fs::remove_dir(f.0.root.join("empty")).unwrap();symlink(outside.0.root.join("empty"),f.0.root.join("empty")).unwrap();assert!(perform(&f.0,"notes/a.html","empty",&p.expected_hash,&p.expected_revision).is_err());assert_eq!(fs::read_dir(outside.0.root.join("empty")).unwrap().count(),0);
+  symlink(f.0.root.join("notes/a.html"),f.0.root.join("alias.html")).unwrap();symlink(outside.0.root.join("notes/empty"),f.0.root.join("alias-dir")).unwrap();
+  assert!(preview(&f.0,"alias.html","notes/empty").is_err());assert!(preview(&f.0,"notes/a.html","alias-dir").is_err());
+  let p=preview(&f.0,"notes/a.html","notes/empty").unwrap();fs::remove_dir(f.0.root.join("notes/empty")).unwrap();symlink(outside.0.root.join("notes/empty"),f.0.root.join("notes/empty")).unwrap();assert!(perform(&f.0,"notes/a.html","notes/empty",&p.expected_hash,&p.expected_revision).is_err());assert_eq!(fs::read_dir(outside.0.root.join("notes/empty")).unwrap().count(),0);
   fs::set_permissions(f.0.root.join("notes/a.html"),fs::Permissions::from_mode(0o444)).unwrap();assert!(preview(&f.0,"notes/a.html","notes/deep").is_err());
  }
  #[test]fn exclusive_rename_never_overwrites_an_existing_destination(){
-  let f=Fixture::new();f.write("notes/a.html",HTML);f.write("empty/a.html","existing");assert!(rename_no_replace(&f.0.root.join("notes/a.html"),&f.0.root.join("empty/a.html")).is_err());assert_eq!(fs::read_to_string(f.0.root.join("notes/a.html")).unwrap(),HTML);assert_eq!(fs::read_to_string(f.0.root.join("empty/a.html")).unwrap(),"existing");
+  let f=Fixture::new();f.write("notes/a.html",HTML);f.write("notes/empty/a.html","existing");assert!(rename_no_replace(&f.0.root.join("notes/a.html"),&f.0.root.join("notes/empty/a.html")).is_err());assert_eq!(fs::read_to_string(f.0.root.join("notes/a.html")).unwrap(),HTML);assert_eq!(fs::read_to_string(f.0.root.join("notes/empty/a.html")).unwrap(),"existing");
  }
  #[test]fn css_and_image_candidates_handle_quotes_escapes_data_urls_and_nested_rules(){
   let (urls,uncertain)=css_urls(r#"@import "../styles/a.css"; @media screen {p{background:url('../assets/a\20 b.png')}}"#);assert!(!uncertain);assert_eq!(urls,vec!["../styles/a.css","../assets/a b.png"]);
@@ -209,11 +210,11 @@ mod tests {
 
  #[test]fn concurrent_commands_move_once_and_scan_errors_are_reported_as_completed(){
   use std::sync::{Arc,Barrier,Mutex};
-  let f=Fixture::new();f.write("notes/a.html",HTML);f.write("bad.html",[0xff]);let p=preview(&f.0,"notes/a.html","empty").unwrap();assert!(!p.warnings.is_empty());
+  let f=Fixture::new();f.write("notes/a.html",HTML);f.write("bad.html",[0xff]);let p=preview(&f.0,"notes/a.html","notes/empty").unwrap();assert!(!p.warnings.is_empty());
   let state=Arc::new(State{vault:Mutex::new(Some(f.0.clone()))});let barrier=Arc::new(Barrier::new(2));
-  let threads:Vec<_>=(0..2).map(|_|{let state=state.clone();let barrier=barrier.clone();let hash=p.expected_hash.clone();let rev=p.expected_revision.clone();std::thread::spawn(move||{barrier.wait();move_locked(&state,"t","notes/a.html","empty",&hash,&rev)})}).collect();
-  let successes:Vec<_>=threads.into_iter().filter_map(|t|t.join().unwrap().ok()).collect();assert_eq!(successes.len(),1);assert!(successes[0].moved);assert_eq!(successes[0].snapshot.notes[0].path,"empty/a.html");assert!(!successes[0].warnings.is_empty());
-  assert!(move_locked(&state,"stale","empty/a.html","notes",&p.expected_hash,&p.expected_revision).is_err());
+  let threads:Vec<_>=(0..2).map(|_|{let state=state.clone();let barrier=barrier.clone();let hash=p.expected_hash.clone();let rev=p.expected_revision.clone();std::thread::spawn(move||{barrier.wait();move_locked(&state,"t","notes/a.html","notes/empty",&hash,&rev)})}).collect();
+  let successes:Vec<_>=threads.into_iter().filter_map(|t|t.join().unwrap().ok()).collect();assert_eq!(successes.len(),1);assert!(successes[0].moved);assert_eq!(successes[0].snapshot.notes[0].path,"notes/empty/a.html");assert!(!successes[0].warnings.is_empty());
+  assert!(move_locked(&state,"stale","notes/empty/a.html","notes",&p.expected_hash,&p.expected_revision).is_err());
  }
 
 }

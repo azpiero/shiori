@@ -16,7 +16,7 @@ A local HTML knowledge library. Let an AI assistant write and update your notes,
 
 Your vault is a folder of ordinary HTML, CSS, and images. HTML files remain the source of truth: shiori reads them without rewriting the originals, preserving the layouts, tables, and illustrations that make each note useful.
 
-**Status:** early desktop prototype for macOS, with HTML reading, per-note tag editing, folder moves, and an integrated terminal. The interface and bundled sample notes are currently in Japanese.
+**Status:** early desktop prototype for macOS, with HTML reading, per-note tag editing, folder creation/renaming and note moves, and an integrated terminal. The interface and bundled sample notes are currently in Japanese.
 
 ## Screenshots
 
@@ -88,15 +88,17 @@ Reloading the vault restores surviving tabs, their selected pane/tab, and their 
 
 ## Folders and moving notes
 
-The sidebar groups notes by their full relative folder path. Folder headings expand or collapse their direct notes and show the matching note count. Empty existing folders and **Vault直下** (vault root) remain visible when no filter is active. While searching by text or tag, only groups with matching notes appear and are expanded; clearing the filter restores their prior collapsed state. Collapse state resets when switching vaults or restarting the app.
+The sidebar starts at `notes/`; vault-root files and unrelated directories are not listed. Existing folders below `notes/`, including empty folders, appear as collapsible groups. Search and tag filters show only groups with matching notes and temporarily expand them. Clearing filters restores the collapsed state.
 
-Drag a note title onto a folder heading to prepare a move. For keyboard access, Tab to the note’s **↪** (Move note) button, press Enter, and choose a destination. The selector includes empty existing folders even if search hides them from the sidebar. Inspect the reference preview, then choose **確認して移動** (Confirm and move). Cancel leaves the file unchanged. Folder creation and Finder drag-and-drop are outside this feature; create folders externally and reload the vault.
+Use **＋** next to NOTES to create a folder under `notes/`, or **＋** on a folder row to create a child folder. Use **✎** to rename a folder. Names are entered inline in the sidebar. The `notes/` root cannot be renamed. Creating the first folder in an empty vault initializes `notes/`.
 
-Moves retain the filename, source bytes, and note ID. A same-name destination, including one created during the operation, is never overwritten. Moves reject stale vault/source state, excluded directories, symlink paths, read-only notes, and unsupported cross-filesystem moves. Root-level `assets/` and `styles/`, Git internals, and other scan-excluded folders are not destinations.
+Drag a note title onto a folder heading to move it there directly, including a folder just created in shiori. There is no per-file move button or destination modal. For keyboard access, focus a note and press Space, Tab to the destination folder, and press Enter; Escape cancels the selection.
 
-The preview lists potential changes to outgoing note/asset URLs and links from other HTML notes. It checks common HTML URL attributes, `srcset` candidates, and embedded CSS `url()`/`@import` references. Up to 200 affected references and bounded warnings are displayed. References using a `base` element, unreadable notes, or unsupported CSS constructs require manual review. This is static analysis, not proof that every reference is safe; dynamic JavaScript references and references from files outside the scanned HTML notes are not indexed. Links are reported, not rewritten.
+Moves retain the filename, original bytes, and note ID. Existing destination names are never overwritten. The backend checks the active vault, source hash, revision, and destination before renaming; stale state, excluded paths, symbolic links, and unsupported cross-filesystem moves are rejected. Folder renames preserve the contents and update open tabs for every descendant note.
 
-After moving, open tabs in both panes follow the new path while retaining their queries. The moved note reloads, resetting document scroll and the current search-match position. Sidebar groups, tag suggestions, and graph data use the returned snapshot. A scan error after a successful move is reported as **completed**, with errors in the sidebar. If anything changes while a preview is pending, confirm a new preview before retrying. As with tag edits, final validation cannot lock out unrelated external filesystem changes.
+A file drop triggers static reference analysis and then the move. Potentially changed HTML URLs, srcset candidates, embedded CSS URLs/imports, and incoming references from other HTML notes are reported afterward in the sidebar’s **移動後に確認する参照** section. Folder renames show a reminder to check relative references. No automatic link repair is performed. The report is bounded to 200 reference details; unreadable or unsupported constructs are flagged, and dynamic references or references outside scanned HTML notes are not fully indexed.
+
+Open tabs follow the new paths and retain their queries. Moved documents reload, resetting scroll and current search-match position. Folder groups, tag suggestions, and graph data update from the returned snapshot. Scan failures after a successful operation are reported as completed. Finder drag/drop, moving across filesystems, and automatic link repair remain outside this feature. Final validation does not lock out unrelated external filesystem changes.
 
 ## Workflow: AI writes, shiori reads, Git keeps history
 
@@ -261,7 +263,7 @@ The `notes/`, `assets/`, and `styles/` layout is the Skill's default for a new v
 
 ## Limitations and security model
 
-The reader can add and remove tags through an explicit save and move notes between existing folders after review, but does not edit body content. Commands in the terminal can edit source files. Global tag renaming, automatic link repair, navigation history, and Git synchronization are not implemented.
+The reader can add and remove tags through an explicit save and move notes between folders by dragging, but does not edit body content. Commands in the terminal can edit source files. Global tag renaming, automatic link repair, navigation history, and Git synchronization are not implemented.
 
 Notes are served through a vault-scoped protocol after resolving paths and symlinks. A sandboxed iframe, Content Security Policy, and display-copy sanitization restrict scripts, forms, frames, and external resources. Original HTML remains unchanged. External links are currently disabled.
 

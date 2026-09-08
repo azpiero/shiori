@@ -629,13 +629,13 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 - Preserve ordinary shell/CLI authentication, configuration, logging, and permission behavior. Remove the superseded Claude-only settings and controls. Keep third-party license notices with vendored files.
 
 
-## Issue #28 implementation: folder groups and note moves (2026-09-09)
+## Issue #28 implementation: notes folders and direct moves (2026-09-09)
 
-- The sidebar displays collapsible groups labelled with full relative directory paths. Real existing directories, including empty directories and the vault root, are returned by the scanner. Excluded directories and root-level assets/styles are omitted.
-- Text/tag filtering displays only folders containing matching notes and temporarily expands them. Clearing filters restores the session’s collapsed state. Vault switches and restarts reset it.
-- Sidebar-only HTML drag-and-drop prepares a move to a folder heading. Each note also has a keyboard-accessible move button and destination selector. No new-folder operation or Finder drag-and-drop is introduced.
-- A read-only preview precedes explicit confirmation. It reports potentially changed outgoing HTML/asset references, srcset candidates, inline CSS URLs/imports, and references from other HTML notes. Unsupported constructs and read failures are shown as incomplete-analysis warnings. Automatic repair and a persistent reference index remain separate work.
-- Move commands share active-vault validation and app-write serialization with tag editing. They reject traversal, excluded folders, symbolic links, read-only sources, same-folder moves, and existing destination names. Revalidate the source digest, vault revision, and paths before a native no-overwrite rename. Cross-filesystem moves fail without copying/deleting the source.
-- Successful moves preserve all source bytes, filename, note ID, and filesystem metadata through rename. Return a fresh snapshot and update every open tab for the old path to the new path. Retain tab IDs/queries; reload the moved document. Keep unchanged iframes attached.
-- Suspend revision polling while the move dialog is open and discard earlier poll responses. Report scan failures after a completed move as completed, never as an invitation to repeat the move.
-- The implemented UI reports up to 200 affected references plus an omitted count. This is a bounded static preview and cannot certify references outside scanned HTML notes or eliminate races with external filesystem actors. This implementation does not replace the broader future link-repair requirements above.
+- The sidebar is rooted at `notes/`. Vault-root files and unrelated directories are not shown. Existing empty folders under notes are available as drop targets.
+- Folder rows show direct notes and can be collapsed. Search/tag filtering temporarily expands matching groups; clearing filters restores session state.
+- Create folders using the NOTES or folder-row ＋ control; rename folders using ✎. Both use an inline sidebar field. Creation can initialize a missing notes root; the root itself cannot be renamed.
+- File dragging directly moves a note to the destination folder, including newly created folders. Remove per-file move buttons and the destination modal. Keyboard users select a note with Space and choose a folder with Enter; Escape cancels selection.
+- File moves run reference analysis and source/revision checks, then use no-overwrite rename. Potential reference impacts are displayed after completion in the sidebar, not as a blocking confirmation. Folder renames show a relative-reference reminder. Automatic repair remains separate work.
+- Create/rename/move commands validate active tokens and notes scope, refuse traversal/reserved names/symlink paths/collisions, and serialize with other app writes. Renames validate the expected revision. No folder or source content is overwritten.
+- Folder rename updates all descendant tab paths; file moves update each tab for that note. Preserve tab IDs/queries and source bytes; reload changed paths and refresh folder/search/graph state. Scan failures after completed operations remain completed outcomes.
+- The static file-move report covers common HTML URL attributes, srcset and embedded CSS URLs/imports, with up to 200 details and bounded warnings. Dynamic or unsupported references are not certified safe. Finder drag/drop, cross-filesystem moves, and automatic repair are outside this implementation.

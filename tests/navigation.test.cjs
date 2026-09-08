@@ -7,7 +7,7 @@ const ShioriSearch=require('../ui/search.js');
 const ShioriReader=require('../ui/reader.js');
 const ShioriTagEditor=require('../ui/tag-editor.js');
 const ShioriFolders=require('../ui/folders.js');
-const ShioriMoveDialog=require('../ui/move-dialog.js');
+const ShioriNoteMove=require('../ui/note-move.js');
 const {create:terminalCreate}=require('../ui/terminal.js');
 const terminalStub=require('./terminal-stub.cjs');
 const ShioriTerminal={create:options=>terminalCreate({...options,...terminalStub})};
@@ -21,7 +21,7 @@ async function setup(initialErrors=[],initialWarnings=[]){
  const notes=Array.from({length:160},(_,i)=>({path:`notes/${i}.html`,title:`Note ${i}`,text:'knowledge',tags:[i%2?'odd':'even'],headings:[]}));
  const vault={root:'/test/vault',token:'test-token',revision:'r1',notes,errors:initialErrors,warnings:initialWarnings,scan_ms:1};
  refreshResult=vault;
- const context=vm.createContext({document,URL,performance,ShioriSearch,ShioriReader,ShioriTagEditor,ShioriFolders,ShioriMoveDialog,ShioriTerminal,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(fn){intervals.push(fn);},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(commands[name])return commands[name](args);if(name==='terminal_start')return {cwd:'/test/workspace',vault:vault.root};if(name==='terminal_stop')return;if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
+ const context=vm.createContext({document,URL,performance,ShioriSearch,ShioriReader,ShioriTagEditor,ShioriFolders,ShioriNoteMove,ShioriTerminal,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(fn){intervals.push(fn);},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(commands[name])return commands[name](args);if(name==='terminal_start')return {cwd:'/test/workspace',vault:vault.root};if(name==='terminal_stop')return;if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
  const run=code=>vm.runInContext(code,context);
  run(fs.readFileSync(require.resolve('../ui/app.js'),'utf8'));
  await new Promise(resolve=>setImmediate(resolve));
@@ -217,26 +217,27 @@ test('a revision poll started before an edit cannot announce the completed save 
  commands.vault_revision=()=> 'external';await intervals[0]();assert.equal(run('changed'),true);
 });
 
-test('folder rows filter with search, preserve collapse state, and only valid internal drops open a preview',async()=>{
- const {run,get,vault,calls,commands}=await setup();vault.folders=['','notes','empty'];run('renderList()');
+test('notes-only folder rows support creation, rename and direct internal drops',async()=>{
+ const {run,get,vault,calls,commands}=await setup();vault.folders=['','archive','notes','notes/empty'];run('renderList()');
  const row=path=>get('#notes').querySelectorAll('[data-folder]').find(el=>el.dataset.folder===path);
- assert.ok(row('empty'));get('#notes').onclick({target:row('notes')});assert.equal(row('notes').getAttribute('aria-expanded'),'false');
- get('#search').value='Note 0';run('applySearch()');assert.equal(row('empty'),undefined);assert.equal(row('notes').getAttribute('aria-expanded'),'true');
- get('#search').value='';run('applySearch()');assert.equal(row('notes').getAttribute('aria-expanded'),'false');
- commands.preview_note_move=()=>({destination:'empty/0.html',references:[],warnings:[],omitted:0,expected_hash:'h',expected_revision:'r1'});
+ assert.equal(row(''),undefined);assert.equal(row('archive'),undefined);assert.ok(row('notes/empty'));assert.equal(get('#notes').querySelector('[data-move]'),null);
+ get('#notes').onclick({target:row('notes')});assert.equal(row('notes').getAttribute('aria-expanded'),'false');get('#search').value='Note 0';run('applySearch()');assert.equal(row('notes/empty'),undefined);assert.equal(row('notes').getAttribute('aria-expanded'),'true');get('#search').value='';run('applySearch()');
+ commands.preview_note_move=()=>({destination:'notes/empty/0.html',references:[],warnings:[],omitted:0,expected_hash:'h',expected_revision:'r1'});
+ commands.move_note=()=>({moved:true,old_path:'notes/0.html',path:'notes/empty/0.html',warnings:[],snapshot:{...vault,revision:'r2',notes:vault.notes.map(n=>n.path==='notes/0.html'?{...n,path:'notes/empty/0.html'}:n)}});
  const transfer={value:'',setData(type,value){this.value=value;},getData(){return this.value;},effectAllowed:'',dropEffect:''},source=get('#notes').querySelector('[data-path]');
- get('#notes').ondrop({target:row('empty'),preventDefault(){}});assert.equal(calls.filter(c=>c.name==='preview_note_move').length,0);
- get('#notes').ondragstart({target:source,dataTransfer:transfer,preventDefault(){}});let prevented=false;
- get('#notes').ondragover({target:row('empty'),dataTransfer:transfer,preventDefault(){prevented=true;}});assert.equal(prevented,true);
- get('#notes').ondrop({target:row('empty'),dataTransfer:transfer,preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));
- assert.equal(calls.filter(c=>c.name==='preview_note_move').length,1);assert.equal(calls.filter(c=>c.name==='move_note').length,0);get('#move-cancel').onclick();
+ get('#notes').ondrop({target:row('notes/empty'),preventDefault(){}});assert.equal(calls.filter(c=>c.name==='move_note').length,0);
+ get('#notes').ondragstart({target:source,dataTransfer:transfer,preventDefault(){}});get('#notes').ondrop({target:row('notes/empty'),dataTransfer:transfer,preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(calls.filter(c=>c.name==='move_note').length,1);assert.equal(run('selected'),'notes/empty/0.html');assert.equal(get('#move-folder'),null);
+ commands.create_note_folder=args=>({path:'notes/'+args.name,old_path:null,snapshot:{...vault,folders:['notes','notes/new'],revision:'r3'}});
+ get('#newFolder').onclick();get('#folderName').value='new';await get('#saveFolder').onclick();assert.ok(row('notes/new'));assert.equal(get('#folderEditor').hidden,true);
+ commands.rename_note_folder=()=>({old_path:'notes/new',path:'notes/renamed',snapshot:{...vault,folders:['notes','notes/renamed'],revision:'r4'}});
+ get('#notes').onclick({target:get('#notes').querySelectorAll('[data-rename-folder]').find(b=>b.dataset.renameFolder==='notes/new')});get('#folderName').value='renamed';await get('#saveFolder').onclick();assert.ok(row('notes/renamed'));assert.equal(get('#moveReport').hidden,false);
 });
 
-test('keyboard move updates the sidebar, current tabs and graph without announcing an own external change',async()=>{
- const {run,get,vault,commands}=await setup();vault.folders=['','notes','empty'];run('renderList();openNote("notes/0.html","","side")');
- commands.preview_note_move=()=>({destination:'empty/0.html',references:[],warnings:[],omitted:0,expected_hash:'h',expected_revision:'r1'});
- commands.move_note=()=>({moved:true,old_path:'notes/0.html',path:'empty/0.html',warnings:[],snapshot:{...vault,revision:'r2',notes:vault.notes.map(n=>n.path==='notes/0.html'?{...n,path:'empty/0.html'}:n)}});
- await run('beginMove("notes/0.html","empty")');assert.equal(get('#open').disabled,true);await get('#move-confirm').onclick();
- assert.equal(run('selected'),'empty/0.html');assert.equal(run('reader.model.all().filter(t=>t.path==="empty/0.html").length'),2);assert.equal(run('changed'),false);assert.ok(get('#notes').querySelectorAll('[data-path]').find(b=>b.dataset.path==='empty/0.html'));assert.equal(get('#open').disabled,false);
- run('setView(true)');assert.ok(get('#graphSvg').innerHTML.includes('data-value="empty/0.html"'));
+test('Space then a destination folder moves a note without a destination modal',async()=>{
+ const {run,get,vault,commands}=await setup();vault.folders=['notes','notes/empty'];run('renderList()');
+ commands.preview_note_move=()=>({destination:'notes/empty/0.html',references:[],warnings:[],omitted:0,expected_hash:'h',expected_revision:'r1'});
+ commands.move_note=()=>({moved:true,old_path:'notes/0.html',path:'notes/empty/0.html',warnings:[],snapshot:{...vault,revision:'r2',notes:vault.notes.map(n=>n.path==='notes/0.html'?{...n,path:'notes/empty/0.html'}:n)}});
+ get('#notes').onkeydown({key:' ',target:get('#notes').querySelector('[data-path]'),preventDefault(){}});
+ get('#notes').onclick({target:get('#notes').querySelectorAll('[data-folder]').find(b=>b.dataset.folder==='notes/empty')});await new Promise(resolve=>setImmediate(resolve));assert.equal(run('selected'),'notes/empty/0.html');assert.equal(run('changed'),false);
 });
