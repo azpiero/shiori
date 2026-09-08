@@ -106,5 +106,12 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 .folder-heading{display:flex;align-items:center;gap:2px}.folder-heading .folder-row{flex:1;min-width:0}
 .folder-tool{flex-shrink:0;border:0;padding:3px 5px;background:transparent;color:var(--muted);font-size:12px}
-.folder-editor{padding:8px;border:1px solid var(--line);border-radius:7px;margin:0 0 8px}.folder-editor label{display:block;font-size:11px;overflow-wrap:anywhere}.folder-editor input{width:100%;margin:6px 0;background:var(--surface);color:var(--ink);border:1px solid var(--line);padding:5px}.folder-editor button{font-size:11px;padding:4px 8px}.folder-editor [role=status]{display:block;font-size:11px;overflow-wrap:anywhere}
-.move-report{max-height:180px;overflow:auto;font-size:11px;margin-bottom:8px;overflow-wrap:anywhere}.move-report summary{cursor:pointer}.move-report p{margin:7px 0}
+.folder-group{margin-bottom:0}
+.folder-children{margin-left:12px;padding-left:9px;border-left:1px solid var(--line)}
+.folder-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.folder-tool svg{display:block;width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.folder-inline{flex:1;min-width:0;padding:3px 0}
+.folder-inline input{width:100%;min-width:0;font:inherit;font-size:11px;padding:4px 5px;border:1px solid var(--accent);border-radius:4px;color:var(--ink);background:var(--surface)}
+.folder-menu{position:fixed;z-index:70;min-width:170px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:0 4px 18px #0002}
+.folder-menu button{display:block;width:100%;border:0;text-align:left;background:transparent;font-size:12px;padding:7px}
+.folder-menu button:hover,.folder-menu button:focus-visible{background:var(--tint)}

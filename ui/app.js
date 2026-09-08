@@ -50,12 +50,8 @@ $('#app').innerHTML=`<div class="layout">
 </div>
 <section id="currentNote" class="current-note" aria-label="絞り込み対象外の表示中ノート" hidden>
 </section>
-<div class="list-head">
-<span>NOTES</span><button id="newFolder" class="folder-tool" title="notesにフォルダを作成" aria-label="フォルダを作成">＋</button>
-<span id="results">
-</span>
-</div>
-<div id="folderEditor" class="folder-editor" hidden><label id="folderEditorLabel" for="folderName"></label><input id="folderName" aria-label="フォルダ名" autocomplete="off"><div><button id="saveFolder">保存</button><button id="cancelFolder">取消</button></div><span id="folderError" role="status"></span></div><details id="moveReport" class="move-report" hidden><summary>移動後に確認する参照</summary><div id="moveReportBody"></div></details>
+<span id="results" class="sr-only"></span>
+<div id="folderMenu" class="folder-menu" role="menu" aria-label="フォルダ操作" hidden></div>
 <span id="folderMoveHelp" class="sr-only">ノートをSpaceで選択し、移動先のフォルダへTabで移動してEnterで格納。Escapeで取消。</span><div class="notes" id="notes">
 </div>
 </aside>
@@ -119,8 +115,7 @@ noteMover=ShioriNoteMove.create({document,getVault:()=>vault,invoke,onError:stat
  vault=result.snapshot;metrics.scanMs=vault.scan_ms;invalidateGraph();hideSuggestions();changed=false;$('#notice').classList.remove('show');
  collapsedFolders.delete(ShioriFolders.parent(result.path));reader.moved(result.old_path,result.path,reloadPaths);renderList();renderReadErrors();
  status(result.warnings?.join(' / ')||`移動しました: ${result.old_path} → ${result.path}`);
- const review=result.review;$('#moveReport').hidden=!review||(!review.references.length&&!review.warnings.length);
- if(review)$('#moveReportBody').innerHTML=review.references.map(r=>`<p><strong>${escape(r.note)}</strong><br>${escape(r.value)}<br>${escape(r.before)} → ${escape(r.after)}</p>`).join('')+review.warnings.map(w=>`<p>${escape(w)}</p>`).join('')+(review.omitted?`<p>ほか${review.omitted}件</p>`:'');
+ if(!result.warnings?.length&&result.review?.references.length)status(`移動しました: ${result.path}（参照先が変わるリンクがあります）`);
  [...$('#notes').querySelectorAll('[data-path]')].find(b=>b.dataset.path===result.path)?.focus();
 }});
 function beginMove(path,folder){if(!vaultBusy&&!tagEditing&&!moving)return noteMover.open(path,folder);}
@@ -135,10 +130,16 @@ function renderList(){
  const focusContainer=focused?.closest('#notes, #currentNote')?.id;
  const matches=ShioriSearch.filter(vault.notes.filter(n=>n.path.startsWith('notes/')),{text:query,tags:activeTags});
  const filtered=!!query.trim()||!!activeTags.length;
- $('#notes').innerHTML=ShioriFolders.groups(matches,ShioriFolders.folders(vault),filtered).map(({path,notes},i)=>{
-  const expanded=filtered||!collapsedFolders.has(path);
-  return `<section class="folder-group"><div class="folder-heading"><button class="folder-row" data-folder="${escape(path)}" aria-expanded="${expanded}" aria-controls="folder-notes-${i}" title="${escape(path)}"><span aria-hidden="true">${expanded?'▾':'▸'}</span><span class="folder-name">${escape(path)}</span><span class="folder-count">${notes.length}</span></button><button class="folder-tool" data-create-folder="${escape(path)}" aria-label="${escape(path)}にフォルダを作成" title="子フォルダを作成">＋</button>${path!=='notes'?`<button class="folder-tool" data-rename-folder="${escape(path)}" aria-label="${escape(path)}の名称変更" title="名称変更">✎</button>`:''}</div><div id="folder-notes-${i}" ${expanded?'':'hidden'}>`+notes.map(n=>`<article class="note ${n.path===selected?'active':''}"><button class="note-open" draggable="true" aria-describedby="folderMoveHelp" title="${escape(n.path)}" aria-label="${escape(n.title)} — ${escape(n.path)}" data-path="${escape(n.path)}" ${n.path===selected?'aria-current="true"':''}><span class="note-title">${escape(n.title)}</span></button></article>`).join('')+'</div></section>';
- }).join('')||'<div class="empty">一致するノートがありません</div>';
+ const inputFocused=focused?.id==='folderName',caret=focused?.selectionStart;
+ const editor=()=>`<div class="folder-inline"><input id="folderName" aria-label="フォルダ名" autocomplete="off" value="${escape(folderEdit.value)}" ${moving?'disabled':''}><span class="sr-only">Enterで保存、Escapeで取消</span></div>`;
+ let groupId=0;
+ const renderFolder=({path,notes,children})=>{
+  const expanded=filtered||!collapsedFolders.has(path),id=groupId++;
+  const renaming=folderEdit?.mode==='rename'&&folderEdit.path===path;
+  return `<section class="folder-group"><div class="folder-heading" data-folder-heading="${escape(path)}">${renaming?editor():`<button class="folder-row" data-folder="${escape(path)}" aria-expanded="${expanded}" aria-controls="folder-notes-${id}" title="${escape(path)}"><span aria-hidden="true">${expanded?'▾':'▸'}</span><span class="folder-name">${escape(path.split('/').pop())}</span></button><button class="folder-tool" data-create-folder="${escape(path)}" aria-label="${escape(path)}にフォルダを作成" title="子フォルダを作成"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5h6l2 2h10v13H3zM12 10v7M8.5 13.5h7"/></svg></button>`}</div><div class="folder-children" id="folder-notes-${id}" ${expanded?'':'hidden'}>${folderEdit?.mode==='create'&&folderEdit.path===path?editor():''}${children.map(renderFolder).join('')}${notes.map(n=>`<article class="note ${n.path===selected?'active':''}"><button class="note-open" draggable="true" aria-describedby="folderMoveHelp" title="${escape(n.path)}" aria-label="${escape(n.title)} — ${escape(n.path)}" data-path="${escape(n.path)}" ${n.path===selected?'aria-current="true"':''}><span class="note-title">${escape(n.title)}</span></button></article>`).join('')}</div></section>`;
+ };
+ $('#notes').innerHTML=ShioriFolders.tree(matches,ShioriFolders.folders(vault),filtered).map(renderFolder).join('')||'<div class="empty">一致するノートがありません</div>';
+ if(inputFocused&&$('#folderName')){$('#folderName').focus();$('#folderName').setSelectionRange(caret,caret);}
  currentMatches=matches;if(graphMode)renderGraph();
  $('#results').textContent=`${matches.length} 件`;
  renderCurrentNote();
@@ -164,22 +165,43 @@ $('#notes').ondragstart=e=>{const button=e.target.closest('[data-path]');if(!but
 $('#notes').ondragover=e=>{for(const row of $('#notes').querySelectorAll('.drop-target'))row.classList.remove('drop-target');const row=dropFolder(e);if(row){e.preventDefault();e.dataTransfer.dropEffect='move';row.classList.add('drop-target');}};
 $('#notes').ondrop=e=>{e.preventDefault();if(!dragNote||e.dataTransfer?.getData('application/x-shiori-note')!==JSON.stringify(dragNote)){clearDrag();return;}const row=dropFolder(e),path=dragNote?.path;clearDrag();if(row){e.preventDefault();beginMove(path,row.dataset.folder);}};
 $('#notes').ondragend=clearDrag;
-$('#notes').onkeydown=e=>{if(e.key==='Escape'){clearDrag();status('移動を取消しました');}if(e.key===' '&&!moving&&!tagEditing&&!vaultBusy){const button=e.target.closest('[data-path]');if(button){e.preventDefault();dragNote={token:vault.token,path:button.dataset.path,keyboard:true};status('移動先のフォルダへTabで移動し、Enterで格納します。Escapeで取消。');}}};
-function editFolder(mode,path){if(vaultBusy||moving||tagEditing||!vault)return;folderEdit={mode,path,token:vault.token,revision:vault.revision};$('#folderEditor').hidden=false;$('#folderEditorLabel').textContent=mode==='rename'?`${path} の名称変更`:`${path} にフォルダを作成`;$('#folderName').value=mode==='rename'?path.split('/').pop():'';$('#folderError').textContent='';$('#folderName').focus();}
-$('#newFolder').onclick=()=>editFolder('create','notes');
-$('#cancelFolder').onclick=()=>{if(moving)return;folderEdit=null;$('#folderEditor').hidden=true;};
-$('#saveFolder').onclick=async()=>{
+$('#notes').oninput=e=>{if(e.target.id==='folderName'&&folderEdit)folderEdit.value=e.target.value;};
+$('#notes').onkeydown=e=>{
+ if(e.target.id==='folderName'){if(e.isComposing)return;if(e.key==='Enter'){e.preventDefault();saveFolder();}if(e.key==='Escape'&&!moving){e.preventDefault();const path=folderEdit.path;folderEdit=null;renderList();focusFolder(path);}return;}
+ const row=e.target.closest('[data-folder]');
+ if(row&&(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10'))){e.preventDefault();showFolderMenu(row.dataset.folder,row.getBoundingClientRect());return;}
+ if(e.key==='Escape'){clearDrag();status('移動を取消しました');}
+ if(e.key===' '&&!moving&&!tagEditing&&!vaultBusy){const button=e.target.closest('[data-path]');if(button){e.preventDefault();dragNote={token:vault.token,path:button.dataset.path,keyboard:true};status('移動先のフォルダへTabで移動し、Enterで格納します。Escapeで取消。');}}
+};
+function focusFolder(path){[...$('#notes').querySelectorAll('[data-folder]')].find(b=>b.dataset.folder===path)?.focus();}
+let menuPath=null;
+function closeFolderMenu(restore=false){$('#folderMenu').hidden=true;if(restore)focusFolder(menuPath);menuPath=null;}
+function showFolderMenu(path,point){
+ if(moving||vaultBusy||tagEditing)return;
+ menuPath=path;const menu=$('#folderMenu');menu.innerHTML=`<button role="menuitem" data-action="create">新規フォルダ</button>${path==='notes'?'':'<button role="menuitem" data-action="rename">名称変更</button>'}`;menu.hidden=false;
+ menu.style.left=Math.max(0,Math.min(point.left,window.innerWidth-180))+'px';menu.style.top=Math.max(0,Math.min(point.bottom??point.top,window.innerHeight-90))+'px';menu.querySelector('button').focus();
+}
+$('#notes').oncontextmenu=e=>{const row=e.target.closest('[data-folder-heading]');if(row&&!folderEdit){e.preventDefault();showFolderMenu(row.dataset.folderHeading,{left:e.clientX,top:e.clientY});}};
+$('#folderMenu').onclick=e=>{const action=e.target.closest('[data-action]')?.dataset.action;if(action){const path=menuPath;closeFolderMenu();editFolder(action,path);}};
+$('#folderMenu').onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();closeFolderMenu(true);}if(e.key==='Tab')closeFolderMenu();if(['ArrowDown','ArrowUp'].includes(e.key)){e.preventDefault();const items=[...$('#folderMenu').querySelectorAll('button')],index=items.indexOf(document.activeElement);items[(index+(e.key==='ArrowDown'?1:items.length-1))%items.length].focus();}};
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('#folderMenu'))closeFolderMenu();});
+function editFolder(mode,path){
+ if(vaultBusy||moving||tagEditing||!vault)return;
+ closeFolderMenu();folderEdit={mode,path,token:vault.token,revision:vault.revision,value:mode==='rename'?path.split('/').pop():''};
+ let ancestor=path;while(ancestor){collapsedFolders.delete(ancestor);ancestor=ShioriFolders.parent(ancestor);}
+ renderList();const input=$('#folderName');input?.focus();input?.setSelectionRange(0,input.value.length);
+}
+async function saveFolder(){
  if(!folderEdit||moving||vaultBusy||tagEditing)return;const draft=folderEdit,name=$('#folderName').value;
- moving=true;revisionEpoch++;setVaultBusy(vaultBusy);$('#saveFolder').disabled=true;$('#cancelFolder').disabled=true;
+ moving=true;revisionEpoch++;setVaultBusy(vaultBusy);$('#folderName').disabled=true;
  try{
   const result=await invoke(draft.mode==='create'?'create_note_folder':'rename_note_folder',draft.mode==='create'?{vaultToken:draft.token,parent:draft.path,name}:{vaultToken:draft.token,path:draft.path,name,expectedRevision:draft.revision});
   if(result.snapshot.token!==vault?.token)return;
-  vault=result.snapshot;changed=false;$('#notice').classList.remove('show');invalidateGraph();hideSuggestions();collapsedFolders.clear();
-  if(result.old_path){const paths=new Set(vault.notes.filter(n=>n.path.startsWith(result.path+'/')).map(n=>n.path));reader.moved(result.old_path,result.path,paths);$('#moveReport').hidden=false;$('#moveReportBody').textContent=`${result.old_path} → ${result.path}。フォルダ内外の相対リンク・画像参照は自動修復していません。内容を確認してください。`;}else reader.render();
-  renderList();renderReadErrors();folderEdit=null;$('#folderEditor').hidden=true;status(result.snapshot.errors.length?'フォルダ操作は完了しました。一部の読み取りエラーを確認してください':`フォルダを${draft.mode==='create'?'作成':'変更'}しました: ${result.path}`);
- }catch(e){$('#folderError').textContent=String(e);}finally{moving=false;revisionEpoch++;$('#saveFolder').disabled=false;$('#cancelFolder').disabled=false;setVaultBusy(vaultBusy);}
-};
-$('#folderName').onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();$('#saveFolder').onclick();}if(e.key==='Escape')$('#cancelFolder').onclick();};
+  folderEdit=null;vault=result.snapshot;changed=false;$('#notice').classList.remove('show');invalidateGraph();hideSuggestions();collapsedFolders.clear();
+  if(result.old_path){const paths=new Set(vault.notes.filter(n=>n.path.startsWith(result.path+'/')).map(n=>n.path));reader.moved(result.old_path,result.path,paths);}else reader.render();
+  renderList();renderReadErrors();focusFolder(result.path);status(result.snapshot.errors.length?'フォルダ操作は完了しました。一部の読み取りエラーを確認してください':`フォルダを${draft.mode==='create'?'作成':'変更'}しました: ${result.path}`);
+ }catch(e){status(String(e));}finally{moving=false;revisionEpoch++;if($('#folderName')){$('#folderName').disabled=false;$('#folderName').focus();}setVaultBusy(vaultBusy);}
+}
 function invalidateGraph(){graphKey=null;graphPage=0;}
 function clearNote(){reader.reset();selected='';renderList();status('HTMLノートがありません');}
 function openNote(path,anchor='',mode='current'){
@@ -203,7 +225,7 @@ async function load(path=null){
  try{
   vault=await invoke('open_vault',{path});metrics.scanMs=vault.scan_ms;
   $('#vaultWarnings').textContent=(vault.warnings||[]).join('\n');$('#vaultWarnings').hidden=!vault.warnings?.length;
-  folderEdit=null;$('#folderEditor').hidden=true;$('#moveReport').hidden=true;collapsedFolders.clear();clearDrag();reader.reset();terminalPanel.reset();selected='';invalidateGraph();activeTags=[];query='';$('#search').value='';hideSuggestions();setView(false);
+  folderEdit=null;closeFolderMenu();collapsedFolders.clear();clearDrag();reader.reset();terminalPanel.reset();selected='';invalidateGraph();activeTags=[];query='';$('#search').value='';hideSuggestions();setView(false);
   $('#root').textContent=vault.root;$('#root').title=vault.root;$('#vaultName').textContent=vault.root.split('/').pop();$('#vaultName').title=vault.root;
   $('#notice').classList.remove('show');changed=false;
   renderList();const first=vault.notes.find(n=>n.path.startsWith('notes/'));if(first)openNote(first.path);else clearNote();

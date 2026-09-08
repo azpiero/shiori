@@ -229,9 +229,9 @@ test('notes-only folder rows support creation, rename and direct internal drops'
  get('#notes').ondragstart({target:source,dataTransfer:transfer,preventDefault(){}});get('#notes').ondrop({target:row('notes/empty'),dataTransfer:transfer,preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));
  assert.equal(calls.filter(c=>c.name==='move_note').length,1);assert.equal(run('selected'),'notes/empty/0.html');assert.equal(get('#move-folder'),null);
  commands.create_note_folder=args=>({path:'notes/'+args.name,old_path:null,snapshot:{...vault,folders:['notes','notes/new'],revision:'r3'}});
- get('#newFolder').onclick();get('#folderName').value='new';await get('#saveFolder').onclick();assert.ok(row('notes/new'));assert.equal(get('#folderEditor').hidden,true);
+ get('#notes').onclick({target:get('#notes').querySelector('[data-create-folder]')});get('#folderName').value='new';await run('saveFolder()');assert.ok(row('notes/new'));assert.equal(get('#folderName'),null);
  commands.rename_note_folder=()=>({old_path:'notes/new',path:'notes/renamed',snapshot:{...vault,folders:['notes','notes/renamed'],revision:'r4'}});
- get('#notes').onclick({target:get('#notes').querySelectorAll('[data-rename-folder]').find(b=>b.dataset.renameFolder==='notes/new')});get('#folderName').value='renamed';await get('#saveFolder').onclick();assert.ok(row('notes/renamed'));assert.equal(get('#moveReport').hidden,false);
+ get('#notes').oncontextmenu({target:row('notes/new'),clientX:20,clientY:40,preventDefault(){}});get('#folderMenu').onclick({target:get('#folderMenu').querySelector('[data-action="rename"]')});get('#folderName').value='renamed';await run('saveFolder()');assert.ok(row('notes/renamed'));assert.equal(get('#moveReport'),null);
 });
 
 test('Space then a destination folder moves a note without a destination modal',async()=>{

@@ -57,7 +57,7 @@ Tags use case-sensitive exact matching: `tag: 開発` does not include `開発/I
 
 Type `tag:` to see up to eight matching tag suggestions. Use ↑/↓ and Enter to insert a suggestion, Escape to dismiss, or click a candidate. Enter with no candidate selected opens the first matching note. Quoted tag names support JSON escapes such as `\"` and `\\`; names beginning with `tag:` must also be quoted. Empty clauses and unclosed quotes are ignored until completed; a complete but unknown tag returns no matches. IME composition is applied after confirmation.
 
-The search field is the source of filter state. Selecting a tag in the graph or a reader pane's tag-name button replaces the tag clauses with that tag while preserving free text. Remove the `tag:` clause to clear its filter. The **NOTES** count shows matching notes rather than a separate vault total.
+The search field is the source of filter state. Selecting a tag in the graph or a reader pane's tag-name button replaces the tag clauses with that tag while preserving free text. Remove the `tag:` clause to clear its filter.
 
 ## Read with panes and tabs
 
@@ -88,15 +88,15 @@ Reloading the vault restores surviving tabs, their selected pane/tab, and their 
 
 ## Folders and moving notes
 
-The sidebar starts at `notes/`; vault-root files and unrelated directories are not listed. Existing folders below `notes/`, including empty folders, appear as collapsible groups. Search and tag filters show only groups with matching notes and temporarily expand them. Clearing filters restores the collapsed state.
+The sidebar starts at `notes/`; vault-root files and unrelated directories are not listed. Existing folders below `notes/`, including empty folders, appear in an indented tree with hierarchy guide lines and short folder names. Collapsing a folder hides its entire subtree. Search and tag filters retain matching folders and their ancestors and temporarily expand them. Clearing filters restores the collapsed state.
 
-Use **＋** next to NOTES to create a folder under `notes/`, or **＋** on a folder row to create a child folder. Use **✎** to rename a folder. Names are entered inline in the sidebar. The `notes/` root cannot be renamed. Creating the first folder in an empty vault initializes `notes/`.
+Use the **folder-plus icon** on a folder row to create a child folder. Right-click a folder (secondary click on a trackpad) and choose **名称変更** to rename it directly in its row. Press Enter to save or Escape to cancel. Keyboard users can open the folder menu with Shift+F10 or the Context Menu key. The `notes/` root cannot be renamed. Creating the first folder in an empty vault initializes `notes/`.
 
 Drag a note title onto a folder heading to move it there directly, including a folder just created in shiori. There is no per-file move button or destination modal. For keyboard access, focus a note and press Space, Tab to the destination folder, and press Enter; Escape cancels the selection.
 
 Moves retain the filename, original bytes, and note ID. Existing destination names are never overwritten. The backend checks the active vault, source hash, revision, and destination before renaming; stale state, excluded paths, symbolic links, and unsupported cross-filesystem moves are rejected. Folder renames preserve the contents and update open tabs for every descendant note.
 
-A file drop triggers static reference analysis and then the move. Potentially changed HTML URLs, srcset candidates, embedded CSS URLs/imports, and incoming references from other HTML notes are reported afterward in the sidebar’s **移動後に確認する参照** section. Folder renames show a reminder to check relative references. No automatic link repair is performed. The report is bounded to 200 reference details; unreadable or unsupported constructs are flagged, and dynamic references or references outside scanned HTML notes are not fully indexed.
+A file drop triggers static reference analysis and then the move. If links may change, a brief status message appears; no persistent reference report occupies the sidebar. No automatic link repair is performed, including during folder renames. Analysis covers common HTML URLs, srcset candidates, and embedded CSS URLs/imports, but is bounded and does not fully index dynamic references or references outside scanned HTML notes.
 
 Open tabs follow the new paths and retain their queries. Moved documents reload, resetting scroll and current search-match position. Folder groups, tag suggestions, and graph data update from the returned snapshot. Scan failures after a successful operation are reported as completed. Finder drag/drop, moving across filesystems, and automatic link repair remain outside this feature. Final validation does not lock out unrelated external filesystem changes.
 
