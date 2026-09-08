@@ -1,6 +1,7 @@
 (function(root){
  const {Workspace}=typeof module!=='undefined'?require('./workspace.js'):root.ShioriWorkspace;
  function create({document,getVault,getTheme,onSelect,onStatus,onTag=()=>{},onEditTags=()=>{}}){
+  let tagWriting=false;
   const model=new Workspace(),frames=new Map(),tabMarkup=new Map(),tagMarkup=new Map();
   const $=id=>document.querySelector(id);
   const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -109,6 +110,7 @@
     tagsPanel.hidden=!tab?.path;
     const tagsHtml=tab?.path?(tags.map(tag=>`<span class="tag-chip"><button class="note-tag" data-tag="${escape(tag)}" title="タグで絞り込む: ${escape(tag)}" aria-label="タグで絞り込む: ${escape(tag)}">#${escape(tag)}</button><button data-remove-tag="${escape(tag)}" aria-label="タグを外す: ${escape(tag)}">×</button></span>`).join('')||'<span class="untagged">タグなし</span>')+'<button data-add-tag aria-label="タグを追加">＋</button>':'';
     if(tagMarkup.get(i)!==tagsHtml){tagsPanel.innerHTML=tagsHtml;tagMarkup.set(i,tagsHtml);}
+    tagsPanel.querySelectorAll('button, input').forEach(el=>el.disabled=tagWriting);
     $('#pane-hits-'+i).textContent=tab?.query?(tab.loading?'読込中':tab.hits?`${tab.hit+1} / ${tab.hits}`:'0件'):'';
     for(const direction of ['prev','next'])$('#pane-'+direction+'-'+i).disabled=!tab?.hits||tab.loading;
     $('#pane-empty-'+i).hidden=!!tab;
@@ -134,7 +136,7 @@
    $('#pane-'+i).onclick=e=>{
     const button=e.target.closest('button');if(!button)return;
     model.activate(i);
-    if(button.dataset.removeTag!==undefined||button.dataset.addTag!==undefined){const path=current(i)?.path;if(path)onEditTags(path,button.dataset.removeTag);return;}
+    if(button.dataset.removeTag!==undefined||button.dataset.addTag!==undefined){const path=current(i)?.path;if(path)onEditTags(path,button.dataset.removeTag,$('#pane-tags-'+i));return;}
     if(button.dataset.tag!==undefined){render();notify();onTag(button.dataset.tag);return;}
     if(button.dataset.tab){model.select(i,button.dataset.tab);render();notify();$('#tab-'+button.dataset.tab).focus();return;}
     if(button.dataset.close){closeTab(i,button.dataset.close);return;}
@@ -165,7 +167,7 @@
   document.defaultView?.addEventListener('blur',()=>setTimeout(syncFocusedFrame,0));
   document.defaultView?.setInterval?.(syncFocusedFrame,200);
   render();
-  return {model,frames,open,render,activate,moveHit,syncFocusedFrame,
+  return {tagBusy(busy){tagWriting=busy;for(const i of [0,1])$('#pane-tags-'+i).querySelectorAll('button, input').forEach(el=>el.disabled=busy);},model,frames,open,render,activate,moveHit,syncFocusedFrame,
    reset(){stopDrag();ratio=.5;model.reset();render();notify();},
    moved(oldPath,newPath,paths){for(const tab of model.all())if(tab.path===oldPath||tab.path.startsWith(oldPath+'/'))tab.path=newPath+tab.path.slice(oldPath.length);model.reconcile(getVault().notes);for(const tab of model.all())if(paths.has(tab.path))navigate(tab);render();notify();},
    metadataRefresh(paths){model.reconcile(getVault().notes);for(const tab of model.all())if(paths.has(tab.path))navigate(tab);render();notify();},

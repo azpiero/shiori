@@ -173,7 +173,7 @@ test('tag names only filter while remove and add request an editor for the origi
  const pane=document.querySelector('#pane-0'),tags=document.querySelector('#pane-tags-0');
  pane.onclick({target:tags.querySelector('[data-tag]')});assert.deepEqual(filtered,['design']);assert.deepEqual(edits,[]);
  pane.onclick({target:tags.querySelector('[data-remove-tag]')});pane.onclick({target:tags.querySelector('[data-add-tag]')});
- assert.deepEqual(edits,[['a.html','design'],['a.html',undefined]]);assert.deepEqual(vault.notes[0].tags,['design']);
+ assert.deepEqual(edits,[['a.html','design',tags],['a.html',undefined,tags]]);assert.deepEqual(vault.notes[0].tags,['design']);
  assert.equal(tags.querySelector('[data-remove-tag]').getAttribute('aria-label'),'タグを外す: design');
 });
 

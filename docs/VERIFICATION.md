@@ -246,3 +246,9 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - Rust: 30 tests passed; one opt-in benchmark ignored. Added anchor extraction/entity decoding and source-byte preservation coverage.
 - Headless Chromium with mocked IPC verified Canvas rendering, link/error counts, keyboard opening, zoom retention after returning from a note, light/dark themes and large graph layout. Performance reproduction and measured frame intervals are recorded in PERFORMANCE.md.
 - Syntax/diff checks and macOS build/signature verification passed. Native WKWebView graph performance remains a manual check; Chromium timing does not establish native frame rates.
+
+## Issue #36: Inline tag editing (2026-09-09)
+
+- JavaScript: 62 tests passed. Covers immediate removal, candidate acceptance versus save, IME, validation/count limits, duplicate operations, conflicts/retries, saved scan warnings, draft cancellation and focus after late completion. Existing cross-pane refresh and stale revision-poll checks pass.
+- Headless Chromium with mocked IPC verified immediate removal without a dialog, keyboard suggestions, Enter save, blur/Escape cancellation, composition events, both-pane updates, and light/dark split panes near the 320px minimum width.
+- Syntax/diff checks and macOS build/signature verification passed. Backend write commands are unchanged. Native WKWebView/IME interaction remains a manual check.
