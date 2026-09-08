@@ -3,23 +3,17 @@ const {invoke} = window.__TAURI__.core;
 const {listen} = window.__TAURI__.event;
 let vault=null, selected='', query='', tag='', theme=localStorage.getItem('theme')||'light', switching=0, hits=0, hit=0, revisionBusy=false, changed=false, composing=false, displayedUrl='';
 let graphMode=false,graphPage=0,graphScale=1,graphX=0,graphY=0,currentMatches=[],graphKey=null,hitsQuery='',vaultBusy=false;
-const metrics={uiReadyMs:0,scanMs:0,lastSwitchMs:0,imeCompositions:0};
+const metrics={uiReadyMs:0,scanMs:0,lastSwitchMs:0};
 const $=s=>document.querySelector(s);
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 $('#app').innerHTML=`<header class="topbar">
 <div class="brand">
 <img class="logo" src="assets/shiori-icon.png" alt="" width="31" height="31">
-<div>
 <strong>shiori</strong>
-<div class="caption">A quieter place for your ideas</div>
-</div>
-<span class="pill">表示試作 / 読み取り専用</span>
 </div>
 <div class="actions">
-<button id="sample">サンプル</button>
 <button id="open" class="primary">フォルダを開く</button>
-<button id="theme" title="ライト／ダーク切替">◐</button>
-<button id="inspect">検証ログ</button>
+<button id="theme" title="ダークモード" aria-label="ダークモード" aria-pressed="false">◐</button>
 </div>
 </header>
 <div class="layout">
@@ -51,6 +45,10 @@ $('#app').innerHTML=`<header class="topbar">
 </div>
 <div class="vault-path" id="root">
 </div>
+<details id="readErrors" class="read-errors" hidden>
+<summary id="readErrorsSummary">読み取りエラー</summary>
+<ul id="readErrorsList"></ul>
+</details>
 <div class="search">
 <input id="search" placeholder="ノートを検索…" aria-label="ノートを検索" autocomplete="off">
 </div>
@@ -105,19 +103,13 @@ $('#app').innerHTML=`<header class="topbar">
 </svg>
 <div id="graphEmpty" class="empty" hidden>一致するノートがありません</div>
 </section>
-<section id="diagnostics" class="diagnostics">
-<h3>表示試作の検証ログ</h3>
-<p>配信ログはRust側が扱ったリクエストです。CSPがWebView内で止めた外部通信はここには届きません。</p>
-<pre id="log">
-</pre>
-</section>
 </main>
 </div>
 <footer class="statusbar">
 <span id="status">準備中</span>
 <span id="timing">Tauri + Rust · sandboxed iframe · WKWebView</span>
 </footer>`;
-function setTheme(){document.documentElement.classList.toggle('theme-dark',theme==='dark');localStorage.setItem('theme',theme);}
+function setTheme(){document.documentElement.classList.toggle('theme-dark',theme==='dark');localStorage.setItem('theme',theme);$('#theme').setAttribute('aria-pressed',String(theme==='dark'));}
 setTheme();
 function status(s){$('#status').textContent=s;}
 function noteUrl(path=selected){return `vault://localhost/${vault.token}/${path.split('/').map(encodeURIComponent).join('/')}`;}
@@ -176,7 +168,15 @@ listen('note-served',e=>{
  selected=e.payload.path;displayedUrl=e.payload.url;hits=e.payload.hits;hitsQuery=url.searchParams.get('q')||'';hit=0;
  selectedInfo();updateHits();status(`表示中: ${selected}  ·  正本への書き込みなし`);
 });
-function setVaultBusy(busy){vaultBusy=busy;for(const id of ['reload','update','open','sample'])$('#'+id).disabled=busy;$('#reload').setAttribute('aria-busy',String(busy));}
+function renderReadErrors(){
+ const errors=vault?.errors||[];
+ $('#readErrors').hidden=!errors.length;
+ $('#readErrorsSummary').textContent=`読み取りエラー ${errors.length}件`;
+ $('#readErrorsList').innerHTML=errors.map(error=>`<li>${escape(error)}</li>`).join('');
+ if(errors.length)status(`${errors.length}件の読み取りエラー（サイドバーで詳細を確認）`);
+ else $('#readErrors').open=false;
+}
+function setVaultBusy(busy){vaultBusy=busy;for(const id of ['reload','update','open'])$('#'+id).disabled=busy;$('#reload').setAttribute('aria-busy',String(busy));}
 
 async function load(path=null){
  if(vaultBusy)return;setVaultBusy(true);clearTimeout(timer);
@@ -187,14 +187,13 @@ async function load(path=null){
   $('#root').textContent=vault.root;$('#root').title=vault.root;$('#vaultName').textContent=vault.root.split('/').pop();$('#vaultName').title=vault.root;
   $('#count').textContent=vault.notes.length;$('#notice').classList.remove('show');changed=false;
   renderList();if(vault.notes.length)openNote(vault.notes[0].path);else clearNote();
-  if(vault.errors.length)status(`${vault.errors.length}件の読み取りエラー（検証ログ参照）`);
+  renderReadErrors();
  }catch(e){status(String(e));$('#loading').classList.add('hidden');}finally{setVaultBusy(false);}
 }
 $('#open').onclick=async()=>{try{const path=await invoke('plugin:dialog|open',{options:{directory:true,multiple:false,title:'HTMLを保管したフォルダを選択'}});if(path)await load(path);}catch(e){status(String(e));}};
-$('#sample').onclick=()=>load();
 $('#theme').onclick=()=>{const wasGraph=graphMode;theme=theme==='light'?'dark':'light';setTheme();if(selected)openNote(selected);setView(wasGraph);};
 $('#search').addEventListener('compositionstart',()=>composing=true);
-$('#search').addEventListener('compositionend',()=>{composing=false;metrics.imeCompositions++;search();});
+$('#search').addEventListener('compositionend',()=>{composing=false;search();});
 let timer;
 function applySearch(){
  const next=$('#search').value;
@@ -220,11 +219,10 @@ async function refresh(){
   renderList();
   if(vault.notes.length)openNote(vault.notes.some(n=>n.path===old)?old:vault.notes[0].path);else clearNote();
   setView(wasGraph);
-  if(vault.errors.length)status(`${vault.errors.length}件の読み取りエラー（検証ログ参照）`);
+  renderReadErrors();
  }catch(e){status(String(e));}finally{setVaultBusy(false);}
 }
 $('#reload').onclick=refresh;$('#update').onclick=refresh;
-$('#inspect').onclick=async()=>{const d=await invoke('diagnostics');$('#log').textContent=JSON.stringify({metrics,scanErrors:vault?.errors||[],...d},null,2);$('#diagnostics').classList.toggle('show');};
 setInterval(async()=>{if(!vault||vaultBusy||revisionBusy||changed)return;revisionBusy=true;try{const rev=await invoke('vault_revision');if(rev!==vault.revision){changed=true;$('#notice').classList.add('show');}}catch(e){status(String(e));}finally{revisionBusy=false;}},2000);
 $('#splitter').onpointerdown=e=>{e.preventDefault();const shield=document.createElement('div');Object.assign(shield.style,{position:'fixed',inset:'0',zIndex:50,cursor:'col-resize'});document.body.append(shield);const move=e=>document.documentElement.style.setProperty('--sidebar',`${Math.max(210,Math.min(460,window.innerWidth-$('.view-nav').offsetWidth-325,e.clientX-$('.view-nav').getBoundingClientRect().right))}px`);shield.onpointermove=move;shield.onpointerup=()=>shield.remove();};
 function setTag(value){if(tag!==value){tag=value;invalidateGraph();}renderList();}
