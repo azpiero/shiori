@@ -3,7 +3,8 @@ const {invoke} = window.__TAURI__.core;
 const {listen} = window.__TAURI__.event;
 let vault=null, selected='', query='', activeTags=[], theme=localStorage.getItem('theme')||'light', revisionBusy=false, changed=false, composing=false;
 let graphMode=false,graphPage=0,graphScale=1,graphX=0,graphY=0,currentMatches=[],graphKey=null,vaultBusy=false;
-let terminalPanel=null,terminalBusy=false,tagEditing=false,tagEditor=null,revisionEpoch=0;
+let terminalPanel=null,terminalBusy=false,tagEditing=false,tagEditor=null,revisionEpoch=0,moving=false,noteMover=null,dragNote=null;
+const collapsedFolders=new Set();let folderEdit=null;
 const metrics={uiReadyMs:0,scanMs:0};
 const $=s=>document.querySelector(s);
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -49,12 +50,9 @@ $('#app').innerHTML=`<div class="layout">
 </div>
 <section id="currentNote" class="current-note" aria-label="絞り込み対象外の表示中ノート" hidden>
 </section>
-<div class="list-head">
-<span>NOTES</span>
-<span id="results">
-</span>
-</div>
-<div class="notes" id="notes">
+<span id="results" class="sr-only"></span>
+<div id="folderMenu" class="folder-menu" role="menu" aria-label="フォルダ操作" hidden></div>
+<span id="folderMoveHelp" class="sr-only">ノートをSpaceで選択し、移動先のフォルダへTabで移動してEnterで格納。Escapeで取消。</span><div class="notes" id="notes">
 </div>
 </aside>
 <div class="splitter" id="splitter" role="separator" aria-label="サイドバー幅" aria-orientation="vertical">
@@ -91,14 +89,14 @@ $('#app').innerHTML=`<div class="layout">
 </div>
 </div>
 <footer class="statusbar">
-<span class="read-only" title="本文は閲覧専用です。タグは明示的な保存操作で編集できます。ターミナルの外部プロセスも編集できます。">本文は閲覧・タグは編集可</span>
+<span class="read-only" title="本文は閲覧専用です。タグ編集とフォルダ移動は確認後に実行します。ターミナルの外部プロセスも編集できます。">本文は閲覧・タグ編集／移動可</span>
 <span id="status">準備中</span>
 <span id="timing">Tauri + Rust · sandboxed iframe · WKWebView</span>
 </footer>`;
 function setTheme(){document.documentElement.classList.toggle('theme-dark',theme==='dark');localStorage.setItem('theme',theme);$('#theme').setAttribute('aria-pressed',String(theme==='dark'));}
 setTheme();
 function status(s){$('#status').textContent=s;}
-const reader=ShioriReader.create({document,getVault:()=>vault,getTheme:()=>theme,onSelect:path=>{selected=path;renderList();terminalPanel?.contextChanged();status(path?`表示中: ${path}`:'一覧からノートを開いてください');},onStatus:status,onTag:setTag,onEditTags:(path,remove)=>{if(!vaultBusy)tagEditor.open(path,remove);}});
+const reader=ShioriReader.create({document,getVault:()=>vault,getTheme:()=>theme,onSelect:path=>{selected=path;renderList();terminalPanel?.contextChanged();status(path?`表示中: ${path}`:'一覧からノートを開いてください');},onStatus:status,onTag:setTag,onEditTags:(path,remove)=>{if(!vaultBusy&&!moving)tagEditor.open(path,remove);}});
 
 tagEditor=ShioriTagEditor.create({document,getVault:()=>vault,invoke,onBusy:busy=>{tagEditing=busy;revisionEpoch++;setVaultBusy(vaultBusy);},onSaved:(result,path)=>{
  if(result.snapshot.token!==vault?.token)return;
@@ -110,19 +108,42 @@ tagEditor=ShioriTagEditor.create({document,getVault:()=>vault,invoke,onBusy:busy
  $('#pane-tags-'+reader.model.activePane)?.querySelector('[data-add-tag]')?.focus();
 }});
 
+noteMover=ShioriNoteMove.create({document,getVault:()=>vault,invoke,onError:status,onBusy:busy=>{moving=busy;revisionEpoch++;setVaultBusy(vaultBusy);},onMoved:result=>{
+ if(result.snapshot.token!==vault?.token)return;
+ const previous=new Map(vault.notes.map(n=>[n.path,n.source_hash]));
+ const reloadPaths=new Set(result.snapshot.notes.filter(n=>n.path===result.path||previous.get(n.path)!==n.source_hash).map(n=>n.path));
+ vault=result.snapshot;metrics.scanMs=vault.scan_ms;invalidateGraph();hideSuggestions();changed=false;$('#notice').classList.remove('show');
+ collapsedFolders.delete(ShioriFolders.parent(result.path));reader.moved(result.old_path,result.path,reloadPaths);renderList();renderReadErrors();
+ status(result.warnings?.join(' / ')||`移動しました: ${result.old_path} → ${result.path}`);
+ if(!result.warnings?.length&&result.review?.references.length)status(`移動しました: ${result.path}（参照先が変わるリンクがあります）`);
+ [...$('#notes').querySelectorAll('[data-path]')].find(b=>b.dataset.path===result.path)?.focus();
+}});
+function beginMove(path,folder){if(!vaultBusy&&!tagEditing&&!moving)return noteMover.open(path,folder);}
+
 terminalPanel=ShioriTerminal.create({document,invoke,listen,getContext:()=>!vaultBusy&&vault?{token:vault.token,root:vault.root}:null,onBusy:busy=>{terminalBusy=busy;setVaultBusy(vaultBusy);},onComplete:token=>{if(vault?.token===token){changed=true;$('#notice').classList.add('show');}}});
 
 function renderList(){
  if(!vault)return;
  const focused=document.activeElement;
- const focusPath=focused?.dataset.path;
+ const focusKey=['path','folder','createFolder','renameFolder'].find(key=>focused?.dataset[key]!==undefined);
+ const focusPath=focused?.dataset[focusKey];
  const focusContainer=focused?.closest('#notes, #currentNote')?.id;
- const matches=ShioriSearch.filter(vault.notes,{text:query,tags:activeTags});
- $('#notes').innerHTML=matches.map(n=>`<article class="note ${n.path===selected?'active':''}"><button class="note-open" title="${escape(n.path)}" aria-label="${escape(n.title)} — ${escape(n.path)}" data-path="${escape(n.path)}" ${n.path===selected?'aria-current="true"':''}><span class="note-title">${escape(n.title)}</span></button></article>`).join('')||'<div class="empty">一致するノートがありません</div>';
+ const matches=ShioriSearch.filter(vault.notes.filter(n=>n.path.startsWith('notes/')),{text:query,tags:activeTags});
+ const filtered=!!query.trim()||!!activeTags.length;
+ const inputFocused=focused?.id==='folderName',caret=focused?.selectionStart;
+ const editor=()=>`<div class="folder-inline"><input id="folderName" aria-label="フォルダ名" autocomplete="off" value="${escape(folderEdit.value)}" ${moving?'disabled':''}><span class="sr-only">Enterで保存、Escapeで取消</span></div>`;
+ let groupId=0;
+ const renderFolder=({path,notes,children})=>{
+  const expanded=filtered||!collapsedFolders.has(path),id=groupId++;
+  const renaming=folderEdit?.mode==='rename'&&folderEdit.path===path;
+  return `<section class="folder-group"><div class="folder-heading" data-folder-heading="${escape(path)}">${renaming?editor():`<button class="folder-row" data-folder="${escape(path)}" aria-expanded="${expanded}" aria-controls="folder-notes-${id}" title="${escape(path)}"><span aria-hidden="true">${expanded?'▾':'▸'}</span><span class="folder-name">${escape(path.split('/').pop())}</span></button><button class="folder-tool" data-create-folder="${escape(path)}" aria-label="${escape(path)}にフォルダを作成" title="子フォルダを作成"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5h6l2 2h10v13H3zM12 10v7M8.5 13.5h7"/></svg></button>`}</div><div class="folder-children" id="folder-notes-${id}" ${expanded?'':'hidden'}>${folderEdit?.mode==='create'&&folderEdit.path===path?editor():''}${children.map(renderFolder).join('')}${notes.map(n=>`<article class="note ${n.path===selected?'active':''}"><button class="note-open" draggable="true" aria-describedby="folderMoveHelp" title="${escape(n.path)}" aria-label="${escape(n.title)} — ${escape(n.path)}" data-path="${escape(n.path)}" ${n.path===selected?'aria-current="true"':''}><span class="note-title">${escape(n.title)}</span></button></article>`).join('')}</div></section>`;
+ };
+ $('#notes').innerHTML=ShioriFolders.tree(matches,ShioriFolders.folders(vault),filtered).map(renderFolder).join('')||'<div class="empty">一致するノートがありません</div>';
+ if(inputFocused&&$('#folderName')){$('#folderName').focus();$('#folderName').setSelectionRange(caret,caret);}
  currentMatches=matches;if(graphMode)renderGraph();
  $('#results').textContent=`${matches.length} 件`;
  renderCurrentNote();
- if(focusContainer){const buttons=$('#'+focusContainer).querySelectorAll('button');[...buttons].find(b=>b.dataset.path===focusPath)?.focus();}
+ if(focusContainer){const buttons=$('#'+focusContainer).querySelectorAll('button');[...buttons].find(b=>b.dataset[focusKey]===focusPath)?.focus();}
 }
 function renderCurrentNote(){
  const note=vault?.notes.find(n=>n.path===selected);
@@ -132,9 +153,55 @@ function renderCurrentNote(){
 }
 function activateNoteList(e){
  const button=e.target.closest('button');if(!button)return;
+ if(button.dataset.createFolder!==undefined){editFolder('create',button.dataset.createFolder);return;}
+ if(button.dataset.renameFolder!==undefined){editFolder('rename',button.dataset.renameFolder);return;}
+ if(button.dataset.folder!==undefined){const path=button.dataset.folder;if(dragNote?.keyboard){const source=dragNote.path;const valid=dropFolder(e);clearDrag();if(valid)beginMove(source,path);return;}if(collapsedFolders.has(path))collapsedFolders.delete(path);else collapsedFolders.add(path);renderList();[...$('#notes').querySelectorAll('[data-folder]')].find(b=>b.dataset.folder===path)?.focus();return;}
  if(button.dataset.path!==undefined)openNote(button.dataset.path,'',e.shiftKey?'side':e.metaKey||e.ctrlKey?'tab':'current');
 }
 $('#notes').onclick=activateNoteList;
+function dropFolder(e){const row=e.target.closest('[data-folder]');return row&&ShioriFolders.canDrop(dragNote,vault?.token,row.dataset.folder,ShioriFolders.folders(vault))?row:null;}
+function clearDrag(){dragNote=null;for(const row of $('#notes').querySelectorAll('.drop-target'))row.classList.remove('drop-target');}
+$('#notes').ondragstart=e=>{const button=e.target.closest('[data-path]');if(!button||vaultBusy||moving||tagEditing){e.preventDefault();return;}dragNote={token:vault.token,path:button.dataset.path};e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('application/x-shiori-note',JSON.stringify(dragNote));};
+$('#notes').ondragover=e=>{for(const row of $('#notes').querySelectorAll('.drop-target'))row.classList.remove('drop-target');const row=dropFolder(e);if(row){e.preventDefault();e.dataTransfer.dropEffect='move';row.classList.add('drop-target');}};
+$('#notes').ondrop=e=>{e.preventDefault();if(!dragNote||e.dataTransfer?.getData('application/x-shiori-note')!==JSON.stringify(dragNote)){clearDrag();return;}const row=dropFolder(e),path=dragNote?.path;clearDrag();if(row){e.preventDefault();beginMove(path,row.dataset.folder);}};
+$('#notes').ondragend=clearDrag;
+$('#notes').oninput=e=>{if(e.target.id==='folderName'&&folderEdit)folderEdit.value=e.target.value;};
+$('#notes').onkeydown=e=>{
+ if(e.target.id==='folderName'){if(e.isComposing)return;if(e.key==='Enter'){e.preventDefault();saveFolder();}if(e.key==='Escape'&&!moving){e.preventDefault();const path=folderEdit.path;folderEdit=null;renderList();focusFolder(path);}return;}
+ const row=e.target.closest('[data-folder]');
+ if(row&&(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10'))){e.preventDefault();showFolderMenu(row.dataset.folder,row.getBoundingClientRect());return;}
+ if(e.key==='Escape'){clearDrag();status('移動を取消しました');}
+ if(e.key===' '&&!moving&&!tagEditing&&!vaultBusy){const button=e.target.closest('[data-path]');if(button){e.preventDefault();dragNote={token:vault.token,path:button.dataset.path,keyboard:true};status('移動先のフォルダへTabで移動し、Enterで格納します。Escapeで取消。');}}
+};
+function focusFolder(path){[...$('#notes').querySelectorAll('[data-folder]')].find(b=>b.dataset.folder===path)?.focus();}
+let menuPath=null;
+function closeFolderMenu(restore=false){$('#folderMenu').hidden=true;if(restore)focusFolder(menuPath);menuPath=null;}
+function showFolderMenu(path,point){
+ if(moving||vaultBusy||tagEditing)return;
+ menuPath=path;const menu=$('#folderMenu');menu.innerHTML=`<button role="menuitem" data-action="create">新規フォルダ</button>${path==='notes'?'':'<button role="menuitem" data-action="rename">名称変更</button>'}`;menu.hidden=false;
+ menu.style.left=Math.max(0,Math.min(point.left,window.innerWidth-180))+'px';menu.style.top=Math.max(0,Math.min(point.bottom??point.top,window.innerHeight-90))+'px';menu.querySelector('button').focus();
+}
+$('#notes').oncontextmenu=e=>{const row=e.target.closest('[data-folder-heading]');if(row&&!folderEdit){e.preventDefault();showFolderMenu(row.dataset.folderHeading,{left:e.clientX,top:e.clientY});}};
+$('#folderMenu').onclick=e=>{const action=e.target.closest('[data-action]')?.dataset.action;if(action){const path=menuPath;closeFolderMenu();editFolder(action,path);}};
+$('#folderMenu').onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();closeFolderMenu(true);}if(e.key==='Tab')closeFolderMenu();if(['ArrowDown','ArrowUp'].includes(e.key)){e.preventDefault();const items=[...$('#folderMenu').querySelectorAll('button')],index=items.indexOf(document.activeElement);items[(index+(e.key==='ArrowDown'?1:items.length-1))%items.length].focus();}};
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('#folderMenu'))closeFolderMenu();});
+function editFolder(mode,path){
+ if(vaultBusy||moving||tagEditing||!vault)return;
+ closeFolderMenu();folderEdit={mode,path,token:vault.token,revision:vault.revision,value:mode==='rename'?path.split('/').pop():''};
+ let ancestor=path;while(ancestor){collapsedFolders.delete(ancestor);ancestor=ShioriFolders.parent(ancestor);}
+ renderList();const input=$('#folderName');input?.focus();input?.setSelectionRange(0,input.value.length);
+}
+async function saveFolder(){
+ if(!folderEdit||moving||vaultBusy||tagEditing)return;const draft=folderEdit,name=$('#folderName').value;
+ moving=true;revisionEpoch++;setVaultBusy(vaultBusy);$('#folderName').disabled=true;
+ try{
+  const result=await invoke(draft.mode==='create'?'create_note_folder':'rename_note_folder',draft.mode==='create'?{vaultToken:draft.token,parent:draft.path,name}:{vaultToken:draft.token,path:draft.path,name,expectedRevision:draft.revision});
+  if(result.snapshot.token!==vault?.token)return;
+  folderEdit=null;vault=result.snapshot;changed=false;$('#notice').classList.remove('show');invalidateGraph();hideSuggestions();collapsedFolders.clear();
+  if(result.old_path){const paths=new Set(vault.notes.filter(n=>n.path.startsWith(result.path+'/')).map(n=>n.path));reader.moved(result.old_path,result.path,paths);}else reader.render();
+  renderList();renderReadErrors();focusFolder(result.path);status(result.snapshot.errors.length?'フォルダ操作は完了しました。一部の読み取りエラーを確認してください':`フォルダを${draft.mode==='create'?'作成':'変更'}しました: ${result.path}`);
+ }catch(e){status(String(e));}finally{moving=false;revisionEpoch++;if($('#folderName')){$('#folderName').disabled=false;$('#folderName').focus();}setVaultBusy(vaultBusy);}
+}
 function invalidateGraph(){graphKey=null;graphPage=0;}
 function clearNote(){reader.reset();selected='';renderList();status('HTMLノートがありません');}
 function openNote(path,anchor='',mode='current'){
@@ -150,18 +217,18 @@ function renderReadErrors(){
  if(errors.length)status(`${errors.length}件の読み取りエラー（サイドバーで詳細を確認）`);
  else $('#readErrors').open=false;
 }
-function setVaultBusy(busy){vaultBusy=busy;for(const id of ['reload','update','open'])$('#'+id).disabled=busy||tagEditing||(id==='open'&&terminalBusy);$('#reload').setAttribute('aria-busy',String(busy));terminalPanel?.contextChanged();}
+function setVaultBusy(busy){vaultBusy=busy;for(const id of ['reload','update','open'])$('#'+id).disabled=busy||tagEditing||moving||(id==='open'&&terminalBusy);$('#reload').setAttribute('aria-busy',String(busy));terminalPanel?.contextChanged();}
 
 async function load(path=null){
- if(vaultBusy||terminalBusy||tagEditing)return;setVaultBusy(true);clearTimeout(timer);
+ if(vaultBusy||terminalBusy||tagEditing||moving)return;setVaultBusy(true);clearTimeout(timer);
  status('HTMLを解析しています…');
  try{
   vault=await invoke('open_vault',{path});metrics.scanMs=vault.scan_ms;
   $('#vaultWarnings').textContent=(vault.warnings||[]).join('\n');$('#vaultWarnings').hidden=!vault.warnings?.length;
-  reader.reset();terminalPanel.reset();selected='';invalidateGraph();activeTags=[];query='';$('#search').value='';hideSuggestions();setView(false);
+  folderEdit=null;closeFolderMenu();collapsedFolders.clear();clearDrag();reader.reset();terminalPanel.reset();selected='';invalidateGraph();activeTags=[];query='';$('#search').value='';hideSuggestions();setView(false);
   $('#root').textContent=vault.root;$('#root').title=vault.root;$('#vaultName').textContent=vault.root.split('/').pop();$('#vaultName').title=vault.root;
   $('#notice').classList.remove('show');changed=false;
-  renderList();if(vault.notes.length)openNote(vault.notes[0].path);else clearNote();
+  renderList();const first=vault.notes.find(n=>n.path.startsWith('notes/'));if(first)openNote(first.path);else clearNote();
   renderReadErrors();$('#timing').textContent=`UI ${metrics.uiReadyMs} ms · scan ${metrics.scanMs} ms`;
  }catch(e){status(String(e));}finally{setVaultBusy(false);}
 }
@@ -218,7 +285,7 @@ $('#search').addEventListener('keydown',e=>{
 });
 
 async function refresh(){
- if(vaultBusy||tagEditing||!vault)return;setVaultBusy(true);hideSuggestions();status('Vault全体を再読込しています…');
+ if(vaultBusy||tagEditing||moving||!vault)return;setVaultBusy(true);hideSuggestions();status('Vault全体を再読込しています…');
  try{
   const wasGraph=graphMode;
   vault=await invoke('refresh_vault');metrics.scanMs=vault.scan_ms;invalidateGraph();
@@ -229,7 +296,7 @@ async function refresh(){
  }catch(e){status(String(e));}finally{setVaultBusy(false);}
 }
 $('#reload').onclick=refresh;$('#update').onclick=refresh;
-setInterval(async()=>{if(!vault||vaultBusy||tagEditing||revisionBusy||changed)return;revisionBusy=true;const epoch=revisionEpoch,token=vault.token;try{const rev=await invoke('vault_revision');if(epoch===revisionEpoch&&token===vault?.token&&!vaultBusy&&rev!==vault.revision){changed=true;$('#notice').classList.add('show');}}catch(e){status(String(e));}finally{revisionBusy=false;}},2000);
+setInterval(async()=>{if(!vault||vaultBusy||tagEditing||moving||revisionBusy||changed)return;revisionBusy=true;const epoch=revisionEpoch,token=vault.token;try{const rev=await invoke('vault_revision');if(epoch===revisionEpoch&&token===vault?.token&&!vaultBusy&&rev!==vault.revision){changed=true;$('#notice').classList.add('show');}}catch(e){status(String(e));}finally{revisionBusy=false;}},2000);
 $('#splitter').onpointerdown=e=>{e.preventDefault();const shield=document.createElement('div');Object.assign(shield.style,{position:'fixed',inset:'0',zIndex:50,cursor:'col-resize'});document.body.append(shield);const move=e=>document.documentElement.style.setProperty('--sidebar',`${Math.max(210,Math.min(460,window.innerWidth-$('.view-nav').offsetWidth-325,e.clientX-$('.view-nav').getBoundingClientRect().right))}px`);shield.onpointermove=move;shield.onpointerup=()=>shield.remove();};
 function setTag(value){
  const parsed=ShioriSearch.parse($('#search').value);

@@ -627,3 +627,15 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 - Keep one shell per app. Hide/show retains it; explicit session close and app exit stop the shell/foreground group. Require session closure before switching vaults, but allow manual refresh and revision notifications while the shell runs.
 - Carry PTY output as bytes, acknowledge parsed chunks, and bound scrollback/input queues. Forward keyboard input, binary mouse input, and resize without interpreting commands. No terminal access from sandboxed notes.
 - Preserve ordinary shell/CLI authentication, configuration, logging, and permission behavior. Remove the superseded Claude-only settings and controls. Keep third-party license notices with vendored files.
+
+
+## Issue #28 implementation: notes folders and direct moves (2026-09-09)
+
+- The sidebar is rooted at `notes/`. Vault-root files and unrelated directories are not shown. Existing empty folders under notes are available as drop targets.
+- Folder rows use short names, nested indentation and guide lines. Collapsing a parent hides its descendants. Search/tag filtering retains and expands matching ancestors; clearing filters restores session state.
+- Remove the NOTES header and persistent reference panel. Create children using a folder-plus icon; rename through the secondary-click context menu. Inputs replace the folder name in the tree; Enter saves and Escape cancels. Shift+F10 opens the keyboard menu. Creation can initialize a missing notes root; the root itself cannot be renamed.
+- File dragging directly moves a note to the destination folder, including newly created folders. Remove per-file move buttons and the destination modal. Keyboard users select a note with Space and choose a folder with Enter; Escape cancels selection.
+- File moves run reference analysis and source/revision checks, then use no-overwrite rename. Potential reference impacts produce a brief status message after completion. Automatic repair remains separate work.
+- Create/rename/move commands validate active tokens and notes scope, refuse traversal/reserved names/symlink paths/collisions, and serialize with other app writes. Renames validate the expected revision. No folder or source content is overwritten.
+- Folder rename updates all descendant tab paths; file moves update each tab for that note. Preserve tab IDs/queries and source bytes; reload changed paths and refresh folder/search/graph state. Scan failures after completed operations remain completed outcomes.
+- The static file-move report covers common HTML URL attributes, srcset and embedded CSS URLs/imports, with up to 200 details and bounded warnings. Dynamic or unsupported references are not certified safe. Finder drag/drop, cross-filesystem moves, and automatic repair are outside this implementation.

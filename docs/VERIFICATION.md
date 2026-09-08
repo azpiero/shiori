@@ -213,3 +213,12 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - JavaScript: 45 tests passed. The originating-tab internal-navigation test and iframe sandbox assertion remain. Rust: 20 tests passed; 1 opt-in benchmark ignored, including retained internal-link routing and source-preservation checks.
 - Headless Chromium with mocked IPC confirmed the panel is absent and Shift-click / Meta-click from both the sidebar and graph open adjacent panes / new tabs.
 - Syntax and diff checks passed. macOS app build and ad-hoc signature verification passed. Native app appearance and modifier-click behavior remain manual checks.
+
+## Issue #28: Notes folders and direct moves (revised 2026-09-09)
+
+- Sidebar folder groups are rooted at notes/. Indented folders retain their ancestors when filtered and collapse entire subtrees. Creation uses a folder-plus icon; renaming uses a context menu and an input in the folder row. Per-file move buttons and the destination modal are removed; dropping onto a folder moves directly. Space followed by Enter on a folder provides the keyboard route.
+- File moves run reference/hash checks before a native no-overwrite rename and show a brief status for reference impacts afterward. Folder renames retain contents, refuse collisions/stale revisions, and update descendant tab paths.
+- JavaScript: 54 tests passed. Rust: 29 tests passed; 1 opt-in benchmark ignored. Coverage includes notes scope, empty folders, create/rename boundaries and collisions, byte preservation, descendant tab tracking, direct drops, keyboard moves, reference checks, and duplicate operation guards.
+- Headless Chromium with mocked IPC verified inline folder creation, actual dragging into the created folder without a modal, secondary-click renaming, Escape cancellation, ancestor indentation and subtree collapse, open-tab tracking, and Space/Enter moves. Native filesystem tests use temporary fixtures; no user vault files were moved.
+- Syntax and diff checks passed. macOS app build and ad-hoc signature verification passed. Native WKWebView dragging and end-to-end folder operations in the built app remain manual checks.
+- Reference analysis is static and bounded; the permanent sidebar report and NOTES toolbar have been removed. Automatic repair, Finder drag/drop and cross-filesystem moves are not implemented.

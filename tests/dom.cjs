@@ -46,6 +46,7 @@ function createDocument(){
   getBoundingClientRect(){return {left:0,right:52,top:0,bottom:0};}
  }
  document.body=new Element('body');document.documentElement=new Element('html');document.documentElement.append(document.body);
+ document.addEventListener=(name,fn)=>document.body.addEventListener(name,fn);
  document.querySelector=s=>document.documentElement.querySelector(s);
  document.createElement=t=>new Element(t);
  const app=new Element();app.id='app';document.body.append(app);

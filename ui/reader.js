@@ -174,6 +174,7 @@
   render();
   return {model,frames,open,render,activate,moveHit,syncFocusedFrame,
    reset(){stopDrag();ratio=.5;model.reset();render();notify();},
+   moved(oldPath,newPath,paths){for(const tab of model.all())if(tab.path===oldPath||tab.path.startsWith(oldPath+'/'))tab.path=newPath+tab.path.slice(oldPath.length);model.reconcile(getVault().notes);for(const tab of model.all())if(paths.has(tab.path))navigate(tab);render();notify();},
    metadataRefresh(paths){model.reconcile(getVault().notes);for(const tab of model.all())if(paths.has(tab.path))navigate(tab);render();notify();},
    refresh(){model.reconcile(getVault().notes);for(const tab of model.all())navigate(tab);render();notify();},
    theme(){for(const tab of model.all())navigate(tab);render();},
