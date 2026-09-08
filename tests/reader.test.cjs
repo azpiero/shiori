@@ -78,7 +78,7 @@ test('focused iframe selects its pane, and pane search does not change its neigh
  const old=left.request;input.onkeydown({key:'Enter',isComposing:true,preventDefault(){}});assert.equal(left.request,old);
  input.onkeydown({key:'Enter',isComposing:false,preventDefault(){}});
  assert.equal(left.query,'new alpha');assert.equal(right.query,'beta');assert.equal(new URL(right.url).searchParams.get('q'),'beta');
- document.querySelector('#pane-0').onclick({target:document.querySelector('#pane-0').querySelector('[data-action="next"]')});
+ document.querySelector('#tab-'+right.id).focus();document.querySelector('#pane-1').events.focusin();
  assert.equal(reader.model.activePane,1);assert.equal(document.activeElement.id,'tab-'+right.id);
 });
 
@@ -200,4 +200,25 @@ test('tab surface selection follows aria-selected across switches in both panes'
  const {reader,document}=setup();const a=reader.open('a.html');reader.open('b.html','','tab');reader.open('c.html','','side');
  const check=()=>{for(const tab of document.querySelector('#readerPanel').querySelectorAll('[role="tab"]'))assert.equal(tab.parentNode.classList.contains('active'),tab.getAttribute('aria-selected')==='true');};
  check();reader.model.select(0,a.id);reader.render();check();
+});
+
+test('two-action toolbar duplicates the note and preserves the survivor when adding beside it again',()=>{
+ const {reader,document}=setup();const pane=i=>document.querySelector('#pane-'+i),button=(i,action)=>pane(i).querySelector(`[data-action="${action}"]`),click=(i,action)=>pane(i).onclick({target:button(i,action)});
+ const left=reader.open('a.html','','current','alpha');
+ assert.equal(pane(0).querySelector('.pane-actions').querySelectorAll('button').length,2);
+ assert.equal(button(0,'close-pane').disabled,true);click(0,'split');const right=reader.model.tab,frame=reader.frames.get(right.id).frame;
+ assert.equal(right.path,left.path);assert.equal(right.query,'alpha');assert.notEqual(right.id,left.id);
+ for(const i of [0,1])assert.equal(button(i,'split').disabled,true);
+ click(1,'split');assert.equal(reader.model.all().length,2);
+ click(0,'close-pane');assert.equal(reader.model.activePane,1);assert.equal(button(1,'split').disabled,false);
+ click(1,'split');assert.equal(reader.model.activePane,0);assert.equal(reader.frames.get(right.id).frame,frame);
+});
+test('search stays available without a query and an empty pane remains a selectable opening target',()=>{
+ const {reader,document}=setup();const pane=document.querySelector('#pane-0');
+ assert.equal(document.querySelector('#pane-search-0').hidden,true);
+ const a=reader.open('a.html');assert.equal(document.querySelector('#pane-search-0').hidden,false);
+ pane.onclick({target:pane.querySelector('[data-action="clear"]')});assert.equal(document.querySelector('#pane-search-0').hidden,false);
+ pane.onclick({target:pane.querySelector('[data-close]')});assert.equal(reader.model.all().length,0);assert.equal(document.activeElement,pane);
+ pane.events.focusin();reader.open('b.html');assert.equal(reader.model.tab.path,'b.html');
+ assert.match(document.querySelector('#pane-label-0').textContent,/選択中/);
 });
