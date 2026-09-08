@@ -16,7 +16,9 @@ struct State { vault: Mutex<Option<Vault>> }
 #[derive(Serialize)]
 struct Heading { id: String, text: String }
 #[derive(Serialize)]
-struct Note { path: String, title: String, tags: Vec<String>, headings: Vec<Heading>, text: String, size: u64 }
+struct NoteLink { href: String, text: String }
+#[derive(Serialize)]
+struct Note { path: String, title: String, tags: Vec<String>, headings: Vec<Heading>, links: Vec<NoteLink>, text: String, size: u64 }
 #[derive(Serialize)]
 struct Snapshot { root: String, token: String, notes: Vec<Note>, errors: Vec<String>, revision: String, scan_ms: u128 }
 fn current(state: &State) -> Result<Vault, String> { state.vault.lock().map_err(|_| "state error")?.clone().ok_or("Vaultが未選択です".into()) }
@@ -39,9 +41,10 @@ fn parse_note(path: &Path, root: &Path) -> Result<Note,String> {
     let title = doc.select_first("title").ok().map(|n| n.text_contents().trim().to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| path.file_stem().unwrap_or_default().to_string_lossy().into());
     let tags = doc.select("meta[name='note-tag']").unwrap().filter_map(|n| n.attributes.borrow().get("content").map(String::from)).collect();
     let headings = doc.select("h1[id],h2[id],h3[id],h4[id],h5[id],h6[id]").unwrap().map(|n| Heading { id:n.attributes.borrow().get("id").unwrap_or("").to_string(), text:n.text_contents() }).collect();
+    let links = doc.select("a[href]").unwrap().map(|n| NoteLink { href:n.attributes.borrow().get("href").unwrap_or("").to_string(), text:n.text_contents().trim().to_string() }).collect();
     for n in doc.select("script,style,template,noscript").unwrap().collect::<Vec<_>>() { n.as_node().detach(); }
     let text = doc.select_first("body").map(|n| n.text_contents()).unwrap_or_default();
-    Ok(Note { path:path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().into(), title, tags, headings, text, size:meta.len() })
+    Ok(Note { path:path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().into(), title, tags, headings, links, text, size:meta.len() })
 }
 fn scan(vault: &Vault) -> Snapshot {
     let start = Instant::now(); let mut notes = Vec::new(); let mut errors = Vec::new();
@@ -123,7 +126,11 @@ fn display_html(source:&str, uri:&Url) -> (String,usize) {
                 if !href.starts_with('#') {
                     match uri.join(&href) {
                         Ok(mut dest) if dest.scheme()=="vault" && dest.host_str()==Some("localhost") => {
-                            if let Some(theme) = uri.query_pairs().find(|(k,_)|k=="theme").map(|(_,v)|v.to_string()) { dest.query_pairs_mut().append_pair("theme",&theme); }
+                            // Routing context belongs to the requesting reader tab, never to note-authored URLs.
+                            let retained: Vec<(String,String)> = dest.query_pairs().filter(|(k,_)| !matches!(k.as_ref(),"theme"|"q"|"v"|"view"|"request")).map(|(k,v)|(k.into_owned(),v.into_owned())).collect();
+                            dest.set_query(None);
+                            dest.query_pairs_mut().extend_pairs(retained);
+                            for (key,value) in uri.query_pairs().filter(|(k,_)|matches!(k.as_ref(),"theme"|"q"|"v"|"view"|"request")) { dest.query_pairs_mut().append_pair(&key,&value); }
                             attrs.insert("href", dest.to_string());
                         },
                         _ => { attrs.insert("href","#shiori-blocked-link".into()); attrs.insert("title",format!("試作では外部遷移を停止: {href}")); }
@@ -200,6 +207,23 @@ mod tests {
         let (out,hits)=display_html(source,&Url::parse("vault://localhost/token/n.html?q=検索").unwrap());
         assert!(!out.contains("<script")); assert!(!out.contains("<iframe")); assert!(!out.contains("http-equiv")); assert!(!out.contains("onload=")); assert!(!out.contains("href=\"javascript:")); assert!(out.contains("id=\"shiori-hit-0\"")); assert_eq!(hits,1);
     }
+    #[test] fn internal_links_preserve_reader_context_and_override_note_authored_routing() {
+        let source=r#"<a href="other.html?view=forged&amp;request=old&amp;q=wrong#section">Other</a><a href="https://example.com">External</a>"#;
+        let uri=Url::parse("vault://localhost/token/a.html?view=tab-a&request=load-a&q=Rust&theme=dark&v=revision").unwrap();
+        let (html,_)=display_html(source,&uri);
+        let doc=kuchiki::parse_html().one(html);
+        let anchor=doc.select_first("a").unwrap();
+        let attrs=anchor.attributes.borrow();
+        let link=Url::parse(attrs.get("href").unwrap()).unwrap();
+        for (key,value) in [("view","tab-a"),("request","load-a"),("q","Rust"),("theme","dark"),("v","revision")] {
+            let values:Vec<_>=link.query_pairs().filter(|(k,_)|k==key).map(|(_,v)|v.into_owned()).collect();
+            assert_eq!(values,vec![value.to_string()]);
+        }
+        assert_eq!(link.fragment(),Some("section"));
+        assert!(NOTE_CSP.contains("script-src 'none'"));assert!(NOTE_CSP.contains("sandbox"));
+        let external=doc.select("a").unwrap().nth(1).unwrap();
+        assert_eq!(external.attributes.borrow().get("href"),Some("#shiori-blocked-link"));
+    }
     #[test] fn paths_do_not_escape_vault() {
         let root=std::env::temp_dir().join(uuid::Uuid::new_v4().to_string()); std::fs::create_dir_all(&root).unwrap();
         std::fs::write(root.join("日本 #%.html"),"<p>hello</p>").unwrap();
@@ -216,7 +240,7 @@ mod tests {
         let root=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sample-vault").canonicalize().unwrap();
         let v=Vault{root:root.clone(),token:"test".into()};
         let files:Vec<_>=WalkDir::new(&root).follow_links(false).into_iter().filter_map(Result::ok).filter(|e|e.file_type().is_file()).map(|e|{let p=e.into_path();let b=std::fs::read(&p).unwrap();(p,b)}).collect();
-        let snapshot=scan(&v); assert_eq!(snapshot.notes.len(),7);assert!(snapshot.errors.is_empty());
+        let snapshot=scan(&v); assert_eq!(snapshot.notes.len(),7);assert!(snapshot.errors.is_empty());assert!(snapshot.notes.iter().any(|n|!n.links.is_empty()));
         for note in &snapshot.notes {
             let mut u=Url::parse("vault://localhost/test/").unwrap();
             u.path_segments_mut().unwrap().pop_if_empty().extend(note.path.split('/'));

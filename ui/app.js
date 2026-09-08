@@ -1,9 +1,9 @@
 const boot = performance.now();
 const {invoke} = window.__TAURI__.core;
 const {listen} = window.__TAURI__.event;
-let vault=null, selected='', query='', activeTags=[], theme=localStorage.getItem('theme')||'light', switching=0, hits=0, hit=0, revisionBusy=false, changed=false, composing=false, displayedUrl='';
-let graphMode=false,graphPage=0,graphScale=1,graphX=0,graphY=0,currentMatches=[],graphKey=null,hitsQuery='',vaultBusy=false;
-const metrics={uiReadyMs:0,scanMs:0,lastSwitchMs:0};
+let vault=null, selected='', query='', activeTags=[], theme=localStorage.getItem('theme')||'light', revisionBusy=false, changed=false, composing=false;
+let graphMode=false,graphPage=0,graphScale=1,graphX=0,graphY=0,currentMatches=[],graphKey=null,vaultBusy=false;
+const metrics={uiReadyMs:0,scanMs:0};
 const $=s=>document.querySelector(s);
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 $('#app').innerHTML=`<header class="topbar">
@@ -65,20 +65,11 @@ $('#app').innerHTML=`<header class="topbar">
 <div class="splitter" id="splitter" role="separator" aria-label="サイドバー幅" aria-orientation="vertical">
 </div>
 <main class="viewer">
-<div id="searchNavigation" class="search-navigation" aria-label="本文内の検索" hidden>
-<span id="hitCount" aria-live="polite">本文内 0件</span>
-<button id="prev" aria-label="前の検索箇所">↑</button>
-<button id="next" aria-label="次の検索箇所">↓</button>
-</div>
 <div class="notice" id="notice">
 <span id="noticeText">ファイルが変更されました。再読み込みで反映できます。</span>
 <button id="update">更新を反映</button>
 </div>
-<div id="readerPanel" class="frame-wrap">
-<iframe id="noteFrame" sandbox="" referrerpolicy="no-referrer" title="HTMLノート（隔離表示）">
-</iframe>
-<div id="loading" class="spinner">サンプルを読み込んでいます…</div>
-</div>
+<div id="readerPanel" class="reader-workspace"></div>
 <section id="graphPanel" hidden>
 <div class="graph-toolbar">
 <div>
@@ -109,7 +100,8 @@ $('#app').innerHTML=`<header class="topbar">
 function setTheme(){document.documentElement.classList.toggle('theme-dark',theme==='dark');localStorage.setItem('theme',theme);$('#theme').setAttribute('aria-pressed',String(theme==='dark'));}
 setTheme();
 function status(s){$('#status').textContent=s;}
-function noteUrl(path=selected){return `vault://localhost/${vault.token}/${path.split('/').map(encodeURIComponent).join('/')}`;}
+const reader=ShioriReader.create({document,getVault:()=>vault,getTheme:()=>theme,onSelect:path=>{selected=path;renderList();status(path?`表示中: ${path}`:'一覧からノートを開いてください');},onStatus:status});
+
 function renderList(){
  if(!vault)return;
  const focused=document.activeElement;
@@ -120,7 +112,6 @@ function renderList(){
  currentMatches=matches;if(graphMode)renderGraph();
  $('#results').textContent=`${matches.length} 件`;
  renderCurrentNote();
- updateHits();
  if(focusContainer){const buttons=$('#'+focusContainer).querySelectorAll('button');[...buttons].find(b=>focusPath!==undefined?b.dataset.path===focusPath:b.dataset.tag===focusTag)?.focus();}
 }
 function renderCurrentNote(){
@@ -129,39 +120,20 @@ function renderCurrentNote(){
  panel.hidden=!note||currentMatches.some(n=>n.path===selected);
  panel.innerHTML=panel.hidden?'':`<div class="current-label">表示中 · 絞り込み対象外</div><strong title="${escape(note.path)}" aria-label="${escape(note.title)} — ${escape(note.path)}">${escape(note.title)}</strong><div class="list-note-tags">${note.tags.map(t=>`<button class="note-tag" data-tag="${escape(t)}" aria-label="タググラフを開く: ${escape(t)}">#${escape(t)} ↗</button>`).join('')||'<span class="untagged">タグなし</span>'}</div>`;
 }
-function selectedInfo(){renderList();}
 function activateNoteList(e){
  const button=e.target.closest('button');if(!button)return;
- if(button.dataset.path!==undefined)openNote(button.dataset.path);
+ if(button.dataset.path!==undefined)openNote(button.dataset.path,'',e.shiftKey?'side':e.metaKey||e.ctrlKey?'tab':'current');
  else if(button.dataset.tag!==undefined){setTag(button.dataset.tag);setView(true);$('#showGraph').focus();}
 }
 $('#notes').onclick=activateNoteList;
 $('#currentNote').onclick=activateNoteList;
 function invalidateGraph(){graphKey=null;graphPage=0;}
-function clearNote(){
- selected='';displayedUrl='';hitsQuery='';hits=0;hit=0;
- $('#noteFrame').src='about:blank';$('#loading').classList.add('hidden');
- renderList();updateHits();status('HTMLノートがありません');
+function clearNote(){reader.reset();selected='';renderList();status('HTMLノートがありません');}
+function openNote(path,anchor='',mode='current'){
+ if(!vault)return;setView(false);reader.open(path,anchor,mode,query.trim());
 }
+listen('note-served',e=>{if(vault)reader.served(e.payload);});
 
-function openNote(path,anchor=''){
- if(!vault)return;setView(false);selected=path;hit=0;hits=0;hitsQuery='';selectedInfo();switching=performance.now();$('#loading').classList.remove('hidden');
- const u=new URL(noteUrl());u.searchParams.set('theme',theme);u.searchParams.set('q',query.trim());u.searchParams.set('v',vault.revision);u.hash=anchor||(query.trim()?'shiori-hit-0':'');displayedUrl=u.href;$('#noteFrame').src=u.href;
-}
-$('#noteFrame').addEventListener('load',()=>{$('#loading').classList.add('hidden');metrics.lastSwitchMs=Math.round(performance.now()-switching);$('#timing').textContent=`UI ${metrics.uiReadyMs} ms · scan ${metrics.scanMs} ms · frame load ${metrics.lastSwitchMs} ms`;});
-function updateHits(){
- const active=!graphMode&&!!selected&&!!query.trim()&&hitsQuery===query.trim();
- $('#searchNavigation').hidden=!active;
- $('#hitCount').textContent=hits?`本文内 ${hit+1} / ${hits}`:'本文内 0件';
- $('#prev').disabled=!active||!hits;$('#next').disabled=!active||!hits;
-}
-listen('note-served',e=>{
- if(!vault)return;
- const url=new URL(e.payload.url);
- if(url.pathname.split('/')[1]!==vault.token||!vault.notes.some(n=>n.path===e.payload.path))return;
- selected=e.payload.path;displayedUrl=e.payload.url;hits=e.payload.hits;hitsQuery=url.searchParams.get('q')||'';hit=0;
- selectedInfo();updateHits();status(`表示中: ${selected}  ·  正本への書き込みなし`);
-});
 function renderReadErrors(){
  const errors=vault?.errors||[];
  $('#readErrors').hidden=!errors.length;
@@ -174,18 +146,18 @@ function setVaultBusy(busy){vaultBusy=busy;for(const id of ['reload','update','o
 
 async function load(path=null){
  if(vaultBusy)return;setVaultBusy(true);clearTimeout(timer);
- status('HTMLを解析しています…');$('#loading').classList.remove('hidden');
+ status('HTMLを解析しています…');
  try{
   vault=await invoke('open_vault',{path});metrics.scanMs=vault.scan_ms;
-  selected='';invalidateGraph();activeTags=[];query='';$('#search').value='';hideSuggestions();setView(false);
+  reader.reset();selected='';invalidateGraph();activeTags=[];query='';$('#search').value='';hideSuggestions();setView(false);
   $('#root').textContent=vault.root;$('#root').title=vault.root;$('#vaultName').textContent=vault.root.split('/').pop();$('#vaultName').title=vault.root;
   $('#notice').classList.remove('show');changed=false;
   renderList();if(vault.notes.length)openNote(vault.notes[0].path);else clearNote();
-  renderReadErrors();
- }catch(e){status(String(e));$('#loading').classList.add('hidden');}finally{setVaultBusy(false);}
+  renderReadErrors();$('#timing').textContent=`UI ${metrics.uiReadyMs} ms · scan ${metrics.scanMs} ms`;
+ }catch(e){status(String(e));}finally{setVaultBusy(false);}
 }
 $('#open').onclick=async()=>{try{const path=await invoke('plugin:dialog|open',{options:{directory:true,multiple:false,title:'HTMLを保管したフォルダを選択'}});if(path)await load(path);}catch(e){status(String(e));}};
-$('#theme').onclick=()=>{const wasGraph=graphMode;theme=theme==='light'?'dark':'light';setTheme();if(selected)openNote(selected);setView(wasGraph);};
+$('#theme').onclick=()=>{theme=theme==='light'?'dark':'light';setTheme();reader.theme();};
 let timer,suggestions=null,suggestionIndex=-1;
 function hideSuggestions(){suggestions=null;suggestionIndex=-1;$('#tagSuggestions').hidden=true;$('#tagSuggestions').innerHTML='';$('#search').setAttribute('aria-expanded','false');$('#search').removeAttribute('aria-activedescendant');$('#suggestionStatus').textContent='';}
 function showSuggestions(){
@@ -208,8 +180,7 @@ function applySearch(){
  if(composing)return;
  const parsed=ShioriSearch.parse($('#search').value);
  if(query!==parsed.text||JSON.stringify(activeTags)!==JSON.stringify(parsed.tags)){
-  const oldQuery=query;query=parsed.text;activeTags=parsed.tags;invalidateGraph();renderList();
-  if(oldQuery&&!query&&selected){const wasGraph=graphMode;openNote(selected);setView(wasGraph);}
+  query=parsed.text;activeTags=parsed.tags;invalidateGraph();renderList();
  }
 }
 function search(){if(composing)return;clearTimeout(timer);hideSuggestions();timer=setTimeout(()=>{applySearch();showSuggestions();},120);}
@@ -237,18 +208,15 @@ $('#search').addEventListener('keydown',e=>{
  }
 });
 
-function moveHit(delta){if(!hits)return;hit=(hit+delta+hits)%hits;const u=new URL(displayedUrl||$('#noteFrame').src);u.hash=`shiori-hit-${hit}`;$('#noteFrame').src=u.href;updateHits();}
-$('#prev').onclick=()=>moveHit(-1);$('#next').onclick=()=>moveHit(1);
 async function refresh(){
  if(vaultBusy||!vault)return;setVaultBusy(true);hideSuggestions();status('Vault全体を再読込しています…');
  try{
-  const old=selected,wasGraph=graphMode;
+  const wasGraph=graphMode;
   vault=await invoke('refresh_vault');metrics.scanMs=vault.scan_ms;invalidateGraph();
   changed=false;$('#notice').classList.remove('show');
-  renderList();
-  if(vault.notes.length)openNote(vault.notes.some(n=>n.path===old)?old:vault.notes[0].path);else clearNote();
+  reader.refresh();renderList();
   setView(wasGraph);
-  renderReadErrors();
+  renderReadErrors();$('#timing').textContent=`UI ${metrics.uiReadyMs} ms · scan ${metrics.scanMs} ms`;
  }catch(e){status(String(e));}finally{setVaultBusy(false);}
 }
 $('#reload').onclick=refresh;$('#update').onclick=refresh;
@@ -259,7 +227,7 @@ function setTag(value){
  $('#search').value=[parsed.text,value?ShioriSearch.formatTag(value):''].filter(Boolean).join(' ');
  clearTimeout(timer);hideSuggestions();applySearch();
 }
-function setView(graph){graphMode=graph;$('#graphPanel').hidden=!graph;$('.frame-wrap').hidden=graph;updateHits();$('#showGraph').setAttribute('aria-pressed',String(graph));$('#showNote').setAttribute('aria-pressed',String(!graph));if(graph)renderGraph();}
+function setView(graph){graphMode=graph;$('#graphPanel').hidden=!graph;$('#readerPanel').hidden=graph;$('#showGraph').setAttribute('aria-pressed',String(graph));$('#showNote').setAttribute('aria-pressed',String(!graph));if(graph)renderGraph();}
 function graphTransform(){const g=$('#graphSvg .graph-world');if(g)g.setAttribute('transform',`translate(${graphX} ${graphY}) translate(500 370) scale(${graphScale}) translate(-500 -370)`);}
 function resetGraph(){graphScale=1;graphX=0;graphY=0;graphTransform();}
 function renderGraph(){
@@ -285,6 +253,6 @@ $('#graphSvg').onpointerdown=e=>{if(e.button!==0)return;graphDrag={x:e.clientX,y
 $('#graphSvg').onpointermove=e=>{if(!graphDrag)return;const svg=$('#graphSvg'),factor=Math.max(svg.viewBox.baseVal.width/svg.clientWidth,svg.viewBox.baseVal.height/svg.clientHeight);const dx=e.clientX-graphDrag.x,dy=e.clientY-graphDrag.y;if(Math.hypot(dx,dy)>4){suppressGraphClick=true;svg.setPointerCapture(e.pointerId);}graphX=graphDrag.ox+dx*factor;graphY=graphDrag.oy+dy*factor;graphTransform();};
 $('#graphSvg').onpointerup=e=>{graphDrag=null;if($('#graphSvg').hasPointerCapture(e.pointerId))$('#graphSvg').releasePointerCapture(e.pointerId);};
 $('#graphSvg').onpointercancel=()=>{graphDrag=null;suppressGraphClick=true;};
-function activateGraph(e){if(e.type==='keydown'&&!['Enter',' '].includes(e.key))return;if(e.type==='click'&&suppressGraphClick){suppressGraphClick=false;return;}const node=e.target.closest('.graph-node');if(!node)return;e.preventDefault();if(node.dataset.kind==='tag'){setTag(node.dataset.value);$('#showGraph').focus();}else{openNote(node.dataset.value);$('#showNote').focus();}}
+function activateGraph(e){if(e.type==='keydown'&&!['Enter',' '].includes(e.key))return;if(e.type==='click'&&suppressGraphClick){suppressGraphClick=false;return;}const node=e.target.closest('.graph-node');if(!node)return;e.preventDefault();if(node.dataset.kind==='tag'){setTag(node.dataset.value);$('#showGraph').focus();}else{openNote(node.dataset.value,'',e.shiftKey?'side':e.metaKey||e.ctrlKey?'tab':'current');$('#showNote').focus();}}
 $('#graphSvg').onclick=activateGraph;$('#graphSvg').onkeydown=activateGraph;
-metrics.uiReadyMs=Math.round(performance.now()-boot);updateHits();load();
+metrics.uiReadyMs=Math.round(performance.now()-boot);load();

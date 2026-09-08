@@ -20,7 +20,7 @@ Your vault is a folder of ordinary HTML, CSS, and images. HTML files remain the 
 
 ## Screenshots
 
-Earlier macOS prototype showing the bundled sample vault in dark mode. These screenshots predate the simplified header, icon navigation, and tag search changes; updated captures are pending native UI verification.
+Earlier macOS prototype showing the bundled sample vault in dark mode. These screenshots predate the simplified sidebar and multi-pane reader; updated captures are pending native UI verification.
 
 | Read HTML notes | Explore shared tags |
 | --- | --- |
@@ -30,7 +30,8 @@ Earlier macOS prototype showing the bundled sample vault in dark mode. These scr
 
 - Open a local vault and browse notes by title, text, or tag.
 - Read HTML with local images, tables, shared CSS, and note-specific styles.
-- Move between highlighted search matches using controls shown only during an active note search.
+- Compare notes in two side-by-side panes, each with its own tabs and document search.
+- Move between highlighted matches independently in each tab.
 - Explore a graph connecting notes to their tags. Select a tag to filter or a note to read it.
 - Browse a compact title-and-tag list. Hover over a note title to see its path; tag buttons marked ↗ open a tag graph and update the search field.
 - Switch between light and dark themes and resize the sidebar.
@@ -52,11 +53,32 @@ Type a phrase to search note titles and body text. Add `tag:` clauses to filter 
 | `tag: Rust tag: 学習` | Notes containing both tags (AND) |
 | `tag: "machine learning"` | A tag whose name contains spaces |
 
-Tags use case-sensitive exact matching: `tag: 開発` does not include `開発/IT`. Free text remains a single case-insensitive substring search. Only free text is highlighted in the document.
+Tags use case-sensitive exact matching: `tag: 開発` does not include `開発/IT`. Free text remains a single case-insensitive substring search. When opening a note from the list or graph, only free text is copied into that tab’s document search. Changing the sidebar search does not change already-open tabs.
 
 Type `tag:` to see up to eight matching tag suggestions. Use ↑/↓ and Enter to insert a suggestion, Escape to dismiss, or click a candidate. Enter with no candidate selected opens the first matching note. Quoted tag names support JSON escapes such as `\"` and `\\`; names beginning with `tag:` must also be quoted. Empty clauses and unclosed quotes are ignored until completed; a complete but unknown tag returns no matches. IME composition is applied after confirmation.
 
 The search field is the source of filter state. Selecting a tag in the graph or a note's ↗ tag button replaces the tag clauses with that tag while preserving free text. Remove the `tag:` clause to clear its filter. The **NOTES** count shows matching notes rather than a separate vault total.
+
+## Read with panes and tabs
+
+The active pane has an accented top border. Opening a note from the sidebar or graph normally replaces its active tab. Click inside a pane or use its pane button to make it active.
+
+| Action | How |
+| --- | --- |
+| Open a new tab | Use **＋** in a pane, then choose a note; or ⌘/Ctrl-click a list item or graph note |
+| Open beside the current note | Use **左右分割** (Split), or Shift-click a list item or graph note |
+| Switch or close a tab | Select its title or use its × button |
+| Search one document | Use **検索** (Search) in that pane, enter a phrase, and press Enter |
+| Follow an internal link | Click it in the note to navigate within that same tab |
+| Open a link elsewhere | Expand **このノートのリンク** (Links in this note) and choose a new tab or the adjacent pane |
+| Move focus between panes | Use **ペイン移動** (Move to other pane) |
+| Remove a pane | Use **分割解除** (Close pane); its tabs close too |
+
+Tab switches keep the existing sandboxed iframe attached, preserving its document scroll and search state. With focus on a tab title, use ←/→ or Home/End to switch tabs and Delete to close one. The buttons are reachable by Tab. Keyboard events inside the sandboxed note do not reach the app: move focus back to the app controls to use tab commands. Modifier-click handling inside note HTML is not available; use the link menu instead.
+
+This first version supports two horizontal panes and up to 12 tabs in one vault. Each pane stays at least 320 px wide; narrow windows scroll the reader workspace horizontally instead of silently closing a pane. The tag graph remains a whole-workspace mode and preserves the open reader tabs when switching back.
+
+Reloading the vault restores surviving tabs, their selected pane/tab, and their search phrases. Tabs whose paths were deleted or renamed close; an empty pane stays available for another note. Reload and theme changes regenerate the documents and reset scroll positions and the current search match. Pane widths are equal, and pane/tab state is not saved across app restarts or vault switches.
 
 ## Workflow: AI writes, shiori reads, Git keeps history
 
@@ -151,9 +173,11 @@ node --test tests/*.test.cjs
 node --check ui/app.js
 node --check ui/graph.js
 node --check ui/search.js
+node --check ui/workspace.js
+node --check ui/reader.js
 ```
 
-The Rust suite covers vault boundaries, HTML sanitization, and preservation of source files. JavaScript tests cover tag syntax and suggestions, tag membership, graph pagination, and navigation/search state using a small DOM/Tauri adapter. They do not verify native WebView rendering or layout. The performance benchmark is an opt-in ignored Rust test; see [performance measurements and reproduction steps](docs/PERFORMANCE.md).
+The Rust suite covers vault boundaries, HTML sanitization, and preservation of source files. JavaScript tests cover tag syntax and suggestions, tag membership, graph pagination, pane routing, tab lifetime, and navigation/search state using a small DOM/Tauri adapter. They do not verify native WebView rendering or layout. The performance benchmark is an opt-in ignored Rust test; see [performance measurements and reproduction steps](docs/PERFORMANCE.md).
 
 ## Technology stack
 
@@ -208,7 +232,7 @@ Other current limits:
 - Notes must be UTF-8 files with a lowercase `.html` extension. The file-size limit is 16 MiB.
 - Search uses one substring, without multi-term AND or regular expressions. List filtering ignores case; highlighting is case-sensitive and does not span HTML text nodes. At most 1,000 matches are marked per note.
 - Opening or refreshing a vault reparses all notes. Large vaults can be slow; see [#1](https://github.com/azpiero/shiori/issues/1).
-- Applying external changes resets the document's scroll position.
+- Applying external changes or changing the theme resets document scroll positions in all open tabs.
 - Theme switching does not force arbitrary user HTML to adopt the app's colors.
 
 ## Contributing and roadmap
