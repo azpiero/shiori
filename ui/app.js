@@ -34,6 +34,7 @@ $('#app').innerHTML=`<div class="layout">
 </div>
 <div class="vault-path" id="root">
 </div>
+<div id="vaultWarnings" class="vault-warnings" role="status" hidden></div>
 <details id="readErrors" class="read-errors" hidden>
 <summary id="readErrorsSummary">読み取りエラー</summary>
 <ul id="readErrorsList"></ul>
@@ -141,6 +142,7 @@ async function load(path=null){
  status('HTMLを解析しています…');
  try{
   vault=await invoke('open_vault',{path});metrics.scanMs=vault.scan_ms;
+  $('#vaultWarnings').textContent=(vault.warnings||[]).join('\n');$('#vaultWarnings').hidden=!vault.warnings?.length;
   reader.reset();selected='';invalidateGraph();activeTags=[];query='';$('#search').value='';hideSuggestions();setView(false);
   $('#root').textContent=vault.root;$('#root').title=vault.root;$('#vaultName').textContent=vault.root.split('/').pop();$('#vaultName').title=vault.root;
   $('#notice').classList.remove('show');changed=false;

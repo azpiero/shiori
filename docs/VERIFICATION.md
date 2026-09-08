@@ -145,3 +145,11 @@ iframe方式を最初の検証対象として実装した。Text fragmentは比�
 - Retained the existing folder/theme handlers, accessible names, theme pressed state, and loading-time disabled state. Folder selection remains present without a selected vault.
 - Validation: all 28 JavaScript tests passed, including folder selection and theme switching while graph mode is active. JavaScript syntax and diff checks passed. The macOS build and ad-hoc signature verification passed.
 - Native visual verification remains pending: Computer Use could not connect to shiori (`timeoutReached`, -10005). Check the layout at narrow widths, keyboard focus, light/dark reader rendering, and the folder picker after a startup failure. Existing README screenshots still show an earlier UI.
+
+## Issue #15: Remember the last vault (2026-09-08)
+
+- Added JSON settings in the Tauri app config directory, canonical path persistence after explicit folder selection, and startup restoration with a fresh vault token. Fallback does not overwrite the previous preference.
+- Added persistent, text-only sidebar warnings for restoration and settings write failures, independent of note loading/status updates.
+- Rust tests: 8 passed, 1 opt-in benchmark ignored. Covered first launch, Japanese paths, settings round-trip without tokens, missing/non-directory/relative saved paths, invalid JSON/types, unreadable settings (directory in place of the file), failed writes, corrupt JSON repair, and preservation of unknown fields. Temporary test directories do not touch real app settings.
+- JavaScript tests: 29 passed, including warning visibility after note events/refresh and clearing after a successful folder selection. Syntax checks passed. macOS build, ad-hoc signing, and signature verification passed.
+- Native restart/folder-picker verification remains pending: Computer Use could not connect to shiori (`timeoutReached`, -10005). Manually verify restart restores the chosen vault, unavailable or permission-denied folders fall back with a warning, and another folder can be selected afterward.

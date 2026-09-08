@@ -9,11 +9,11 @@ const {createDocument}=require('./dom.cjs');
 
 // Exercise app event handlers with a small DOM/Tauri adapter. These checks do not
 // simulate WebView rendering, layout, or iframe navigation; those require manual QA.
-async function setup(initialErrors=[]){
+async function setup(initialErrors=[],initialWarnings=[]){
  const events=new Map(),calls=[];let refreshResult,refreshError;
  const document=createDocument();
  const notes=Array.from({length:160},(_,i)=>({path:`notes/${i}.html`,title:`Note ${i}`,text:'knowledge',tags:[i%2?'odd':'even'],headings:[]}));
- const vault={root:'/test/vault',token:'test-token',revision:'r1',notes,errors:initialErrors,scan_ms:1};
+ const vault={root:'/test/vault',token:'test-token',revision:'r1',notes,errors:initialErrors,warnings:initialWarnings,scan_ms:1};
  refreshResult=vault;
  const context=vm.createContext({document,URL,performance,ShioriSearch,ShioriReader,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(){},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
  const run=code=>vm.runInContext(code,context);
@@ -98,7 +98,7 @@ test('scan errors remain accessible after note load and clear after a successful
  assert.equal(get('#readErrors').hidden,true);assert.equal(get('#readErrors').open,false);assert.equal(get('#readErrorsList').innerHTML,'');
 });
 
-test('startup still opens samples; the remaining folder and theme controls work',async()=>{
+test('startup requests the default vault; folder and theme controls work',async()=>{
  const {run,get,calls}=await setup();
  assert.equal(calls[0].name,'open_vault');assert.equal(calls[0].args.path,null);
  await get('#open').onclick();assert.ok(calls.some(c=>c.name==='open_vault'&&c.args.path==='/another-vault'));
@@ -135,4 +135,19 @@ test('IME composition does not apply partial tag filters or open suggestions',as
  input.events.compositionstart();input.value='tag: odd';run('applySearch();showSuggestions()');
  assert.equal(run('activeTags.length'),0);assert.equal(input.attributes['aria-expanded'],'false');
  input.events.compositionend();run('clearTimeout(timer);applySearch()');assert.equal(run('activeTags.join()'),'odd');
+});
+
+
+test('vault restoration warnings survive note events and refresh, then clear on a successful selection',async()=>{
+ const warning='Cannot restore <missing vault>; opened samples';
+ const {run,get,served,vault,setRefresh}=await setup([],[warning]);
+ assert.equal(get('#vaultWarnings').hidden,false);
+ assert.equal(get('#vaultWarnings').textContent,warning);
+ assert.equal(get('#vaultWarnings').children.length,0);
+ served();assert.equal(get('#vaultWarnings').hidden,false);
+ setRefresh({...vault,warnings:[]});await run('refresh()');
+ assert.equal(get('#vaultWarnings').textContent,warning);
+ vault.warnings=[];await get('#open').onclick();
+ assert.equal(get('#vaultWarnings').hidden,true);
+ assert.equal(get('#open').disabled,false);
 });

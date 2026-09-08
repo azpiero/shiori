@@ -8,6 +8,8 @@ use unicode_normalization::UnicodeNormalization;
 use url::Url;
 use walkdir::WalkDir;
 
+mod settings;
+
 const MAX_FILE: u64 = 16 * 1024 * 1024;
 const NOTE_CSP: &str = "default-src 'none'; script-src 'none'; style-src vault: 'unsafe-inline'; img-src vault:; font-src vault:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; sandbox";
 #[derive(Clone)]
@@ -20,7 +22,7 @@ struct NoteLink { href: String, text: String }
 #[derive(Serialize)]
 struct Note { path: String, title: String, tags: Vec<String>, headings: Vec<Heading>, links: Vec<NoteLink>, text: String, size: u64 }
 #[derive(Serialize)]
-struct Snapshot { root: String, token: String, notes: Vec<Note>, errors: Vec<String>, revision: String, scan_ms: u128 }
+struct Snapshot { warnings: Vec<String>, root: String, token: String, notes: Vec<Note>, errors: Vec<String>, revision: String, scan_ms: u128 }
 fn current(state: &State) -> Result<Vault, String> { state.vault.lock().map_err(|_| "state error")?.clone().ok_or("Vaultが未選択です".into()) }
 fn allowed_entry(entry: &walkdir::DirEntry) -> bool {
     !matches!(entry.file_name().to_str(), Some(".git" | ".DS_Store" | "node_modules" | ".shiori" | ".html-vault"))
@@ -57,21 +59,38 @@ fn scan(vault: &Vault) -> Snapshot {
             Err(e) => errors.push(e.to_string()), _ => ()
         }
     }
-    Snapshot { root:vault.root.to_string_lossy().into(), token:vault.token.clone(), notes, errors, revision:revision(&vault.root), scan_ms:start.elapsed().as_millis() }
+    Snapshot { warnings:vec![], root:vault.root.to_string_lossy().into(), token:vault.token.clone(), notes, errors, revision:revision(&vault.root), scan_ms:start.elapsed().as_millis() }
 }
 #[tauri::command]
 async fn open_vault(path: Option<String>, app: tauri::AppHandle) -> Result<Snapshot,String> {
-    let root = match path {
-        Some(p) => PathBuf::from(p),
-        None => {
-            let bundled = std::env::current_exe().ok().and_then(|p| p.parent().and_then(|p| p.parent()).map(|p| p.join("Resources/sample-vault")));
-            bundled.filter(|p| p.is_dir()).unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sample-vault"))
-        }
-    }.canonicalize().map_err(|e| e.to_string())?;
-    if !root.is_dir() { return Err("フォルダを選んでください".into()); }
+    let config = app.path().app_config_dir().map(|dir| dir.join("settings.json"));
+    let mut warnings = Vec::new();
+    if let Err(e) = &config { warnings.push(format!("設定フォルダを取得できません: {e}")); }
+    let explicit = path.is_some();
+    let root = if let Some(path) = path {
+        settings::validate(Path::new(&path))?
+    } else {
+        let bundled = std::env::current_exe().ok().and_then(|p| p.parent().and_then(|p| p.parent()).map(|p| p.join("Resources/sample-vault")));
+        let sample = bundled.filter(|p| p.is_dir()).unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sample-vault"));
+        if let Ok(file) = &config {
+            let (root, restore_warnings) = settings::restore(file, &sample)?;
+            warnings.extend(restore_warnings);
+            root
+        } else { settings::validate(&sample)? }
+    };
     let vault = Vault { root, token:uuid::Uuid::new_v4().to_string() };
     *app.state::<State>().vault.lock().map_err(|_| "state error")? = Some(vault.clone());
-    tauri::async_runtime::spawn_blocking(move || scan(&vault)).await.map_err(|e|e.to_string())
+    // Startup/fallback must not replace an unavailable user's saved vault with samples.
+    if explicit {
+        if let Ok(file) = &config {
+            if let Err(e) = settings::save(file, &vault.root) {
+                warnings.push(format!("Vaultは開きましたが、次回起動用の設定を保存できません: {e}"));
+            }
+        }
+    }
+    let mut snapshot = tauri::async_runtime::spawn_blocking(move || scan(&vault)).await.map_err(|e|e.to_string())?;
+    snapshot.warnings = warnings;
+    Ok(snapshot)
 }
 #[tauri::command]
 async fn refresh_vault(app: tauri::AppHandle) -> Result<Snapshot,String> {
