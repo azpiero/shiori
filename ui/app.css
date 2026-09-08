@@ -114,14 +114,14 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .folder-row>span[aria-hidden]{width:10px;flex-shrink:0;color:var(--muted)}
 .folder-row:disabled{opacity:1}.folder-name{overflow-wrap:anywhere;min-width:0;flex:1}.folder-count{font-size:10px;flex-shrink:0}.folder-row.drop-target{background:var(--tint);outline:2px solid var(--accent)}
 .folder-group{margin-bottom:8px}.folder-empty{display:block;padding:4px 10px;color:var(--muted);font-size:10px}
-.folder-group .note{display:flex;align-items:center;margin-bottom:2px}.folder-group .note-open{min-width:0;flex:1;padding:7px 24px;cursor:grab}.folder-group .note-title{overflow-wrap:anywhere}
+.folder-group .note{display:flex;align-items:center;margin-bottom:2px}.folder-group .note-open{display:flex;align-items:center;gap:6px;min-width:0;flex:1;padding:7px 24px;cursor:grab}.folder-group .note-title{min-width:0;overflow-wrap:anywhere}
 
 .folder-heading{display:flex;align-items:center;gap:2px}.folder-heading .folder-row{flex:1;min-width:0}
-.folder-tool{flex-shrink:0;border:0;padding:3px 5px;background:transparent;color:var(--muted);font-size:12px}
+
 .folder-group{margin-bottom:0}
 .folder-children{margin-left:12px;padding-left:9px;border-left:1px solid var(--line)}
 .folder-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.folder-tool svg{display:block;width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
 .folder-inline{flex:1;min-width:0;padding:3px 0}
 .folder-inline input{width:100%;min-width:0;font:inherit;font-size:11px;padding:4px 5px;border:1px solid var(--accent);border-radius:4px;color:var(--ink);background:var(--surface)}
 .folder-menu{position:fixed;z-index:70;min-width:170px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:0 4px 18px #0002}
@@ -131,3 +131,5 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .toasts{position:fixed;right:16px;bottom:16px;z-index:80;display:flex;flex-direction:column;gap:8px;width:min(400px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;pointer-events:none}
 .toast{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:9px;background:var(--surface);color:var(--ink);box-shadow:0 4px 20px #0003;pointer-events:auto;font-size:12px}
 .toast.error,.toast.warning{border-left-color:#bc7146}.toast [role]{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}.toast button{flex-shrink:0;border:0;background:transparent;padding:1px 5px;color:var(--muted)}
+
+.tree-icon{display:block;width:16px;height:16px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;color:var(--muted)}

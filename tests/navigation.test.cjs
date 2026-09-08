@@ -219,7 +219,7 @@ test('a revision poll started before an edit cannot announce the completed save 
 test('notes-only folder rows support creation, rename and direct internal drops',async()=>{
  const {run,get,vault,calls,commands}=await setup();vault.folders=['','archive','notes','notes/empty'];run('renderList()');
  const row=path=>get('#notes').querySelectorAll('[data-folder]').find(el=>el.dataset.folder===path);
- assert.equal(row(''),undefined);assert.equal(row('archive'),undefined);assert.ok(row('notes/empty'));assert.equal(get('#notes').querySelector('[data-move]'),null);
+ assert.equal(row(''),undefined);assert.equal(row('archive'),undefined);assert.equal(get('#notes').querySelector('[data-create-folder]'),null);assert.ok(row('notes').querySelector('.folder-icon'));assert.ok(get('#notes').querySelector('.document-icon'));assert.ok(row('notes/empty'));assert.equal(get('#notes').querySelector('[data-move]'),null);
  get('#notes').onclick({target:row('notes')});assert.equal(row('notes').getAttribute('aria-expanded'),'false');get('#search').value='Note 0';run('applySearch()');assert.equal(row('notes/empty'),undefined);assert.equal(row('notes').getAttribute('aria-expanded'),'true');get('#search').value='';run('applySearch()');
  commands.preview_note_move=()=>({destination:'notes/empty/0.html',references:[],warnings:[],omitted:0,expected_hash:'h',expected_revision:'r1'});
  commands.move_note=()=>({moved:true,old_path:'notes/0.html',path:'notes/empty/0.html',warnings:[],snapshot:{...vault,revision:'r2',notes:vault.notes.map(n=>n.path==='notes/0.html'?{...n,path:'notes/empty/0.html'}:n)}});
@@ -228,7 +228,7 @@ test('notes-only folder rows support creation, rename and direct internal drops'
  get('#notes').ondragstart({target:source,dataTransfer:transfer,preventDefault(){}});get('#notes').ondrop({target:row('notes/empty'),dataTransfer:transfer,preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));
  assert.equal(calls.filter(c=>c.name==='move_note').length,1);assert.equal(run('selected'),'notes/empty/0.html');assert.equal(get('#move-folder'),null);
  commands.create_note_folder=args=>({path:'notes/'+args.name,old_path:null,snapshot:{...vault,folders:['notes','notes/new'],revision:'r3'}});
- get('#notes').onclick({target:get('#notes').querySelector('[data-create-folder]')});get('#folderName').value='new';await run('saveFolder()');assert.ok(row('notes/new'));assert.equal(get('#folderName'),null);
+ get('#notes').oncontextmenu({target:row('notes'),clientX:20,clientY:40,preventDefault(){}});get('#folderMenu').onclick({target:get('#folderMenu').querySelector('[data-action="create"]')});get('#folderName').value='new';await run('saveFolder()');assert.ok(row('notes/new'));assert.equal(get('#folderName'),null);
  commands.rename_note_folder=()=>({old_path:'notes/new',path:'notes/renamed',snapshot:{...vault,folders:['notes','notes/renamed'],revision:'r4'}});
  get('#notes').oncontextmenu({target:row('notes/new'),clientX:20,clientY:40,preventDefault(){}});get('#folderMenu').onclick({target:get('#folderMenu').querySelector('[data-action="rename"]')});get('#folderName').value='renamed';await run('saveFolder()');assert.ok(row('notes/renamed'));assert.equal(get('#moveReport'),null);
 });

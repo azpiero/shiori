@@ -688,3 +688,4 @@ This replaces the earlier tag-membership graph described above.
 - Combine the tab strip and pane controls into one row. Tabs scroll horizontally; the two pane icons stay fixed on the right as siblings outside the tablist. Retain their disabled states and existing keyboard behavior.
 - Keep tags and document search in separate rows. Validate the header at 320px and 640px and in split mode with five tags.
 - Match folder labels to note titles: ink color, 12px, weight 550, line height 1.6. Align same-level text and row heights while retaining disclosure arrows, indentation and hierarchy guides.
+- Follow-up: remove the per-row folder creation button. Use the folder context menu (secondary click or Shift+F10) for creation. Prefix folder names and HTML note titles with distinct folder/document icons, retaining aligned labels and existing indentation.

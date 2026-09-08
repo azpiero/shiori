@@ -264,3 +264,4 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - JavaScript: 66 tests passed, including tablist/control separation and existing split/remove behavior.
 - Headless Chromium with mocked IPC verified 320px and 640px pane widths, 320px split panes, five tags, fixed controls during tab scrolling, matching folder/note typography and text alignment, light/dark themes, arrow/Home navigation, Delete and keyboard pane removal.
 - Syntax/diff checks and macOS build/signature verification passed. Native WKWebView visual confirmation remains manual.
+- Follow-up: 66 JavaScript tests passed after removing folder creation buttons and adding folder/document icons. Folder creation through the context menu remains covered; browser layout checks confirm same-level label alignment with the icons.

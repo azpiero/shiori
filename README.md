@@ -96,7 +96,7 @@ Reloading the vault restores surviving tabs, their selected pane/tab, and their 
 
 The sidebar starts at `notes/`; vault-root files and unrelated directories are not listed. Existing folders below `notes/`, including empty folders, appear in an indented tree with hierarchy guide lines and short folder names. Folder and note labels share the same typography and alignment. Collapsing a folder hides its entire subtree. Search and tag filters retain matching folders and their ancestors and temporarily expand them. Clearing filters restores the collapsed state.
 
-Use the **folder-plus icon** on a folder row to create a child folder. Right-click a folder (secondary click on a trackpad) and choose **名称変更** to rename it directly in its row. Press Enter to save or Escape to cancel. Keyboard users can open the folder menu with Shift+F10 or the Context Menu key. The `notes/` root cannot be renamed. Creating the first folder in an empty vault initializes `notes/`.
+Right-click a folder and choose **新規フォルダ** to create a child folder. Folder and document icons distinguish directories from HTML notes. Right-click a folder (secondary click on a trackpad) and choose **名称変更** to rename it directly in its row. Press Enter to save or Escape to cancel. Keyboard users can open the folder menu with Shift+F10 or the Context Menu key. The `notes/` root cannot be renamed. Creating the first folder in an empty vault initializes `notes/`.
 
 Drag a note title onto a folder heading to move it there directly, including a folder just created in shiori. There is no per-file move button or destination modal. For keyboard access, focus a note and press Space, Tab to the destination folder, and press Enter; Escape cancels the selection.
 
