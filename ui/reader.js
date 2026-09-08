@@ -104,7 +104,7 @@
     if(document.activeElement!==query)query.value=tab?.query||'';
     query.disabled=!tab?.path;$('#pane-search-'+i).hidden=!tab?.query&&!pane.searchOpen;
     section.querySelector('[data-action="find"]').disabled=!tab?.path;
-    const tabsHtml=pane.tabs.map(t=>`<div class="reader-tab"><button id="tab-${t.id}" role="tab" data-tab="${t.id}" aria-selected="${t.id===pane.active}" aria-controls="panel-${t.id}" tabindex="${t.id===pane.active?0:-1}" title="${escape(t.path)}">${escape(note(t.path)?.title||'新しいタブ')}</button><button data-close="${t.id}" aria-label="タブを閉じる: ${escape(note(t.path)?.title||'新しいタブ')}">×</button></div>`).join('');
+    const tabsHtml=pane.tabs.map(t=>`<div class="reader-tab ${t.id===pane.active?'active':''}"><button id="tab-${t.id}" role="tab" data-tab="${t.id}" aria-selected="${t.id===pane.active}" aria-controls="panel-${t.id}" tabindex="${t.id===pane.active?0:-1}" title="${escape(t.path)}">${escape(note(t.path)?.title||'新しいタブ')}</button><button data-close="${t.id}" aria-label="タブを閉じる: ${escape(note(t.path)?.title||'新しいタブ')}">×</button></div>`).join('');
     if(tabMarkup.get(i)!==tabsHtml){$('#tabs-'+i).innerHTML=tabsHtml;tabMarkup.set(i,tabsHtml);}
     const tags=note(tab?.path)?.tags||[],tagsPanel=$('#pane-tags-'+i);
     tagsPanel.hidden=!tab?.path;

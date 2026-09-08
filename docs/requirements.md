@@ -639,3 +639,11 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 - Create/rename/move commands validate active tokens and notes scope, refuse traversal/reserved names/symlink paths/collisions, and serialize with other app writes. Renames validate the expected revision. No folder or source content is overwritten.
 - Folder rename updates all descendant tab paths; file moves update each tab for that note. Preserve tab IDs/queries and source bytes; reload changed paths and refresh folder/search/graph state. Scan failures after completed operations remain completed outcomes.
 - The static file-move report covers common HTML URL attributes, srcset and embedded CSS URLs/imports, with up to 200 details and bounded warnings. Dynamic or unsupported references are not certified safe. Finder drag/drop, cross-filesystem moves, and automatic repair are outside this implementation.
+
+## Issues #30, #37, #38: UI polish (2026-09-09)
+
+- Remove the redundant YOUR LIBRARY label and reduce only sidebar top padding.
+- Render each reader tab as one surface containing separate transparent title and close buttons. Preserve accessible tab semantics, keyboard navigation, truncation and always-visible close controls.
+- Keep the terminal heading on one row. Show transitions, failures, exits and missing-vault guidance, but omit routine ready/input status.
+- Put full selectable HTML destination/working-directory paths and shell termination inside an information popover. Support expanded/control ARIA state, Escape/outside-click dismissal and focus restoration. Context updates remain live.
+- Preserve automatic shell startup when opening the panel and deferred termination during startup. Offer an explicit restart button in the terminal area after exit or startup failure. Hiding the panel still preserves its shell.

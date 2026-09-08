@@ -27,7 +27,6 @@ $('#app').innerHTML=`<div class="layout">
 <button id="theme" title="ダークモード" aria-label="ダークモード" aria-pressed="false">◐</button>
 </nav>
 <aside class="sidebar">
-<div class="eyebrow">YOUR LIBRARY</div>
 <div class="vault-name">
 <span id="vaultName">Sample Vault</span>
 <div class="vault-actions">

@@ -222,3 +222,12 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - Headless Chromium with mocked IPC verified inline folder creation, actual dragging into the created folder without a modal, secondary-click renaming, Escape cancellation, ancestor indentation and subtree collapse, open-tab tracking, and Space/Enter moves. Native filesystem tests use temporary fixtures; no user vault files were moved.
 - Syntax and diff checks passed. macOS app build and ad-hoc signature verification passed. Native WKWebView dragging and end-to-end folder operations in the built app remain manual checks.
 - Reference analysis is static and bounded; the permanent sidebar report and NOTES toolbar have been removed. Automatic repair, Finder drag/drop and cross-filesystem moves are not implemented.
+
+## Issues #30, #37, #38: UI polish (2026-09-09)
+
+- Removed YOUR LIBRARY and adjusted sidebar top padding at both breakpoints.
+- Tab wrappers own the complete selected/hover surface, including the always-visible close button. Tab semantics and keyboard behavior are unchanged.
+- Terminal steady-state text and startup toolbar button are removed. An information popover contains full selectable paths and the stop action. Exit/failure exposes a keyboard-accessible restart button in the terminal area; transition/error messages and missing-vault guidance remain visible.
+- JavaScript: 57 tests passed, including selected tab class/ARIA agreement, live terminal paths, Escape dismissal, deferred stop, startup failure and restart.
+- Headless Chromium with actual xterm and mocked IPC checked light/dark themes at 1100px and 780px, popover containment, Escape/outside-click dismissal, focus restoration and stop/restart. Native shell execution was not part of this UI check.
+- macOS build and signature verification passed. Native WKWebView visual confirmation remains manual.

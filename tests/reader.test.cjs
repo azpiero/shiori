@@ -195,3 +195,9 @@ test('a moved note follows its new path in both panes while keeping tabs and que
 test('renaming a directory follows descendant tabs without changing sibling prefixes',()=>{
  const {reader,vault,setVault}=setup();vault.notes=[{path:'notes/a/n.html',title:'A'},{path:'notes/ab/n.html',title:'B'}];const a=reader.open('notes/a/n.html','','current','query'),b=reader.open('notes/ab/n.html','','side');setVault({...vault,notes:[{path:'notes/renamed/n.html',title:'A'},vault.notes[1]]});reader.moved('notes/a','notes/renamed',new Set(['notes/renamed/n.html']));assert.equal(a.path,'notes/renamed/n.html');assert.equal(a.query,'query');assert.equal(b.path,'notes/ab/n.html');
 });
+
+test('tab surface selection follows aria-selected across switches in both panes',()=>{
+ const {reader,document}=setup();const a=reader.open('a.html');reader.open('b.html','','tab');reader.open('c.html','','side');
+ const check=()=>{for(const tab of document.querySelector('#readerPanel').querySelectorAll('[role="tab"]'))assert.equal(tab.parentNode.classList.contains('active'),tab.getAttribute('aria-selected')==='true');};
+ check();reader.model.select(0,a.id);reader.render();check();
+});
