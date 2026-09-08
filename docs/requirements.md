@@ -725,3 +725,112 @@ This replaces the earlier tag-membership graph described above.
 - Use the document surface and a raised top/side outline for selected tabs, without bold text or an accent underline. Mute inactive tabs and remove the tabbar bottom border; shape and `aria-selected` supplement color.
 - Add a decorative tag icon, 16px top padding, and no bottom padding to the tag row. Match its horizontal inset to the canonical HTML theme (7% with an 850px centered content width). Remove its bottom border and retain the 76px scroll limit and 320px pane support. Align the trailing SVG plus icon with the tab content height.
 - In the viewer's screen stylesheet, set body top padding to 20px so the document begins closer to the tag row. Vault HTML/CSS files and print styling are unchanged. Render tab close controls as centered 14px SVG icons within 26px-wide buttons.
+
+
+## Detailed usage contracts (moved from README, #42)
+
+These describe the current behavior; the README contains the quick-start controls.
+
+### Search by text and tag
+
+Type a phrase to search note titles and body text. Add `tag:` clauses to filter by existing tags:
+
+| Query | Meaning |
+| --- | --- |
+| `tag: 開発/IT` | Notes with exactly the tag `開発/IT` |
+| `ownership tag: Rust` | The text `ownership` and the tag `Rust` |
+| `tag: Rust tag: 学習` | Notes containing both tags (AND) |
+| `tag: "machine learning"` | A tag whose name contains spaces |
+
+Tags use case-sensitive exact matching: `tag: 開発` does not include `開発/IT`. Free text remains a single case-insensitive substring search. When opening a note from the list or graph, only free text is copied into that tab’s document search. Changing the sidebar search does not change already-open tabs.
+
+Type `tag:` to see up to eight matching tag suggestions. Use ↑/↓ and Enter to insert a suggestion, Escape to dismiss, or click a candidate. Enter with no candidate selected opens the first matching note. Quoted tag names support JSON escapes such as `\"` and `\\`; names beginning with `tag:` must also be quoted. Empty clauses and unclosed quotes are ignored until completed; a complete but unknown tag returns no matches. IME composition is applied after confirmation.
+
+The search field is the source of filter state. Selecting a reader pane's tag-name button replaces the tag clauses with that tag while preserving free text. Remove the `tag:` clause to clear its filter.
+
+
+### Read with panes and tabs
+
+Each pane shows the tags of its selected tab below the tab bar, or **タグなし** for an untagged note. Empty tabs have no tag row. Many tags wrap within a bounded, scrollable row. The sidebar groups note titles by folder and includes a reminder for a current note outside the filter; discover tags through `tag:` suggestions. Use **×** beside a tag to remove and save it immediately. Use **＋** to show an inline input, then press Enter to add and save. Existing tags are suggested as you type: ↑/↓ selects a candidate, Enter inserts it, and a second Enter saves. Clicking a candidate also fills the input. Escape or moving focus away discards unsaved input. IME confirmation does not save a partial tag. Tag controls are disabled while reading/saving, and failures appear in persistent error notifications. To undo a removal, add the tag again; no separate undo action is provided. Tag-name clicks only filter and never write a file. Use the navigation rail to open the graph.
+
+Edits change only `meta[name="note-tag"]` elements in an explicit HTML head. Other source bytes are retained. Supported notes are UTF-8, at most 16 MiB, with unambiguous head markup; malformed or unsupported head structures, read-only files, and symlink targets are rejected. A note can have up to 128 exact, case-sensitive tags, each at most 256 UTF-8 bytes without control characters. Empty or whitespace-only tags are rejected; duplicate values are removed.
+
+Save checks the original source hash and refuses external changes. On conflict, cancel, reload the vault, and review the newer note before editing again. Successful saves update both panes, search candidates, and graph data while preserving tabs and queries. Edited notes and any other notes whose source hash changed reload, resetting their scroll/match position; unchanged iframes remain attached. Scan errors after a write are reported as **saved**, with details in the sidebar. A final hash check and atomic replacement cannot eliminate the small race with unrelated external editors; see the [tag editing contract](TAG_EDITING.md).
+
+The **＋** at the end of each tab row adds an empty tab to that pane and focuses its title. It sits outside the tablist and is disabled at the shared limit of 12 tabs across both panes. Pane controls stay fixed at the right while the tabs and their trailing ＋ scroll horizontally. Selected tabs have the document background and a raised outline, without accent underlines or bold text; inactive tabs use muted text. Tags appear below with a tag icon and vertical spacing, without a divider line; long tag lists scroll within 76px. Document search is hidden until invoked with ⌘F or Edit → Find → Find in Note. The active pane has an accented top border. Opening a note from the sidebar or graph normally replaces its active tab. Click inside a pane or move focus into it with Tab to make it active. An empty pane itself is focusable; select it, then choose a note from the sidebar.
+
+| Action | How |
+| --- | --- |
+| Open a new tab | ⌘/Ctrl-click a list item or graph note |
+| Open beside the current note | Use the **pane +** icon to duplicate the current note into a second pane, or Shift-click a list item or graph note |
+| Switch or close a tab | Select its title or use its × button |
+| Search one document | ⌘F (Ctrl+F outside macOS) shows the search row and selects its text in the active pane. Enter a phrase and press Enter |
+| Next / previous search match | ⌘G / ⌘⇧G (Ctrl+G / Ctrl+Shift+G outside macOS), or ↑/↓ in the search row |
+| Clear document search | Use ×, Escape while in the search input, or **Edit → Find → Clear Note Search** to clear and hide the search row |
+| Follow an internal link | Click it in the note to navigate within that same tab |
+| Move focus between panes | Click in the destination pane or use Tab to focus its controls |
+| Resize panes | Drag the divider; double-click to restore equal widths. With the divider focused, use ←/→ for 5% steps, Home for minimum left width, or End for equal widths |
+| Remove a pane | Use the **pane −** icon; its tabs close too. Disabled when only one pane remains |
+
+At most two panes are available. Adding a pane is disabled while split. If the left pane was removed, adding an adjacent pane fills the vacant left side without moving the surviving document.
+
+Tab switches keep the existing sandboxed iframe attached, preserving its document scroll and search state. With focus on a tab title, use ←/→ or Home/End to switch tabs and Delete to close one. The buttons are reachable by Tab. Find shortcuts are native menu accelerators and work even when the sandboxed note has focus. Other keyboard events inside the note do not reach the app: move focus back to app controls to use tab commands. The default native editing menu, including copy/paste/select all, is preserved. Modifier-click handling inside note HTML is not available. To open another note in a new tab or beside the current note, use ⌘/Ctrl-click or Shift-click respectively on its sidebar list entry or graph node.
+
+This first version supports two horizontal panes and up to 12 tabs in one vault. Each pane stays at least 320 px wide; narrow windows scroll the reader workspace horizontally instead of silently closing a pane. The link graph remains a whole-workspace mode and preserves the open reader tabs when switching back.
+
+Reloading the vault restores surviving tabs, their selected pane/tab, and their search phrases. Tabs whose paths were deleted or renamed close; an empty pane stays available for another note. Reload and theme changes regenerate the documents and reset scroll positions and the current search match. The split ratio is retained when closing and reopening a pane in the same vault. Narrow windows temporarily clamp the widths to the 320 px minimum; the preferred ratio returns when space is available. Pane widths reset to equal on vault switches and app restarts; pane/tab state is not saved.
+
+
+### Folders and moving notes
+
+The sidebar starts at `notes/`; vault-root files and unrelated directories are not listed. Existing folders below `notes/`, including empty folders, appear in an indented tree with hierarchy guide lines and short folder names. Folder and note labels share the same typography and alignment. Collapsing a folder hides its entire subtree. Search and tag filters retain matching folders and their ancestors and temporarily expand them. Clearing filters restores the collapsed state.
+
+Right-click a folder and choose **新規フォルダ** to create a child folder. Folder and document icons distinguish directories from HTML notes. Open/closed folder icons indicate expansion without separate arrows. Long names stay on one line with an ellipsis; hover to see the full name. Right-click a folder (secondary click on a trackpad) and choose **名称変更** to rename it directly in its row. Press Enter to save or Escape to cancel. Keyboard users can open the folder menu with Shift+F10 or the Context Menu key. The `notes/` root cannot be renamed. Creating the first folder in an empty vault initializes `notes/`.
+
+Drag a note title onto a folder heading to move it there directly, including a folder just created in shiori. There is no per-file move button or destination modal. For keyboard access, focus a note and press Space, Tab to the destination folder, and press Enter; Escape cancels the selection.
+
+Moves retain the filename, original bytes, and note ID. Existing destination names are never overwritten. The backend checks the active vault, source hash, revision, and destination before renaming; stale state, excluded paths, symbolic links, and unsupported cross-filesystem moves are rejected. Folder renames preserve the contents and update open tabs for every descendant note.
+
+A file drop triggers static reference analysis and then the move. If links may change, a brief status message appears; no persistent reference report occupies the sidebar. No automatic link repair is performed, including during folder renames. Analysis covers common HTML URLs, srcset candidates, and embedded CSS URLs/imports, but is bounded and does not fully index dynamic references or references outside scanned HTML notes.
+
+Open tabs follow the new paths and retain their queries. Moved documents reload, resetting scroll and current search-match position. Folder groups, tag suggestions, and graph data update from the returned snapshot. Scan failures after a successful operation are reported as completed. Finder drag/drop, moving across filesystems, and automatic link repair remain outside this feature. Final validation does not lock out unrelated external filesystem changes.
+
+
+### Integrated terminal
+
+Select **>_** in the left rail to open an interactive shell inside shiori. Run `codex`, `claude`, or any other installed command yourself. There is no selected-note prompt, model picker, or tool-specific execution mode. The native PTY and locally bundled xterm.js support terminal input, ANSI output, Ctrl-C, and resizing.
+
+The shell starts in a vault-specific workspace under the app data directory's `terminal-workspaces/`. It contains `skills/`, `.claude/skills/`, `AGENTS.md`, and `CLAUDE.md`; the two instruction files name the currently selected vault as the default destination for HTML notes and point to the bundled authoring Skills. The workspace is distinct from the vault, so app helper files do not enter your notes repository. Claude discovers the project Skills under `.claude/skills/`; use `/shiori-notes`. Reopen the shell after updating shiori to refresh these files, and restart Claude if its command list has not refreshed. On upgrade, old generated `shiori-readable-notes` copies move into `retired-skills/` outside the discovery directories, preserving their contents. The shell also receives:
+
+| Variable | Value |
+| --- | --- |
+| `SHIORI_VAULT` | Absolute path of the current vault |
+| `SHIORI_SKILLS` | Absolute path of the workspace's Skills directory |
+
+For example, after starting an AI tool, ask it to “Create an HTML note about this topic in the configured vault using the provided Skills.” Tools that read [AGENTS.md](https://developers.openai.com/codex/guides/agents-md) or [CLAUDE.md](https://code.claude.com/docs/en/memory) can obtain the destination from those instructions. This is a default instruction, not a forced output redirection: arbitrary commands use their own paths, and tool sandbox/trust settings may require explicitly allowing access to the vault. The app does not automatically launch an AI tool or bypass its approvals.
+
+The user's default shell starts with its normal environment/login setup. Install and authenticate tools as usual. Hiding the panel preserves the shell; the **ⓘ** popover shows the full, copyable HTML destination and working directory. To end the shell, run `exit` at its prompt. After the shell exits or startup fails, use **シェルを再起動** in the terminal area to start a new session. Escape or an outside click dismisses the popover. Close the shell before switching vaults, then reopen it to receive the new destination. A normal vault refresh stays available while the terminal is open, and external edits trigger **更新を反映** without an automatic scroll reset.
+
+The terminal runs with your user privileges and can execute arbitrary commands; its cwd is not a filesystem sandbox. The reader iframe remains isolated from terminal IPC. On Unix, closing a session or quitting the app terminates the shell and foreground process group; intentionally detached jobs may survive, as in other terminals. Scrollback is limited to 2,000 lines and output delivery waits for renderer acknowledgements. shiori does not save terminal transcripts; shell history and CLI logs follow those tools' settings. Generated workspace files persist and are refreshed when opening a session; keep notes in the vault. Native operation is currently verified only through macOS PTY tests, with graphical TUI checks still pending.
+
+
+### Limitations and security model
+
+The reader can add and remove tags through an explicit save and move notes between folders by dragging, but does not edit body content. Commands in the terminal can edit source files. Global tag renaming, automatic link repair, navigation history, and Git synchronization are not implemented.
+
+Notes are served through a vault-scoped protocol after resolving paths and symlinks. A sandboxed iframe, Content Security Policy, and display-copy sanitization restrict scripts, forms, frames, and external resources. Original HTML remains unchanged. External links are currently disabled.
+
+These controls have backend tests, but full verification of external-communication and IPC blocking in the real WebView remains open in [#3](https://github.com/azpiero/shiori/issues/3).
+
+Other current limits:
+
+- Notes must be UTF-8 files with a lowercase `.html` extension. The file-size limit is 16 MiB.
+- Search uses one substring, without multi-term AND or regular expressions. List filtering ignores case; highlighting is case-sensitive and does not span HTML text nodes. At most 1,000 matches are marked per note.
+- Opening or refreshing a vault reparses all notes. Large vaults can be slow; see [#1](https://github.com/azpiero/shiori/issues/1).
+- Applying external changes or changing the theme resets document scroll positions in all open tabs.
+- Theme switching does not force arbitrary user HTML to adopt the app's colors.
+
+
+### Contribution checks
+
+For bugs, include macOS version, CPU architecture, reproduction steps, expected/actual behavior, and a small synthetic note. Avoid private vault data. For changes, describe user-visible behavior, run relevant tests, and record manual rendering/interaction checks. Discuss substantial architecture changes in an issue first.
