@@ -6,17 +6,7 @@ let graphMode=false,graphPage=0,graphScale=1,graphX=0,graphY=0,currentMatches=[]
 const metrics={uiReadyMs:0,scanMs:0};
 const $=s=>document.querySelector(s);
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-$('#app').innerHTML=`<header class="topbar">
-<div class="brand">
-<img class="logo" src="assets/shiori-icon.png" alt="" width="31" height="31">
-<strong>shiori</strong>
-</div>
-<div class="actions">
-<button id="open" class="primary">フォルダを開く</button>
-<button id="theme" title="ダークモード" aria-label="ダークモード" aria-pressed="false">◐</button>
-</div>
-</header>
-<div class="layout">
+$('#app').innerHTML=`<div class="layout">
 <nav class="view-nav" aria-label="表示モード">
 <button id="showNote" aria-label="ノート表示" title="ノート表示" aria-pressed="true" aria-controls="readerPanel">
 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -31,12 +21,14 @@ $('#app').innerHTML=`<header class="topbar">
 <circle cx="11" cy="19" r="3"/>
 </svg>
 </button>
+<button id="theme" title="ダークモード" aria-label="ダークモード" aria-pressed="false">◐</button>
 </nav>
 <aside class="sidebar">
 <div class="eyebrow">YOUR LIBRARY</div>
 <div class="vault-name">
 <span id="vaultName">Sample Vault</span>
 <div class="vault-actions">
+<button id="open" title="フォルダを開く" aria-label="フォルダを開く"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5h6l2 2h10v3M3 7h6l2 3h10l-3 10H3z"/></svg></button>
 <button id="reload" title="Vault全体を再読込" aria-label="Vault全体を再読込">↻</button>
 </div>
 </div>
