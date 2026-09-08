@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/shiori-logo.png" alt="shiori — 栞をモチーフにしたロゴ" width="240">
+</p>
+
 # shiori 表示試作
 
 Tauri 2＋Rust、sandbox付きiframeによるMac向けの表示試作です。HTMLの正本を変更せず、表示用コピーだけを加工します。
@@ -139,3 +143,7 @@ cargo run --manifest-path src-tauri/Cargo.toml --features custom-protocol
 AI向け記述規約は `skills/shiori-notes/SKILL.md` に同梱しています。AIへ「このSKILL.mdを読み、指定したVaultにノートを作成して」とパス付きで依頼できます。例：`skills/shiori-notes/SKILL.md に従い、../vault の既存タグを調べてRustの学習ノートを作って`。自動検出される場所へのインストールは行っていません。
 
 グラフのデータ検証は `node --test tests/graph.test.cjs` で実行できます。
+
+## ロゴ
+
+栞の形にSの曲線を合わせた、深緑のロゴを使用しています。文字付きロゴは `docs/assets/shiori-logo.png`、アプリアイコンは `src-tauri/icons/shiori.icns` です。アプリの画面内にも同じマークを使用しています。

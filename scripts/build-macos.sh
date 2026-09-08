@@ -18,6 +18,7 @@ macos = bundle/'Contents/MacOS'
 resources = bundle/'Contents/Resources'
 macos.mkdir(parents=True, exist_ok=True)
 resources.mkdir(parents=True, exist_ok=True)
+shutil.copy2(app/'src-tauri/icons/shiori.icns', resources/'shiori.icns')
 staged=macos/'shiori.new'
 shutil.copy2(target/'debug/shiori', staged)
 staged.replace(macos/'shiori')
@@ -28,7 +29,8 @@ info = {
     'CFBundleExecutable':'shiori', 'CFBundleIdentifier':'dev.takeru.shiori',
     'CFBundleName':'shiori', 'CFBundleDisplayName':'shiori',
     'CFBundlePackageType':'APPL', 'CFBundleShortVersionString':'0.1.0',
-    'CFBundleVersion':'1', 'NSHighResolutionCapable':True,
+    'CFBundleIconFile':'shiori.icns',
+    'CFBundleVersion':'2', 'NSHighResolutionCapable':True,
     'LSMinimumSystemVersion':'12.0'
 }
 (bundle/'Contents/Info.plist').write_bytes(plistlib.dumps(info))
