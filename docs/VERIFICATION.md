@@ -153,3 +153,12 @@ iframe方式を最初の検証対象として実装した。Text fragmentは比�
 - Rust tests: 8 passed, 1 opt-in benchmark ignored. Covered first launch, Japanese paths, settings round-trip without tokens, missing/non-directory/relative saved paths, invalid JSON/types, unreadable settings (directory in place of the file), failed writes, corrupt JSON repair, and preservation of unknown fields. Temporary test directories do not touch real app settings.
 - JavaScript tests: 29 passed, including warning visibility after note events/refresh and clearing after a successful folder selection. Syntax checks passed. macOS build, ad-hoc signing, and signature verification passed.
 - Native restart/folder-picker verification remains pending: Computer Use could not connect to shiori (`timeoutReached`, -10005). Manually verify restart restores the chosen vault, unavailable or permission-denied folders fall back with a warning, and another folder can be selected afterward.
+
+## Issue #17: Readable HTML note skill (2026-09-08)
+
+- Added `shiori-readable-notes` for prose and presentation, with mutual links to the vault-convention skill. Added a starter HTML asset, shared script-free CSS, and source/reuse notes. No upstream files or text were vendored.
+- Added the eighth bundled note, `notes/07-readable-notes.html`, using the new theme, local contents links, monochrome SVG, a three-column table, plain code, and native details/summary. The skill stylesheet and sample copy are identical.
+- Both skills passed the skill-creator validator (PyYAML installed only in a temporary validation environment). Sample UUID, unique IDs, relative assets/anchors, documentation links, and absence of CSS network dependencies passed checks.
+- Rust: 9 tests passed, 1 opt-in benchmark ignored. The new regression test passes the sample through `display_html` for light/dark/system, checks static components and local references, and verifies shared CSS consistency. The existing sample test checks all eight source files remain unchanged by rendering.
+- macOS build, ad-hoc signing, signature verification, and diff checks passed.
+- Native visual verification remains pending: Computer Use could not connect to shiori (`timeoutReached`, -10005). Open `sample-vault/` explicitly if startup restores a personal vault, then inspect “HTMLとCSSを分けてノートを育てる” in light/dark modes and a narrow split pane. Check diagram label legibility, table/code scrolling, contents links, keyboard focus, and disclosure behavior. Automated DOM checks do not establish visual correctness.

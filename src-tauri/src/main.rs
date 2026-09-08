@@ -255,11 +255,35 @@ mod tests {
     #[test] fn source_is_unchanged_and_highlight_is_escaped() {
         let source="<p>A&amp;B &lt;test&gt;</p>"; let (html,n)=display_html(source,&Url::parse("vault://localhost/token/x.html?q=A%26B").unwrap()); assert_eq!(n,1); assert!(html.contains("A&amp;B")); assert_eq!(source,"<p>A&amp;B &lt;test&gt;</p>");
     }
+    #[test] fn readable_sample_keeps_static_components_and_local_styles_after_sanitizing() {
+        let root=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sample-vault").canonicalize().unwrap();
+        let vault=Vault {root,token:"readable-test".into()};
+        let source=std::fs::read_to_string(vault.root.join("notes/07-readable-notes.html")).unwrap();
+        for theme in ["light","dark","system"] {
+            let uri=Url::parse(&format!("vault://localhost/readable-test/notes/07-readable-notes.html?theme={theme}&q=共有CSS")).unwrap();
+            let (html,hits)=display_html(&source,&uri);
+            let doc=kuchiki::parse_html().one(html);
+            assert!(hits>0);
+            assert_eq!(doc.select_first("html").unwrap().attributes.borrow().get("data-shiori-theme"),Some(theme));
+            for selector in ["svg title","svg desc","svg path","table caption","pre code","details summary"] {
+                assert!(doc.select_first(selector).is_ok(),"missing {selector}");
+            }
+            assert!(doc.select("script,iframe").unwrap().next().is_none());
+            for link in doc.select("link[href],a[href]").unwrap() {
+                let attrs=link.attributes.borrow();
+                let href=attrs.get("href").unwrap();
+                if let Some(id)=href.strip_prefix('#') {
+                    assert!(doc.select("[id]").unwrap().any(|node| node.attributes.borrow().get("id")==Some(id)));
+                } else { assert!(resolve(&vault,&uri.join(href).unwrap()).is_ok(),"unresolved {href}"); }
+            }
+        }
+        assert_eq!(std::fs::read(vault.root.join("styles/shiori-document.css")).unwrap(),include_bytes!("../../skills/shiori-readable-notes/assets/shiori-document.css"));
+    }
     #[test] fn sample_vault_is_readable_and_never_modified() {
         let root=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sample-vault").canonicalize().unwrap();
         let v=Vault{root:root.clone(),token:"test".into()};
         let files:Vec<_>=WalkDir::new(&root).follow_links(false).into_iter().filter_map(Result::ok).filter(|e|e.file_type().is_file()).map(|e|{let p=e.into_path();let b=std::fs::read(&p).unwrap();(p,b)}).collect();
-        let snapshot=scan(&v); assert_eq!(snapshot.notes.len(),7);assert!(snapshot.errors.is_empty());assert!(snapshot.notes.iter().any(|n|!n.links.is_empty()));
+        let snapshot=scan(&v); assert_eq!(snapshot.notes.len(),8);assert!(snapshot.errors.is_empty());assert!(snapshot.notes.iter().any(|n|!n.links.is_empty()));
         for note in &snapshot.notes {
             let mut u=Url::parse("vault://localhost/test/").unwrap();
             u.path_segments_mut().unwrap().pop_if_empty().extend(note.path.split('/'));

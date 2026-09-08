@@ -603,3 +603,11 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 - If settings are corrupt/unreadable or the saved folder is missing/unreadable, show a persistent sidebar warning and open the samples without overwriting the saved preference. A later explicit selection repairs invalid JSON.
 - Write settings through a temporary file and rename. Report write failures without preventing use of the selected vault.
 - Pane/tab state remains session-only. Theme storage is unchanged.
+
+## Readable HTML notes (Issue #17)
+
+- Keep `shiori-notes` responsible for vault destination, metadata, stable IDs, tags, and relative links. `shiori-readable-notes` handles explanation structure and document styling. Neither skill installs itself or authorizes Git operations.
+- Distribute shared CSS and a starter HTML file as skill assets. Copy CSS into a vault's `styles/` directory; inspect existing user styles before updating them. Maintain an identical sample-vault copy and one demonstration note.
+- Use local assets, OS fonts, static SVG and plain escaped code. Simple math uses text/sub/sup; complex math needs a local static asset and a textual equivalent. Do not rely on MathJax, Highlight.js, scripts, external fonts, or external navigation.
+- Respect explicit viewer theme attributes, follow system preference otherwise, and support narrow panes with wrapping prose and scrollable code/tables.
+- Keep editorial source links and reviewed revisions with reuse decisions. Refer to the Japanese writing guides without bundling their text; they are optional references rather than required installed skills.

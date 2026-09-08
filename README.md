@@ -84,19 +84,21 @@ Reloading the vault restores surviving tabs, their selected pane/tab, and their 
 
 1. Choose a vault folder, separate from the application source.
 2. Give your AI assistant the path to the bundled [shiori-notes Skill](skills/shiori-notes/SKILL.md) and the target vault.
-3. Ask it to create or update HTML notes. The Skill describes existing-tag reuse, generated UUIDs, stable heading IDs, relative links, and local assets.
+3. For structured explanations and shared document styling, also provide [shiori-readable-notes](skills/shiori-readable-notes/SKILL.md). Ask it to create or update HTML notes. The Skill describes existing-tag reuse, generated UUIDs, stable heading IDs, relative links, and local assets.
 4. Open the folder in shiori, or apply the external-change notification to read the updated files.
 5. Review the changes and commit or sync the vault using your usual Git tools.
 
 Example prompt, from the application repository:
 
 ```text
-Read skills/shiori-notes/SKILL.md and follow it to create a note about Rust
-ownership in ../vault. Check related notes and existing tags first, reuse
+Read skills/shiori-notes/SKILL.md and skills/shiori-readable-notes/SKILL.md.
+Follow them to create a note about Rust ownership in ../vault. Check related notes and existing tags first, reuse
 relevant tags, and link to existing notes where useful. Write the note in English.
 ```
 
-The Skill is included as a file; it is not automatically installed into an AI tool. Use an assistant that can read the Skill and edit files in your chosen vault. shiori itself does not call an AI service, edit notes, or run Git commands. Commit and push are separate actions you request from your tools.
+These Skills are included as files; they are not automatically installed into an AI tool. Use an assistant that can read the Skill and edit files in your chosen vault. shiori itself does not call an AI service, edit notes, or run Git commands. Commit and push are separate actions you request from your tools.
+
+The readability Skill includes a [starter HTML file](skills/shiori-readable-notes/assets/note.html) and [shared CSS](skills/shiori-readable-notes/assets/shiori-document.css) to copy into the vault. It uses OS fonts, static SVG, plain code, and explicit light/dark theme hooks without scripts or remote dependencies. The [eighth sample note](sample-vault/notes/07-readable-notes.html) demonstrates the style. Editorial sources and reuse decisions are documented in [sources.md](skills/shiori-readable-notes/references/sources.md).
 
 A vault can be its own Git repository. For example, after creating a new vault:
 
@@ -148,7 +150,7 @@ cd app
 cargo run --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
 ```
 
-On first launch, the app opens seven bundled sample notes. Subsequent launches restore the last folder you selected. Use the folder icon next to reload in the sidebar (**フォルダを開く** / Open folder) to open your vault, the graph icon in the left navigation rail to explore tags, and **更新を反映** (Apply updates) after editing notes externally. To return to the samples, open `sample-vault/` through the folder picker. The theme toggle sits at the bottom of the left navigation rail; there is no app header above the workspace.
+On first launch, the app opens eight bundled sample notes. Subsequent launches restore the last folder you selected. Use the folder icon next to reload in the sidebar (**フォルダを開く** / Open folder) to open your vault, the graph icon in the left navigation rail to explore tags, and **更新を反映** (Apply updates) after editing notes externally. To return to the samples, open `sample-vault/` through the folder picker. The theme toggle sits at the bottom of the left navigation rail; there is no app header above the workspace.
 
 The canonical vault path is stored as `last_vault` in `settings.json` under Tauri's app configuration directory (on macOS, `~/Library/Application Support/dev.takeru.shiori/`). Vault tokens and reader tabs are not stored. If the saved folder is unavailable or settings cannot be read, the app opens the samples and displays the reason in the sidebar. The saved path is retained so a temporarily disconnected volume can be restored on a later launch. Selecting another folder replaces it; a settings write failure is shown without preventing the folder from opening. To reset the remembered folder, quit the app and remove `settings.json`. Theme preferences remain in local storage.
 
@@ -205,8 +207,9 @@ shiori-workspace/
 │   ├── ui/                 # HTML/CSS/JavaScript interface and graph
 │   ├── src-tauri/          # Rust backend, Tauri config, icons, Cargo.lock
 │   ├── skills/
-│   │   └── shiori-notes/   # Instructions for AI-assisted note authoring
-│   ├── sample-vault/       # Seven demonstration and test notes
+│   │   ├── shiori-notes/   # Vault metadata and file conventions
+│   │   └── shiori-readable-notes/ # Writing guidance, CSS, and HTML template
+│   ├── sample-vault/       # Eight demonstration and test notes
 │   ├── fixtures/           # Test assets, including vault-boundary fixtures
 │   ├── tests/              # JavaScript graph tests
 │   ├── scripts/            # macOS packaging and benchmark tools

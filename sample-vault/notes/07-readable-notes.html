@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HTMLとCSSを分けてノートを育てる</title>
+  <meta name="note-id" content="3bdf7583-69bf-40b9-8573-beff9f8e84bc">
+  <meta name="note-tag" content="ガイド">
+  <meta name="note-tag" content="設計">
+  <link rel="stylesheet" href="../styles/shiori-document.css">
+</head>
+<body>
+<main class="document">
+  <h1 id="overview">HTMLとCSSを分けてノートを育てる</h1>
+  <p class="lead">本文はHTMLに、複数のノートで使う文字や余白の指定は共有CSSに置く。
+  同じCSSを参照すれば、一つのファイルの変更でノート全体の読み心地を調整できる。</p>
+  <nav class="contents" aria-label="目次">
+    <strong>目次</strong>
+    <ol>
+      <li><a href="#shared-style">共有する範囲を決める</a></li>
+      <li><a href="#example">一つのノートから始める</a></li>
+      <li><a href="#limits">変更が届く範囲を確かめる</a></li>
+    </ol>
+  </nav>
+  <section aria-labelledby="shared-style">
+    <h2 id="shared-style">共有する範囲を決める</h2>
+    <p>ノートには見出し、段落、図の説明といった内容のまとまりがある。
+    HTMLでその役割を示しておくと、CSSで見出しの大きさや段落の間隔をまとめて指定できる。
+    複数のHTMLから参照するスタイル定義のファイルを、ここでは<strong>共有CSS</strong>と呼ぶ。</p>
+    <p>共有するのは繰り返し使う指定に絞る。
+    本文の幅やリンクの色は揃えやすいが、特定の図だけに必要な配置まで共通化すると、別の図にも影響が及ぶ。
+    図固有の調整は、そのノートで使うクラスに限定する。</p>
+    <figure class="diagram">
+      <svg viewBox="0 0 300 220" role="img" aria-labelledby="diagram-title diagram-desc">
+        <title id="diagram-title">二つのHTMLが一つのCSSを参照する</title>
+        <desc id="diagram-desc">上段にノートAとノートB、下段に共有CSSがあり、それぞれのノートから共有CSSへ線がつながる。</desc>
+        <g fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="10" y="15" width="125" height="55" rx="4"/>
+          <rect x="165" y="15" width="125" height="55" rx="4"/>
+          <path d="M72 70v35h78v45M228 70v35h-78"/>
+          <rect x="75" y="150" width="150" height="55" rx="4"/>
+        </g>
+        <text x="72" y="49" text-anchor="middle">ノートA</text>
+        <text x="228" y="49" text-anchor="middle">ノートB</text>
+        <text x="150" y="184" text-anchor="middle">共有CSS</text>
+      </svg>
+      <figcaption>図1：線はCSSの参照関係を表す。
+      ノート同士をリンクで結ぶ関係とは別に、体裁を共有できる。</figcaption>
+    </figure>
+  </section>
+  <section aria-labelledby="example">
+    <h2 id="example">一つのノートから始める</h2>
+    <p>ノートをVaultの<code>notes/</code>に保存する場合、共有CSSは<code>styles/</code>に配置できる。
+    次の指定では、HTMLのあるディレクトリから一つ上に戻り、CSSのファイルを参照する。</p>
+    <pre tabindex="0" aria-label="CSSを読み込むHTML"><code>&lt;link rel="stylesheet" href="../styles/shiori-document.css"&gt;</code></pre>
+    <ol>
+      <li>共有CSSを配置し、ノートのheadから相対パスで参照する。</li>
+      <li>見出しと段落を書き、ライトとダークの両方で本文を読む。</li>
+      <li>別のノートにも同じCSSへの参照を追加する。</li>
+    </ol>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="保存先の比較">
+      <table>
+        <caption>内容と体裁の保存先</caption>
+        <thead><tr><th scope="col">対象</th><th scope="col">保存先</th><th scope="col">変更例</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">本文</th><td>個別のHTML</td><td>具体例を追加する</td></tr>
+          <tr><th scope="row">共通の体裁</th><td>共有CSS</td><td>段落の間隔を広げる</td></tr>
+          <tr><th scope="row">図の配置</th><td>個別の図</td><td>ラベルの位置を直す</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section aria-labelledby="limits">
+    <h2 id="limits">変更が届く範囲を確かめる</h2>
+    <p>共有CSSを変えると、それを参照するすべてのノートの表示が変わる。
+    <span class="accent">既存のCSSを置き換える前に、利用中のノートを確認する。</span>
+    広い画面で収まる図や表でも、分割した狭いペインでは文字が読みにくくなる場合がある。</p>
+    <aside class="note" aria-label="表示上の制約">
+      <p>shioriではノート内のJavaScriptを実行しない。
+      このノートの目次、図、表、折りたたみはHTMLとCSSだけで表示し、外部フォントも読み込まない。</p>
+    </aside>
+    <details>
+      <summary>数式を残したい場合</summary>
+      <p>単純な式は<code>y = x</code><sup>2</sup>のように本文中に書ける。
+      複雑な式はローカル画像として用意し、同じ意味を伝えるテキストと元の記法を併記する。
+      LaTeXの記法を置くだけでは数式として描画されない。</p>
+    </details>
+    <p>CSSを書き換えた後の操作は、<a href="06-%E6%9B%B4%E6%96%B0%E3%81%AE%E7%A2%BA%E8%AA%8D.html">外部編集を反映する</a>を参照する。
+    Gitで管理する場合は、本文と共有CSSの両方の差分を確認すると、内容の変更と表示の変更を追跡できる。</p>
+  </section>
+</main>
+</body>
+</html>

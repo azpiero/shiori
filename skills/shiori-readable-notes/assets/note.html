@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{TITLE}}</title>
+  <meta name="note-id" content="{{NEW_UUID}}">
+  <meta name="note-tag" content="{{EXISTING_TAG}}">
+  <link rel="stylesheet" href="../styles/shiori-document.css">
+</head>
+<body>
+<main class="document">
+  <h1 id="overview">{{TITLE}}</h1>
+  <p class="lead">{{RESULT_AND_SCOPE}}</p>
+  <!-- Remove the contents list for a short note; retain stable IDs when editing. -->
+  <nav class="contents" aria-label="Contents">
+    <strong>Contents</strong>
+    <ol>
+      <li><a href="#reasoning">{{REASONING_HEADING}}</a></li>
+      <li><a href="#example">{{EXAMPLE_HEADING}}</a></li>
+      <li><a href="#limits">{{LIMITS_HEADING}}</a></li>
+    </ol>
+  </nav>
+  <section aria-labelledby="reasoning">
+    <h2 id="reasoning">{{REASONING_HEADING}}</h2>
+    <p>{{CONTEXT_AND_REASONING}}</p>
+  </section>
+  <section aria-labelledby="example">
+    <h2 id="example">{{EXAMPLE_HEADING}}</h2>
+    <p>{{WORKED_EXAMPLE}}</p>
+  </section>
+  <section aria-labelledby="limits">
+    <h2 id="limits">{{LIMITS_HEADING}}</h2>
+    <p>{{LIMITS_AND_EVIDENCE}}</p>
+  </section>
+</main>
+</body>
+</html>
