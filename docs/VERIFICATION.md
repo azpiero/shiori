@@ -239,3 +239,10 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - Syntax and diff checks passed. macOS build and signature verification passed. Native WKWebView interaction remains a manual check.
 
 - Follow-up: pane-frame +/− icons replace toolbar text; visible pane labels are removed. Tooltips and accessible names remain. Re-ran all 59 JavaScript tests, browser checks and the macOS build.
+
+## Issue #33: HTML link graph (2026-09-09)
+
+- JavaScript: 61 tests passed. Covers link deduplication, isolated nodes, Unicode/encoding and vault boundaries, unresolved versus filtered-out targets, 10,000-node inclusion, deterministic layout, hidden/obsolete layout cancellation, keyboard opening and graph state retention.
+- Rust: 30 tests passed; one opt-in benchmark ignored. Added anchor extraction/entity decoding and source-byte preservation coverage.
+- Headless Chromium with mocked IPC verified Canvas rendering, link/error counts, keyboard opening, zoom retention after returning from a note, light/dark themes and large graph layout. Performance reproduction and measured frame intervals are recorded in PERFORMANCE.md.
+- Syntax/diff checks and macOS build/signature verification passed. Native WKWebView graph performance remains a manual check; Chromium timing does not establish native frame rates.

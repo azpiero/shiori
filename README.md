@@ -24,7 +24,7 @@ Earlier macOS prototype showing the bundled sample vault in dark mode. These scr
 
 | Read HTML notes | Explore shared tags |
 | --- | --- |
-| ![shiori displaying a sample HTML note with a local image](docs/assets/screenshot-reader.jpg) | ![shiori displaying the sample vault as a graph of notes and tags](docs/assets/screenshot-graph.jpg) |
+| ![shiori displaying a sample HTML note with a local image](docs/assets/screenshot-reader.jpg) | ![shiori displaying the sample vault in the earlier tag-graph interface](docs/assets/screenshot-graph.jpg) |
 
 ## Features
 
@@ -32,15 +32,19 @@ Earlier macOS prototype showing the bundled sample vault in dark mode. These scr
 - Read HTML with local images, tables, shared CSS, and note-specific styles.
 - Compare notes in two side-by-side panes, each with its own tabs and document search.
 - Move between highlighted matches independently in each tab.
-- Explore a graph connecting notes to their tags. Select a tag to filter or a note to read it.
+- Explore HTML links between notes, including isolated notes. Select a node to read it.
 - Browse notes grouped by folder and hover over a note title to see its path. Tags appear below each reader pane’s tab bar; tag names filter the sidebar without leaving the reader. Use × or ＋ to prepare a tag edit.
 - Switch between light and dark themes and resize the sidebar.
 - Reload the entire vault from the button beside its name, or apply an external-change notification.
 - Expand the sidebar’s read-error details to see which files could not be loaded and why.
 
-Use the square icon buttons in the left navigation rail to switch between notes and the tag graph. Returning from a note preserves the graph page, zoom, and pan. Changing the search or tag filter, opening a vault, or refreshing its contents resets graph exploration; switching pages resets zoom and pan. A note excluded by the active filters remains identified in a compact sidebar section.
+Use the square icon buttons in the left navigation rail to switch between notes and the link graph. Returning from a note preserves graph layout, zoom, and pan. Changing the search or tag filter, opening a vault, or refreshing its contents resets graph exploration. A note excluded by the active filters remains identified in a compact sidebar section.
 
-The graph displays up to 150 notes per page, follows the current search and tag filter, and supports zoom, pan, and keyboard selection. Its edges represent tag membership; hierarchical tag names use exact matching, and HTML links do not create graph edges.
+The Canvas graph displays all matching notes without pagination. Lines represent internal HTML links; reciprocal links and multiple anchors to the same note share one undirected edge. Tags remain search filters and do not create edges. Isolated notes are retained. Hover to see a title, click to open, or focus the graph and use arrow keys/Home/End to select a note and Enter to open it. Modifier keys retain the sidebar's new-tab and adjacent-pane behavior.
+
+Relative HTML links resolve against the source note path, including percent-encoded names and unambiguous NFC Unicode fallback. External URLs, assets, styles and self-links do not create edges. The reader strips HTML `base` elements, so they also do not affect graph resolution. The summary counts unresolved local HTML references from matching notes (unique hrefs per source); destinations merely hidden by filters are not counted as broken. Links are not repaired automatically.
+
+A deterministic local-force layout advances across 60 animation frames and pauses while hidden. Hundreds to a few thousand notes are the primary target; all 10,000 notes remain visible, but dense large graphs can render below 60 fps. See [graph performance measurements](docs/PERFORMANCE.md).
 
 ## Search by text and tag
 
@@ -57,11 +61,11 @@ Tags use case-sensitive exact matching: `tag: 開発` does not include `開発/I
 
 Type `tag:` to see up to eight matching tag suggestions. Use ↑/↓ and Enter to insert a suggestion, Escape to dismiss, or click a candidate. Enter with no candidate selected opens the first matching note. Quoted tag names support JSON escapes such as `\"` and `\\`; names beginning with `tag:` must also be quoted. Empty clauses and unclosed quotes are ignored until completed; a complete but unknown tag returns no matches. IME composition is applied after confirmation.
 
-The search field is the source of filter state. Selecting a tag in the graph or a reader pane's tag-name button replaces the tag clauses with that tag while preserving free text. Remove the `tag:` clause to clear its filter.
+The search field is the source of filter state. Selecting a reader pane's tag-name button replaces the tag clauses with that tag while preserving free text. Remove the `tag:` clause to clear its filter.
 
 ## Read with panes and tabs
 
-Each pane shows the tags of its selected tab below the tab bar, or **タグなし** for an untagged note. Empty tabs have no tag row. Many tags wrap within a bounded, scrollable row. The sidebar groups note titles by folder and includes a reminder for a current note outside the filter; discover tags through `tag:` suggestions or the graph. Use **×** beside a tag to prepare its removal, or **＋** to open the tag editor. Existing tags are suggested as you type; choose **追加** (Add) to add the input to the draft, then **保存** (Save) to write the changes. **取消** (Cancel) or Escape discards the draft. Tag-name clicks only filter and never write a file. Use the navigation rail to open the graph.
+Each pane shows the tags of its selected tab below the tab bar, or **タグなし** for an untagged note. Empty tabs have no tag row. Many tags wrap within a bounded, scrollable row. The sidebar groups note titles by folder and includes a reminder for a current note outside the filter; discover tags through `tag:` suggestions. Use **×** beside a tag to prepare its removal, or **＋** to open the tag editor. Existing tags are suggested as you type; choose **追加** (Add) to add the input to the draft, then **保存** (Save) to write the changes. **取消** (Cancel) or Escape discards the draft. Tag-name clicks only filter and never write a file. Use the navigation rail to open the graph.
 
 Edits change only `meta[name="note-tag"]` elements in an explicit HTML head. Other source bytes are retained. Supported notes are UTF-8, at most 16 MiB, with unambiguous head markup; malformed or unsupported head structures, read-only files, and symlink targets are rejected. A note can have up to 128 exact, case-sensitive tags, each at most 256 UTF-8 bytes without control characters. Empty or whitespace-only tags are rejected; duplicate values are removed.
 
@@ -84,7 +88,7 @@ At most two panes are available. Adding a pane is disabled while split. If the l
 
 Tab switches keep the existing sandboxed iframe attached, preserving its document scroll and search state. With focus on a tab title, use ←/→ or Home/End to switch tabs and Delete to close one. The buttons are reachable by Tab. Keyboard events inside the sandboxed note do not reach the app: move focus back to the app controls to use tab commands. Modifier-click handling inside note HTML is not available. To open another note in a new tab or beside the current note, use ⌘/Ctrl-click or Shift-click respectively on its sidebar list entry or graph node.
 
-This first version supports two horizontal panes and up to 12 tabs in one vault. Each pane stays at least 320 px wide; narrow windows scroll the reader workspace horizontally instead of silently closing a pane. The tag graph remains a whole-workspace mode and preserves the open reader tabs when switching back.
+This first version supports two horizontal panes and up to 12 tabs in one vault. Each pane stays at least 320 px wide; narrow windows scroll the reader workspace horizontally instead of silently closing a pane. The link graph remains a whole-workspace mode and preserves the open reader tabs when switching back.
 
 Reloading the vault restores surviving tabs, their selected pane/tab, and their search phrases. Tabs whose paths were deleted or renamed close; an empty pane stays available for another note. Reload and theme changes regenerate the documents and reset scroll positions and the current search match. The split ratio is retained when closing and reopening a pane in the same vault. Narrow windows temporarily clamp the widths to the 320 px minimum; the preferred ratio returns when space is available. Pane widths reset to equal on vault switches and app restarts; pane/tab state is not saved.
 
@@ -189,7 +193,7 @@ cd app
 cargo run --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
 ```
 
-On first launch, the app opens eight bundled sample notes. Subsequent launches restore the last folder you selected. Use the folder icon next to reload in the sidebar (**フォルダを開く** / Open folder) to open your vault, the graph icon in the left navigation rail to explore tags, and **更新を反映** (Apply updates) after editing notes externally. To return to the samples, open `sample-vault/` through the folder picker. The theme toggle sits at the bottom of the left navigation rail; there is no app header above the workspace.
+On first launch, the app opens eight bundled sample notes. Subsequent launches restore the last folder you selected. Use the folder icon next to reload in the sidebar (**フォルダを開く** / Open folder) to open your vault, the graph icon in the left navigation rail to explore note links, and **更新を反映** (Apply updates) after editing notes externally. To return to the samples, open `sample-vault/` through the folder picker. The theme toggle sits at the bottom of the left navigation rail; there is no app header above the workspace.
 
 The canonical vault path is stored as `last_vault` in `settings.json` under Tauri's app configuration directory (on macOS, `~/Library/Application Support/dev.takeru.shiori/`). Vault tokens and reader tabs are not stored. If the saved folder is unavailable or settings cannot be read, the app opens the samples and displays the reason in the sidebar. The saved path is retained so a temporarily disconnected volume can be restored on a later launch. Selecting another folder replaces it; a settings write failure is shown without preventing the folder from opening. To reset the remembered folder, quit the app and remove `settings.json`. Theme preferences remain in local storage.
 
@@ -220,7 +224,7 @@ node --check ui/workspace.js
 node --check ui/reader.js
 ```
 
-The Rust suite covers vault boundaries, HTML sanitization, and preservation of source files. JavaScript tests cover tag syntax and suggestions, tag membership, graph pagination, pane routing, tab lifetime, and navigation/search state using a small DOM/Tauri adapter. They do not verify native WebView rendering or layout. The performance benchmark is an opt-in ignored Rust test; see [performance measurements and reproduction steps](docs/PERFORMANCE.md).
+The Rust suite covers vault boundaries, HTML sanitization, and preservation of source files. JavaScript tests cover tag syntax and suggestions, HTML link resolution, graph layout, pane routing, tab lifetime, and navigation/search state using a small DOM/Tauri adapter. They do not verify native WebView rendering or layout. The performance benchmark is an opt-in ignored Rust test; see [performance measurements and reproduction steps](docs/PERFORMANCE.md).
 
 ## Technology stack
 
@@ -228,7 +232,7 @@ The Rust suite covers vault boundaries, HTML sanitization, and preservation of s
 | --- | --- |
 | Desktop shell | Tauri 2 with a Rust backend |
 | macOS rendering | System WKWebView, with a sandboxed iframe for notes |
-| Interface | Plain HTML, CSS, and JavaScript; SVG for the tag graph |
+| Interface | Plain HTML, CSS, and JavaScript; Canvas 2D for the link graph |
 | HTML processing | `kuchiki` for parsing and display-copy transformation |
 | Files and metadata | `walkdir`, `serde`, `serde_json`, URL and Unicode utilities |
 | Storage | Local HTML files and assets; extracted text held in memory |

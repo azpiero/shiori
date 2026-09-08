@@ -22,7 +22,7 @@ struct State { vault: Mutex<Option<Vault>> }
 #[derive(Serialize)]
 struct Heading { id: String, text: String }
 #[derive(Serialize)]
-struct Note { path: String, title: String, tags: Vec<String>, headings: Vec<Heading>, text: String, size: u64, source_hash: String }
+struct Note { path: String, title: String, tags: Vec<String>, headings: Vec<Heading>, links: Vec<String>, text: String, size: u64, source_hash: String }
 #[derive(Serialize)]
 struct Snapshot { warnings: Vec<String>, root: String, token: String, folders: Vec<String>, notes: Vec<Note>, errors: Vec<String>, revision: String, scan_ms: u128 }
 fn current(state: &State) -> Result<Vault, String> { state.vault.lock().map_err(|_| "state error")?.clone().ok_or("Vaultが未選択です".into()) }
@@ -47,8 +47,9 @@ fn parse_note(path: &Path, root: &Path) -> Result<Note,String> {
     let tags = doc.select("meta[name='note-tag']").unwrap().filter_map(|n| n.attributes.borrow().get("content").map(String::from)).collect();
     let headings = doc.select("h1[id],h2[id],h3[id],h4[id],h5[id],h6[id]").unwrap().map(|n| Heading { id:n.attributes.borrow().get("id").unwrap_or("").to_string(), text:n.text_contents() }).collect();
     for n in doc.select("script,style,template,noscript").unwrap().collect::<Vec<_>>() { n.as_node().detach(); }
+    let links = doc.select("a[href]").unwrap().filter_map(|n| n.attributes.borrow().get("href").map(String::from)).collect();
     let text = doc.select_first("body").map(|n| n.text_contents()).unwrap_or_default();
-    Ok(Note { path:path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().into(), title, tags, headings, text, size:meta.len(), source_hash })
+    Ok(Note { path:path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().into(), title, tags, headings, links, text, size:meta.len(), source_hash })
 }
 fn scan(vault: &Vault) -> Snapshot {
     let start = Instant::now(); let mut notes = Vec::new(); let mut folders = Vec::new(); let mut errors = Vec::new();
@@ -238,6 +239,17 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test] fn scan_collects_decoded_anchor_links_without_modifying_source() {
+        let root = std::env::temp_dir().join(format!("shiori-links-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("a.html");
+        let source = "<html><head><title>A</title></head><body><a href='b.html?x=1&amp;y=2#h'>B</a><a href='https://example.com'>External</a><img src='image.png'><template><a href='hidden.html'>Hidden</a></template></body></html>";
+        std::fs::write(&path, source).unwrap();
+        let note = parse_note(&path, &root).unwrap();
+        assert_eq!(note.links, vec!["b.html?x=1&y=2#h", "https://example.com"]);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), source);
+        std::fs::remove_dir_all(root).unwrap();
+    }
     #[test] fn display_removes_active_content_and_preserves_text() {
         let source="<html><head><meta http-equiv='refresh' content='0;url=https://example.com'></head><body onload='evil()'><script>evil()</script><iframe src='https://example.com'></iframe><a href='javascript:evil()'>外部</a><p>日本語の検索</p></body></html>";
         let (out,hits)=display_html(source,&Url::parse("vault://localhost/token/n.html?q=検索").unwrap());
