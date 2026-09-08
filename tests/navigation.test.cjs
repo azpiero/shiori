@@ -5,6 +5,9 @@ const vm=require('node:vm');
 const {build}=require('../ui/graph.js');
 const ShioriSearch=require('../ui/search.js');
 const ShioriReader=require('../ui/reader.js');
+const {create:terminalCreate}=require('../ui/terminal.js');
+const terminalStub=require('./terminal-stub.cjs');
+const ShioriTerminal={create:options=>terminalCreate({...options,...terminalStub})};
 const {createDocument}=require('./dom.cjs');
 
 // Exercise app event handlers with a small DOM/Tauri adapter. These checks do not
@@ -15,7 +18,7 @@ async function setup(initialErrors=[],initialWarnings=[]){
  const notes=Array.from({length:160},(_,i)=>({path:`notes/${i}.html`,title:`Note ${i}`,text:'knowledge',tags:[i%2?'odd':'even'],headings:[]}));
  const vault={root:'/test/vault',token:'test-token',revision:'r1',notes,errors:initialErrors,warnings:initialWarnings,scan_ms:1};
  refreshResult=vault;
- const context=vm.createContext({document,URL,performance,ShioriSearch,ShioriReader,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(){},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
+ const context=vm.createContext({document,URL,performance,ShioriSearch,ShioriReader,ShioriTerminal,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(){},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(name==='terminal_start')return {cwd:'/test/workspace',vault:vault.root};if(name==='terminal_stop')return;if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
  const run=code=>vm.runInContext(code,context);
  run(fs.readFileSync(require.resolve('../ui/app.js'),'utf8'));
  await new Promise(resolve=>setImmediate(resolve));
@@ -168,4 +171,17 @@ test('reader tags open the graph from their own pane and preserve free text and 
  get('#showNote').onclick();
  assert.equal(frame.src,src);assert.equal(run('reader.model.panes[1].tabs[0].path'),'notes/1.html');
  assert.equal(run('reader.model.panes[1].tabs[0].query'),'knowledge');
+});
+
+
+test('terminal keeps refresh available and binds context to the vault rather than the selected note',async()=>{
+ const {run,get,calls,events,vault}=await setup();
+ await run('terminalPanel.initialized');await get('#showTerminal').onclick();
+ const args=calls.find(c=>c.name==='terminal_start').args;
+ assert.equal(args.vaultToken,vault.token);assert.equal(args.path,undefined);
+ assert.equal(get('#open').disabled,true);assert.equal(get('#reload').disabled,false);
+ const before=calls.length;await run('load("/other")');assert.equal(calls.length,before);
+ await run('refresh()');assert.equal(calls.filter(c=>c.name==='refresh_vault').length,1);
+ events.get('terminal-output')({payload:{session_id:args.sessionId,exit:true,message:'done'}});
+ assert.equal(get('#open').disabled,false);assert.equal(run('changed'),true);
 });

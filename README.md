@@ -16,7 +16,7 @@ A local HTML knowledge library. Let an AI assistant write and update your notes,
 
 Your vault is a folder of ordinary HTML, CSS, and images. HTML files remain the source of truth: shiori reads them without rewriting the originals, preserving the layouts, tables, and illustrations that make each note useful.
 
-**Status:** early, read-only desktop prototype for macOS. The interface and bundled sample notes are currently in Japanese.
+**Status:** early desktop prototype for macOS, with a read-only viewer and an integrated terminal. The interface and bundled sample notes are currently in Japanese.
 
 ## Screenshots
 
@@ -98,7 +98,7 @@ Follow them to create a note about Rust ownership in ../vault. Check related not
 relevant tags, and link to existing notes where useful. Write the note in English.
 ```
 
-These Skills are included as files; they are not automatically installed into an AI tool. Use an assistant that can read the Skill and edit files in your chosen vault. shiori itself does not call an AI service, edit notes, or run Git commands. Commit and push are separate actions you request from your tools.
+These Skills are included as files; they are not automatically installed into an AI tool. Use an assistant that can read the Skill and edit files in your chosen vault. The viewer does not edit notes. The integrated terminal runs your shell; you choose whether to start Codex, Claude, Git, or other installed tools. Those commands may edit files or contact external services. Commit and push are separate actions you request from your tools.
 
 The readability Skill includes a [starter HTML file](skills/shiori-readable-notes/assets/note.html) and [shared CSS](skills/shiori-readable-notes/assets/shiori-document.css) to copy into the vault. It uses OS fonts, static SVG, plain code, and explicit light/dark theme hooks without scripts or remote dependencies. The [eighth sample note](sample-vault/notes/07-readable-notes.html) demonstrates the style. Editorial sources and reuse decisions are documented in [sources.md](skills/shiori-readable-notes/references/sources.md).
 
@@ -112,6 +112,23 @@ git -C ../vault diff
 ```
 
 Configure a remote and push with your Git client when you want to sync. The vault repository is independent of this app repository; no submodule is required.
+
+## Integrated terminal
+
+Select **>_** in the left rail to open an interactive shell inside shiori. Run `codex`, `claude`, or any other installed command yourself. There is no selected-note prompt, model picker, or tool-specific execution mode. The native PTY and locally bundled xterm.js support terminal input, ANSI output, Ctrl-C, and resizing.
+
+The shell starts in a vault-specific workspace under the app data directory's `terminal-workspaces/`. It contains `skills/`, `.claude/skills/`, `AGENTS.md`, and `CLAUDE.md`; the two instruction files name the currently selected vault as the default destination for HTML notes and point to the bundled authoring Skills. The workspace is distinct from the vault, so app helper files do not enter your notes repository. Claude discovers the project Skills under `.claude/skills/`; use `/shiori-readable-notes` or `/shiori-notes`. Reopen the shell after updating shiori to refresh these files, and restart Claude if its command list has not refreshed. The shell also receives:
+
+| Variable | Value |
+| --- | --- |
+| `SHIORI_VAULT` | Absolute path of the current vault |
+| `SHIORI_SKILLS` | Absolute path of the workspace's Skills directory |
+
+For example, after starting an AI tool, ask it to “Create an HTML note about this topic in the configured vault using the provided Skills.” Tools that read [AGENTS.md](https://developers.openai.com/codex/guides/agents-md) or [CLAUDE.md](https://code.claude.com/docs/en/memory) can obtain the destination from those instructions. This is a default instruction, not a forced output redirection: arbitrary commands use their own paths, and tool sandbox/trust settings may require explicitly allowing access to the vault. The app does not automatically launch an AI tool or bypass its approvals.
+
+The user's default shell starts with its normal environment/login setup. Install and authenticate tools as usual. Hiding the panel preserves the shell; **シェルを終了** ends it, and **シェルを起動** opens a new session. Close the shell before switching vaults, then reopen it to receive the new destination. A normal vault refresh stays available while the terminal is open, and external edits trigger **更新を反映** without an automatic scroll reset.
+
+The terminal runs with your user privileges and can execute arbitrary commands; its cwd is not a filesystem sandbox. The reader iframe remains isolated from terminal IPC. On Unix, closing a session or quitting the app terminates the shell and foreground process group; intentionally detached jobs may survive, as in other terminals. Scrollback is limited to 2,000 lines and output delivery waits for renderer acknowledgements. shiori does not save terminal transcripts; shell history and CLI logs follow those tools' settings. Generated workspace files persist and are refreshed when opening a session; keep notes in the vault. Native operation is currently verified only through macOS PTY tests, with graphical TUI checks still pending.
 
 ## Supported operating systems
 
@@ -228,7 +245,7 @@ The `notes/`, `assets/`, and `styles/` layout is the Skill's default for a new v
 
 ## Limitations and security model
 
-This prototype is read-only. In-app editing, automatic link repair, navigation history, and Git synchronization are not implemented.
+The viewer is read-only; commands in the terminal can edit source files. Direct tag editing, automatic link repair, navigation history, and Git synchronization are not implemented.
 
 Notes are served through a vault-scoped protocol after resolving paths and symlinks. A sandboxed iframe, Content Security Policy, and display-copy sanitization restrict scripts, forms, frames, and external resources. Original HTML remains unchanged. External links are currently disabled.
 

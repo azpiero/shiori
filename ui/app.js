@@ -3,6 +3,7 @@ const {invoke} = window.__TAURI__.core;
 const {listen} = window.__TAURI__.event;
 let vault=null, selected='', query='', activeTags=[], theme=localStorage.getItem('theme')||'light', revisionBusy=false, changed=false, composing=false;
 let graphMode=false,graphPage=0,graphScale=1,graphX=0,graphY=0,currentMatches=[],graphKey=null,vaultBusy=false;
+let terminalPanel=null,terminalBusy=false;
 const metrics={uiReadyMs:0,scanMs:0};
 const $=s=>document.querySelector(s);
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -21,6 +22,7 @@ $('#app').innerHTML=`<div class="layout">
 <circle cx="11" cy="19" r="3"/>
 </svg>
 </button>
+<button id="showTerminal" title="Terminal" aria-label="ターミナル" aria-pressed="false" aria-controls="terminalPanel">&gt;_</button>
 <button id="theme" title="ダークモード" aria-label="ダークモード" aria-pressed="false">◐</button>
 </nav>
 <aside class="sidebar">
@@ -57,6 +59,7 @@ $('#app').innerHTML=`<div class="layout">
 </aside>
 <div class="splitter" id="splitter" role="separator" aria-label="サイドバー幅" aria-orientation="vertical">
 </div>
+<div class="workspace">
 <main class="viewer">
 <div class="notice" id="notice">
 <span id="noticeText">ファイルが変更されました。再読み込みで反映できます。</span>
@@ -84,16 +87,20 @@ $('#app').innerHTML=`<div class="layout">
 <div id="graphEmpty" class="empty" hidden>一致するノートがありません</div>
 </section>
 </main>
+<section id="terminalPanel" class="terminal-panel" aria-label="ターミナル" hidden></section>
+</div>
 </div>
 <footer class="statusbar">
-<span class="read-only" title="HTMLの正本は変更しません。ノート内のJavaScriptと外部資産は制限します。">読み取り専用</span>
+<span class="read-only" title="ビューアはHTMLの正本を変更しません。ターミナルの外部プロセスは編集できます。ノート内のJavaScriptと外部資産は制限します。">ビューアは読み取り専用</span>
 <span id="status">準備中</span>
 <span id="timing">Tauri + Rust · sandboxed iframe · WKWebView</span>
 </footer>`;
 function setTheme(){document.documentElement.classList.toggle('theme-dark',theme==='dark');localStorage.setItem('theme',theme);$('#theme').setAttribute('aria-pressed',String(theme==='dark'));}
 setTheme();
 function status(s){$('#status').textContent=s;}
-const reader=ShioriReader.create({document,getVault:()=>vault,getTheme:()=>theme,onSelect:path=>{selected=path;renderList();status(path?`表示中: ${path}`:'一覧からノートを開いてください');},onStatus:status,onTag:tag=>{setTag(tag);setView(true);$('#showGraph').focus();}});
+const reader=ShioriReader.create({document,getVault:()=>vault,getTheme:()=>theme,onSelect:path=>{selected=path;renderList();terminalPanel?.contextChanged();status(path?`表示中: ${path}`:'一覧からノートを開いてください');},onStatus:status,onTag:tag=>{setTag(tag);setView(true);$('#showGraph').focus();}});
+
+terminalPanel=ShioriTerminal.create({document,invoke,listen,getContext:()=>!vaultBusy&&vault?{token:vault.token,root:vault.root}:null,onBusy:busy=>{terminalBusy=busy;setVaultBusy(vaultBusy);},onComplete:token=>{if(vault?.token===token){changed=true;$('#notice').classList.add('show');}}});
 
 function renderList(){
  if(!vault)return;
@@ -133,15 +140,15 @@ function renderReadErrors(){
  if(errors.length)status(`${errors.length}件の読み取りエラー（サイドバーで詳細を確認）`);
  else $('#readErrors').open=false;
 }
-function setVaultBusy(busy){vaultBusy=busy;for(const id of ['reload','update','open'])$('#'+id).disabled=busy;$('#reload').setAttribute('aria-busy',String(busy));}
+function setVaultBusy(busy){vaultBusy=busy;for(const id of ['reload','update','open'])$('#'+id).disabled=busy||(id==='open'&&terminalBusy);$('#reload').setAttribute('aria-busy',String(busy));terminalPanel?.contextChanged();}
 
 async function load(path=null){
- if(vaultBusy)return;setVaultBusy(true);clearTimeout(timer);
+ if(vaultBusy||terminalBusy)return;setVaultBusy(true);clearTimeout(timer);
  status('HTMLを解析しています…');
  try{
   vault=await invoke('open_vault',{path});metrics.scanMs=vault.scan_ms;
   $('#vaultWarnings').textContent=(vault.warnings||[]).join('\n');$('#vaultWarnings').hidden=!vault.warnings?.length;
-  reader.reset();selected='';invalidateGraph();activeTags=[];query='';$('#search').value='';hideSuggestions();setView(false);
+  reader.reset();terminalPanel.reset();selected='';invalidateGraph();activeTags=[];query='';$('#search').value='';hideSuggestions();setView(false);
   $('#root').textContent=vault.root;$('#root').title=vault.root;$('#vaultName').textContent=vault.root.split('/').pop();$('#vaultName').title=vault.root;
   $('#notice').classList.remove('show');changed=false;
   renderList();if(vault.notes.length)openNote(vault.notes[0].path);else clearNote();

@@ -36,9 +36,13 @@ pub fn restore(settings: &Path, sample: &Path) -> Result<(PathBuf, Vec<String>),
 }
 
 pub fn save(path: &Path, root: &Path) -> Result<(), String> {
+    let mut settings = read(path).unwrap_or_default();
+    settings.last_vault = Some(root.to_path_buf());
+    write(path, &settings)
+}
+
+fn write(path: &Path, settings: &Settings) -> Result<(), String> {
     let write = || -> Result<(), Box<dyn std::error::Error>> {
-        let mut settings = read(path).unwrap_or_default();
-        settings.last_vault = Some(root.to_path_buf());
         let parent = path.parent().ok_or("設定フォルダがありません")?;
         fs::create_dir_all(parent)?;
         let temporary = parent.join(format!("settings-{}.tmp", uuid::Uuid::new_v4()));

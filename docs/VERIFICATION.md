@@ -171,3 +171,18 @@ iframe方式を最初の検証対象として実装した。Text fragmentは比�
 - macOS build, ad-hoc signing, and signature verification passed.
 - Native layout verification remains pending: Computer Use failed to connect to shiori (`timeoutReached`, -10005). Check narrow panes with many/long tags, light/dark styles, keyboard access to tag buttons, and graph return behavior.
 - The future write feature is documented in [TAG_EDITING.md](TAG_EDITING.md) as a proposal awaiting agreement. No writing or tag-rename functionality was added.
+
+## Issue #21: Integrated terminal (revised scope, 2026-09-08)
+
+- Replaced the Claude-only request panel with an interactive shell using portable-pty 0.9.0 and locally vendored xterm.js 5.5.0 / fit addon 0.10.0. Removed Claude executable settings, fixed AI flags, and selected-note prompts.
+- The initial cwd is a vault-specific app workspace containing Skills plus generated AGENTS.md/CLAUDE.md instructions. SHIORI_VAULT identifies the current HTML destination; no helper files are written into the vault. This guides tools without overriding their permissions or forcing arbitrary command output paths.
+- Added byte-preserving terminal input/output, parsed-output acknowledgements, bounded input queues and 2,000-line scrollback, resize, hide/show, explicit shell close, and app-exit cleanup. Refresh and revision polling remain available during a terminal session; switching vaults requires closing it.
+- JavaScript: 34 tests passed, covering session routing, raw/ANSI byte forwarding, acknowledgements, hide/show persistence, failed/fast starts, close during startup, and vault rather than note context. Syntax checks passed.
+- Rust: 12 tests passed, 1 opt-in benchmark ignored. Real macOS PTY tests confirmed stdin, Ctrl-C, resize, cwd, and environment variables. Additional tests cover generated guidance, no vault writes during setup, independent workspaces, size bounds, and acknowledgement backpressure.
+- macOS build, ad-hoc signing, and signature verification passed. Vendored npm archives were verified against published integrity hashes; both MIT license notices are included.
+- Native graphical verification remains pending: Computer Use could not connect to shiori (`timeoutReached`, -10005). Verify xterm rendering, Japanese IME, copy/paste, actual Codex/Claude TUIs and their trust prompts, shell login configuration, and application quit during foreground work. No AI tool was automatically launched or paid AI request made.
+- shiori does not save terminal transcripts. Shell history, CLI logs, and deliberately detached processes follow normal tool/shell behavior.
+
+### Claude project Skill discovery
+
+Terminal workspace setup now copies both bundled Skills, including their supporting assets, into `.claude/skills/`. The workspace test verifies both Skill definitions match the bundled originals and the shared stylesheet is present. The focused Rust workspace test passed. Claude slash-command discovery itself still requires a native CLI check.

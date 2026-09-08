@@ -619,3 +619,11 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 - Reader tag buttons activate their originating pane and open the tag graph, preserving free text while replacing tag filters with the chosen tag. Returning to notes retains both panes and their document state.
 - Bound the height of wrapping tag rows so long tag lists can scroll without taking over the reader.
 - Tag editing remains unimplemented. The proposed per-note write design and agreement status are recorded in [TAG_EDITING.md](TAG_EDITING.md); global rename is separate.
+
+## Integrated terminal (Issue #21, revised scope)
+
+- Open a general interactive shell in the workspace using portable-pty and locally vendored xterm.js. The user chooses Codex, Claude, or other tools; no note-specific prompt, CLI executable setting, or automatic AI invocation.
+- Initial cwd is an app-managed, vault-specific workspace containing Skills and generated AGENTS.md/CLAUDE.md guidance. Set SHIORI_VAULT and SHIORI_SKILLS. Guide AI note creation toward the currently selected vault; do not claim to enforce arbitrary output paths or bypass tool permissions.
+- Keep one shell per app. Hide/show retains it; explicit session close and app exit stop the shell/foreground group. Require session closure before switching vaults, but allow manual refresh and revision notifications while the shell runs.
+- Carry PTY output as bytes, acknowledge parsed chunks, and bound scrollback/input queues. Forward keyboard input, binary mouse input, and resize without interpreting commands. No terminal access from sandboxed notes.
+- Preserve ordinary shell/CLI authentication, configuration, logging, and permission behavior. Remove the superseded Claude-only settings and controls. Keep third-party license notices with vendored files.

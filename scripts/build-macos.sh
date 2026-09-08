@@ -25,6 +25,8 @@ staged.replace(macos/'shiori')
 # The outside-Vault symlink is a source fixture, not a bundle resource.
 shutil.copytree(app/'sample-vault', resources/'sample-vault', dirs_exist_ok=True,
                 ignore=shutil.ignore_patterns('outside.png', '.DS_Store'))
+shutil.copytree(app/'skills', resources/'skills', dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns('.DS_Store'))
 info = {
     'CFBundleExecutable':'shiori', 'CFBundleIdentifier':'dev.takeru.shiori',
     'CFBundleName':'shiori', 'CFBundleDisplayName':'shiori',
