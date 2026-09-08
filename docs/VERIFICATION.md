@@ -171,3 +171,14 @@ iframe方式を最初の検証対象として実装した。Text fragmentは比�
 - macOS build, ad-hoc signing, and signature verification passed.
 - Native layout verification remains pending: Computer Use failed to connect to shiori (`timeoutReached`, -10005). Check narrow panes with many/long tags, light/dark styles, keyboard access to tag buttons, and graph return behavior.
 - The future write feature is documented in [TAG_EDITING.md](TAG_EDITING.md) as a proposal awaiting agreement. No writing or tag-rename functionality was added.
+
+## Issue #21: Claude editing panel (2026-09-08)
+
+- Implemented proposal B: a dedicated noninteractive Claude panel, fixed CLI arguments with a stdin prompt, canonical vault/note validation, configured executable lookup, streamed text, stop, and manual refresh notification. No generic shell or note iframe permission changes.
+- Added process-group cancellation and exit cleanup on Unix, backend single-run guarding, run/vault event routing, UI handling for immediate exit and stop during startup, and limits on both IPC output and the UI log.
+- Packaged authoring skills in the macOS app; prompts refer to bundled paths, falling back to repository skills for development. Claude executable settings preserve the remembered vault.
+- JavaScript: 35 tests passed, including split/chunked output, text-only rendering, stale events, bounded logs, failed/fast starts, stop-during-start, vault-operation locking, and completion without automatic document reload. Syntax checks passed.
+- Rust: 13 tests passed; 1 opt-in benchmark ignored. Process tests use temporary directories and synthetic shell children, never an AI session. Covered executable/cwd/target validation, fixed arguments, literal prompt contents, UTF-8 chunk boundaries, stdout/stderr and exit codes, output limits, cancellation after a child starts, and settings preservation. The revised cancellation case also passed a targeted rerun.
+- macOS build, ad-hoc signing, signature verification, and diff checks passed. The locally installed Claude CLI help lists the required flags; current official CLI/headless documentation was consulted. No authenticated Claude editing run or paid AI request was made.
+- Native verification remains pending: Computer Use could not connect to shiori (`timeoutReached`, -10005). Verify panel layout, installed Claude authentication, Skill access, editing a disposable note, stop, app quit during a run, and manual refresh after completion. Linux native behavior is unverified; Windows execution is disabled.
+- shiori logs are memory-only; Claude's own diagnostics/provider retention remain external concerns. cwd and prompt scope are not an OS filesystem sandbox.

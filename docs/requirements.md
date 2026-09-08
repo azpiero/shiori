@@ -619,3 +619,12 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 - Reader tag buttons activate their originating pane and open the tag graph, preserving free text while replacing tag filters with the chosen tag. Returning to notes retains both panes and their document state.
 - Bound the height of wrapping tag rows so long tag lists can scroll without taking over the reader.
 - Tag editing remains unimplemented. The proposed per-note write design and agreement status are recorded in [TAG_EDITING.md](TAG_EDITING.md); global rename is separate.
+
+## Claude editing panel (Issue #21)
+
+- Initial implementation uses proposal B: a noninteractive `claude -p` panel below the reader/graph, toggled from the navigation rail. It accepts an editing request, not shell commands. Capture the selected tab path at launch, without heading or selection context.
+- Resolve an explicitly configured absolute Claude executable or known installation candidates. Persist `claude_path` without losing other settings; never search the vault or execute a shell command string. Package the two authoring skills with the macOS app and include their paths in the prompt.
+- Validate the active vault token and canonical note path, then fix cwd to that vault. Serialize runs, reject vault switching during execution, and use matching run IDs for output and stop commands. Keep main-window controls separate from sandboxed note content.
+- Stream stdout/stderr using bounded chunks and a bounded channel; cap output delivery at 256KiB and the UI log at its last 64K characters. Render output as text. No shiori log files.
+- Fixed CLI flags allow file tools with `dontAsk`, disable hooks and MCP, and request no session persistence. No Bash, shell terminal, or permission-bypass flag. Claude remains an external process with user privileges; cwd does not enforce confinement.
+- Stop and application exit kill the process group on Unix. Stop does not roll back file changes. Show the manual update notification on completion rather than reloading all documents automatically. Windows process execution is currently disabled.

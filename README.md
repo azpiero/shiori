@@ -16,7 +16,7 @@ A local HTML knowledge library. Let an AI assistant write and update your notes,
 
 Your vault is a folder of ordinary HTML, CSS, and images. HTML files remain the source of truth: shiori reads them without rewriting the originals, preserving the layouts, tables, and illustrations that make each note useful.
 
-**Status:** early, read-only desktop prototype for macOS. The interface and bundled sample notes are currently in Japanese.
+**Status:** early desktop prototype for macOS, with a read-only viewer and an optional Claude editing panel. The interface and bundled sample notes are currently in Japanese.
 
 ## Screenshots
 
@@ -98,7 +98,7 @@ Follow them to create a note about Rust ownership in ../vault. Check related not
 relevant tags, and link to existing notes where useful. Write the note in English.
 ```
 
-These Skills are included as files; they are not automatically installed into an AI tool. Use an assistant that can read the Skill and edit files in your chosen vault. shiori itself does not call an AI service, edit notes, or run Git commands. Commit and push are separate actions you request from your tools.
+These Skills are included as files; they are not automatically installed into an AI tool. Use an assistant that can read the Skill and edit files in your chosen vault. The viewer does not edit notes. The optional Claude panel launches a local Claude Code process that can send vault content to its configured AI service and edit files. shiori does not run Git commands. Commit and push are separate actions you request from your tools.
 
 The readability Skill includes a [starter HTML file](skills/shiori-readable-notes/assets/note.html) and [shared CSS](skills/shiori-readable-notes/assets/shiori-document.css) to copy into the vault. It uses OS fonts, static SVG, plain code, and explicit light/dark theme hooks without scripts or remote dependencies. The [eighth sample note](sample-vault/notes/07-readable-notes.html) demonstrates the style. Editorial sources and reuse decisions are documented in [sources.md](skills/shiori-readable-notes/references/sources.md).
 
@@ -112,6 +112,20 @@ git -C ../vault diff
 ```
 
 Configure a remote and push with your Git client when you want to sync. The vault repository is independent of this app repository; no submodule is required.
+
+## Edit the current note with Claude
+
+Open a note and select **>_** in the left rail. Enter an editing request and press **実行** (Run). The panel captures that tab's path when starting; changing tabs afterward does not retarget the request. The initial prompt includes the vault root, target note, and bundled vault/readability Skill paths.
+
+Install and authenticate Claude Code separately before using the panel. It searches `~/.local/bin/claude`, `/opt/homebrew/bin/claude`, and `/usr/local/bin/claude`; for other installations, expand **Claudeの実行ファイル**, enter the full path to `claude`, and save. This path is stored as `claude_path` in the same `settings.json` as the remembered vault. Saving an empty path restores automatic detection. Finder's PATH is not used for discovery. Script-based installations may still need their interpreter available in the app environment; a native Claude installation avoids that dependency.
+
+This is a noninteractive `claude -p` panel, not a general terminal. It uses stream-json output, `dontAsk`, and explicit Read/Edit/Write/Glob/Grep tool permissions; Bash and MCP are not available, hooks are disabled for the run, and permission bypass flags are never passed. Interactive authentication and additional permission approval must be handled outside the app. See the official [CLI reference](https://code.claude.com/docs/en/cli-reference) and [noninteractive usage guide](https://code.claude.com/docs/en/headless).
+
+Only one run is allowed at a time. Vault switching and reload are disabled during execution. **中断** (Stop) terminates the process group on macOS/Linux; hiding the panel keeps the run active, while quitting the app terminates it. Cancellation does not undo edits already made. When a run ends, use **更新を反映** to reload after reviewing changes; this preserves the existing manual-refresh workflow and avoids automatic scroll resets.
+
+The working directory is the vault, but this is not an OS sandbox: the configured executable runs with the user's privileges. The prompt requests edits only to the selected note, which is an instruction rather than an enforced filesystem boundary. Run only a trusted Claude executable. The note iframe still has no scripts or IPC access; process controls exist only in the main app UI.
+
+shiori keeps panel logs only in memory, displays the last 64K JavaScript characters, and caps streamed output at 256KiB per run. Starting another run, switching vaults, or clearing the log discards earlier output. `--no-session-persistence` is requested, but Claude's own diagnostics, authentication, and service-side retention are controlled by Claude and its provider. The panel currently targets macOS/Linux; native operation on Linux has not been verified and Windows execution is disabled.
 
 ## Supported operating systems
 
@@ -228,7 +242,7 @@ The `notes/`, `assets/`, and `styles/` layout is the Skill's default for a new v
 
 ## Limitations and security model
 
-This prototype is read-only. In-app editing, automatic link repair, navigation history, and Git synchronization are not implemented.
+The viewer is read-only; the optional Claude process can edit source files. Direct tag editing, automatic link repair, navigation history, and Git synchronization are not implemented.
 
 Notes are served through a vault-scoped protocol after resolving paths and symlinks. A sandboxed iframe, Content Security Policy, and display-copy sanitization restrict scripts, forms, frames, and external resources. Original HTML remains unchanged. External links are currently disabled.
 
