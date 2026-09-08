@@ -78,7 +78,9 @@ Pane controls stay fixed at the right of the horizontally scrolling tab row. Tag
 | Open a new tab | ⌘/Ctrl-click a list item or graph note |
 | Open beside the current note | Use the **pane +** icon to duplicate the current note into a second pane, or Shift-click a list item or graph note |
 | Switch or close a tab | Select its title or use its × button |
-| Search one document | Enter a phrase in the always-visible document search row and press Enter |
+| Search one document | ⌘F (Ctrl+F outside macOS) focuses and selects the search text in the active pane. Enter a phrase and press Enter |
+| Next / previous search match | ⌘G / ⌘⇧G (Ctrl+G / Ctrl+Shift+G outside macOS), or ↑/↓ in the search row |
+| Clear document search | Use the search row’s × or **Edit → Find → Clear Note Search** |
 | Follow an internal link | Click it in the note to navigate within that same tab |
 | Move focus between panes | Click in the destination pane or use Tab to focus its controls |
 | Resize panes | Drag the divider; double-click to restore equal widths. With the divider focused, use ←/→ for 5% steps, Home for minimum left width, or End for equal widths |
@@ -86,7 +88,7 @@ Pane controls stay fixed at the right of the horizontally scrolling tab row. Tag
 
 At most two panes are available. Adding a pane is disabled while split. If the left pane was removed, adding an adjacent pane fills the vacant left side without moving the surviving document.
 
-Tab switches keep the existing sandboxed iframe attached, preserving its document scroll and search state. With focus on a tab title, use ←/→ or Home/End to switch tabs and Delete to close one. The buttons are reachable by Tab. Keyboard events inside the sandboxed note do not reach the app: move focus back to the app controls to use tab commands. Modifier-click handling inside note HTML is not available. To open another note in a new tab or beside the current note, use ⌘/Ctrl-click or Shift-click respectively on its sidebar list entry or graph node.
+Tab switches keep the existing sandboxed iframe attached, preserving its document scroll and search state. With focus on a tab title, use ←/→ or Home/End to switch tabs and Delete to close one. The buttons are reachable by Tab. Find shortcuts are native menu accelerators and work even when the sandboxed note has focus. Other keyboard events inside the note do not reach the app: move focus back to app controls to use tab commands. The default native editing menu, including copy/paste/select all, is preserved. Modifier-click handling inside note HTML is not available. To open another note in a new tab or beside the current note, use ⌘/Ctrl-click or Shift-click respectively on its sidebar list entry or graph node.
 
 This first version supports two horizontal panes and up to 12 tabs in one vault. Each pane stays at least 320 px wide; narrow windows scroll the reader workspace horizontally instead of silently closing a pane. The link graph remains a whole-workspace mode and preserves the open reader tabs when switching back.
 

@@ -248,3 +248,8 @@ test('poll errors use persistent deduplicated toasts, reset on recovery, and foo
  commands.vault_revision=()=>vault.revision;await intervals[0]();commands.vault_revision=()=>{throw new Error('Cannot watch vault');};await intervals[0]();assert.match(get('.toast [role="alert"]').textContent,/Cannot watch vault/);
  get('.toast').querySelector('button').onclick();run('openNote("notes/1.html")');assert.equal(get('.toast'),null);
 });
+
+test('native reader-menu events reveal the reader and focus its document search',async()=>{
+ const {run,get,events}=await setup();run('setView(true)');events.get('reader-menu')({payload:'find'});assert.equal(run('graphMode'),false);assert.equal(run('document.activeElement.id'),'pane-query-0');assert.equal(get('#pane-search-0').hidden,false);
+ run('setView(true)');events.get('reader-menu')({payload:'paste'});assert.equal(run('graphMode'),true);
+});

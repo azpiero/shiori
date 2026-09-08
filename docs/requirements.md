@@ -691,3 +691,10 @@ This replaces the earlier tag-membership graph described above.
 - Follow-up: remove the per-row folder creation button. Use the folder context menu (secondary click or Shift+F10) for creation. Prefix folder names and HTML note titles with distinct folder/document icons, retaining aligned labels and existing indentation.
 
 - Tree labels remain on one line and truncate with ellipsis. Remove disclosure arrows; open/closed folder icons convey expansion while aria-expanded retains the accessible state. Full note titles and paths remain available on hover.
+
+## Issue #45: Native document-find shortcuts (2026-09-09)
+
+- Extend Tauri's default Edit menu with a Find submenu, retaining predefined copy/paste/select-all and other platform menus.
+- Add Find in Note (CmdOrCtrl+F), Find Next (CmdOrCtrl+G), Find Previous (CmdOrCtrl+Shift+G), and Clear Note Search. Menu events target only the main window; only recognized IDs map to reader actions.
+- Synchronize the focused sandboxed iframe to its pane before dispatching. Find reveals the reader, focuses the active pane's search input and selects its text. Next/previous retain independent pane search positions. Empty panes safely ignore actions.
+- Remove the search-row submit button; Enter submits as before. Clear remains available through the row's × and the native menu, including when the note has focus.

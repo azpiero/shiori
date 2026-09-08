@@ -197,6 +197,7 @@ function openNote(path,anchor='',mode='current'){
  if(!vault)return;setView(false);reader.open(path,anchor,mode,query.trim());
 }
 listen('note-served',e=>{if(vault)reader.served(e.payload);});
+listen('reader-menu',e=>{if(!vault||!['find','next','previous','clear'].includes(e.payload))return;reader.syncFocusedFrame();setView(false);reader.menuAction(e.payload);});
 
 function renderReadErrors(){
  const errors=vault?.errors||[];

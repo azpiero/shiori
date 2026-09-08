@@ -222,3 +222,15 @@ test('search stays available without a query and an empty pane remains a selecta
  pane.events.focusin();reader.open('b.html');assert.equal(reader.model.tab.path,'b.html');
  assert.equal(document.querySelector('#pane-label-0'),null);assert.match(pane.getAttribute('aria-label'),/選択中/);
 });
+
+test('native find actions target the focused iframe and preserve independent pane searches',()=>{
+ const {reader,document,served}=setup();const left=reader.open('a.html','','current','alpha'),right=reader.open('b.html','','side','beta');served(left,3);served(right,4);
+ reader.frames.get(left.id).frame.focus();reader.menuAction('find');const input=document.querySelector('#pane-query-0');assert.equal(reader.model.activePane,0);assert.equal(document.activeElement,input);assert.equal(input.value,'alpha');assert.equal(input.selectionEnd,5);
+ reader.menuAction('next');assert.equal(left.hit,1);assert.equal(right.hit,0);reader.menuAction('previous');assert.equal(left.hit,0);
+ reader.frames.get(right.id).frame.focus();reader.menuAction('previous');assert.equal(right.hit,3);assert.equal(left.query,'alpha');
+ reader.menuAction('find');reader.menuAction('clear');assert.equal(right.query,'');assert.equal(document.querySelector('#pane-query-1').value,'');assert.equal(document.activeElement,document.querySelector('#pane-query-1'));
+ assert.equal(document.querySelector('#pane-0').querySelector('[data-action="search"]'),null);
+});
+test('native find commands safely ignore empty panes and unknown actions',()=>{
+ const {reader}=setup();for(const action of ['find','next','previous','clear','paste'])reader.menuAction(action);assert.equal(reader.model.all().length,0);
+});

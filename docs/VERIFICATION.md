@@ -267,3 +267,10 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - Follow-up: 66 JavaScript tests passed after removing folder creation buttons and adding folder/document icons. Folder creation through the context menu remains covered; browser layout checks confirm same-level label alignment with the icons.
 
 - Follow-up: verified single-line ellipsis for long note titles and changing SVG folder icons on collapse/expand in Chromium. All 66 JavaScript tests and macOS build/signature checks passed.
+
+## Issue #45: Native document-find shortcuts (2026-09-09)
+
+- JavaScript: 69 tests passed; Rust: 31 passed, one opt-in benchmark ignored. Coverage includes recognized menu IDs, focused-iframe routing, independent match positions, clearing focused search inputs, empty panes and graph-to-reader focus.
+- Headless Chromium with mocked native events verified iframe targeting, next/previous, clearing and Enter search. Native menu construction compiles and retains Tauri's default edit items.
+- Syntax/diff checks and macOS build/signature verification passed.
+- Native UI automation timed out. Manual checks remain: click a note body and press Cmd+F, submit a query, cycle with Cmd+G/Cmd+Shift+G, clear through Edit > Find, and verify copy/paste/select-all in the terminal. Browser event tests do not prove native accelerator or clipboard dispatch.

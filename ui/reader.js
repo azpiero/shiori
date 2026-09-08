@@ -9,7 +9,7 @@
   $('#readerPanel').innerHTML=[0,1].map(i=>`<section id="pane-${i}" class="reader-pane" tabindex="0" aria-label="ペイン ${i+1}" hidden>
    <div class="pane-tabbar"><div id="tabs-${i}" class="reader-tabs" role="tablist" aria-label="ペイン ${i+1}のタブ"></div><div class="pane-controls"><button data-action="split" title="隣にペインを増やす" aria-label="隣にペインを増やす"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 21H3V3h18v9M8 3v18M18 14v8M14 18h8"/></svg></button><button data-action="close-pane" title="このペインを削除" aria-label="ペイン ${i+1}を削除"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 21H3V3h18v9M8 3v18M14 18h8"/></svg></button></div></div>
    <div id="pane-tags-${i}" class="pane-tags" role="group" aria-label="ペイン ${i+1}のノートのタグ" hidden></div>
-   <div id="pane-search-${i}" class="pane-search"><input id="pane-query-${i}" aria-label="ペイン ${i+1}の本文内検索" placeholder="本文内を検索（Enter）"><button data-action="search" aria-label="ペイン ${i+1}を検索">検索</button><button data-action="clear" aria-label="ペイン ${i+1}の検索を解除">×</button><span id="pane-hits-${i}" aria-live="polite"></span><button id="pane-prev-${i}" data-action="prev" aria-label="前の検索箇所">↑</button><button id="pane-next-${i}" data-action="next-hit" aria-label="次の検索箇所">↓</button></div>
+   <div id="pane-search-${i}" class="pane-search"><input id="pane-query-${i}" aria-label="ペイン ${i+1}の本文内検索" placeholder="本文内を検索（Enter）"><button data-action="clear" aria-label="ペイン ${i+1}の検索を解除">×</button><span id="pane-hits-${i}" aria-live="polite"></span><button id="pane-prev-${i}" data-action="prev" aria-label="前の検索箇所">↑</button><button id="pane-next-${i}" data-action="next-hit" aria-label="次の検索箇所">↓</button></div>
    <div id="documents-${i}" class="pane-documents"><div id="pane-empty-${i}" class="empty">このペインを選択して、一覧からノートを開いてください。</div></div>
   </section>`).join('<div id="pane-splitter" class="pane-splitter" role="separator" tabindex="0" aria-label="左右ペインの幅" aria-orientation="vertical" aria-controls="pane-0 pane-1" title="ドラッグまたは←/→で幅を変更、Homeで最小、Endまたはダブルクリックで等幅" hidden></div>');
   const workspace=$('#readerPanel'),separator=$('#pane-splitter'),view=document.defaultView;
@@ -127,7 +127,7 @@
    try{const tab=model.open(path,query,mode,anchor);navigate(tab);render();notify();return tab;}catch(e){onStatus(e.message);}
   }
   function moveHit(i,delta){const tab=current(i);if(!tab?.hits)return;tab.hit=(tab.hit+delta+tab.hits)%tab.hits;const url=new URL(tab.url);url.hash='shiori-hit-'+tab.hit;tab.url=url.href;frames.get(tab.id).frame.src=url.href;render();}
-  function search(i,clear=false){const tab=current(i);if(!tab?.path)return;tab.query=clear?'':$('#pane-query-'+i).value.trim();tab.anchor='';navigate(tab);render();notify();}
+  function search(i,clear=false){const tab=current(i);if(!tab?.path)return;if(clear)$('#pane-query-'+i).value='';tab.query=clear?'':$('#pane-query-'+i).value.trim();tab.anchor='';navigate(tab);render();notify();}
   function closeTab(i,id){model.close(i,id);render();notify();const active=current(i);if(active)$('#tab-'+active.id).focus();else focusPane(i);}
   for(let i=0;i<2;i++){
    $('#pane-'+i).addEventListener('pointerdown',()=>{if(model.activePane!==i){model.activate(i);markActive();notify();}});
@@ -142,7 +142,7 @@
     switch(button.dataset.action){
      case 'split':if(!split()){const tab=open(current(i)?.path||'',current(i)?.anchor||'','side',current(i)?.query||'');if(tab)focusPane(model.activePane);}break;
      case 'close-pane':model.closePane(i);render();notify();focusPane(model.activePane);break;
-     case 'search':search(i);break;case 'clear':search(i,true);break;
+     case 'clear':search(i,true);break;
      case 'prev':moveHit(i,-1);break;case 'next-hit':moveHit(i,1);break;
     }
    };
@@ -166,7 +166,13 @@
   document.defaultView?.addEventListener('blur',()=>setTimeout(syncFocusedFrame,0));
   document.defaultView?.setInterval?.(syncFocusedFrame,200);
   render();
-  return {tagBusy(busy){tagWriting=busy;for(const i of [0,1])$('#pane-tags-'+i).querySelectorAll('button, input').forEach(el=>el.disabled=busy);},model,frames,open,render,activate,moveHit,syncFocusedFrame,
+  return {menuAction(action){
+    if(!['find','next','previous','clear'].includes(action))return;
+    syncFocusedFrame();const i=model.activePane,tab=current(i);if(!tab?.path)return;
+    if(action==='next'||action==='previous'){moveHit(i,action==='next'?1:-1);return;}
+    if(action==='clear')search(i,true);
+    const input=$('#pane-query-'+i);input.focus();input.setSelectionRange(0,input.value.length);
+   },tagBusy(busy){tagWriting=busy;for(const i of [0,1])$('#pane-tags-'+i).querySelectorAll('button, input').forEach(el=>el.disabled=busy);},model,frames,open,render,activate,moveHit,syncFocusedFrame,
    reset(){stopDrag();ratio=.5;model.reset();render();notify();},
    moved(oldPath,newPath,paths){for(const tab of model.all())if(tab.path===oldPath||tab.path.startsWith(oldPath+'/'))tab.path=newPath+tab.path.slice(oldPath.length);model.reconcile(getVault().notes);for(const tab of model.all())if(paths.has(tab.path))navigate(tab);render();notify();},
    metadataRefresh(paths){model.reconcile(getVault().notes);for(const tab of model.all())if(paths.has(tab.path))navigate(tab);render();notify();},
