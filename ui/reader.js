@@ -1,6 +1,6 @@
 (function(root){
  const {Workspace}=typeof module!=='undefined'?require('./workspace.js'):root.ShioriWorkspace;
- function create({document,getVault,getTheme,onSelect,onStatus,onTag=()=>{}}){
+ function create({document,getVault,getTheme,onSelect,onStatus,onTag=()=>{},onEditTags=()=>{}}){
   const model=new Workspace(),frames=new Map(),tabMarkup=new Map(),linkMarkup=new Map(),tagMarkup=new Map();
   const $=id=>document.querySelector(id);
   const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -126,7 +126,7 @@
     if(tabMarkup.get(i)!==tabsHtml){$('#tabs-'+i).innerHTML=tabsHtml;tabMarkup.set(i,tabsHtml);}
     const tags=note(tab?.path)?.tags||[],tagsPanel=$('#pane-tags-'+i);
     tagsPanel.hidden=!tab?.path;
-    const tagsHtml=tab?.path?(tags.map(tag=>`<button class="note-tag" data-tag="${escape(tag)}" title="タググラフを開く: ${escape(tag)}" aria-label="タググラフを開く: ${escape(tag)}">#${escape(tag)} <span aria-hidden="true">↗</span></button>`).join('')||'<span class="untagged">タグなし</span>'):'';
+    const tagsHtml=tab?.path?(tags.map(tag=>`<span class="tag-chip"><button class="note-tag" data-tag="${escape(tag)}" title="タグで絞り込む: ${escape(tag)}" aria-label="タグで絞り込む: ${escape(tag)}">#${escape(tag)}</button><button data-remove-tag="${escape(tag)}" aria-label="タグを外す: ${escape(tag)}">×</button></span>`).join('')||'<span class="untagged">タグなし</span>')+'<button data-add-tag aria-label="タグを追加">＋</button>':'';
     if(tagMarkup.get(i)!==tagsHtml){tagsPanel.innerHTML=tagsHtml;tagMarkup.set(i,tagsHtml);}
     $('#pane-hits-'+i).textContent=tab?.query?(tab.loading?'読込中':tab.hits?`${tab.hit+1} / ${tab.hits}`:'0件'):'';
     for(const direction of ['prev','next'])$('#pane-'+direction+'-'+i).disabled=!tab?.hits||tab.loading;
@@ -156,6 +156,7 @@
    $('#pane-'+i).onclick=e=>{
     const button=e.target.closest('button');if(!button)return;
     model.activate(i);
+    if(button.dataset.removeTag!==undefined||button.dataset.addTag!==undefined){const path=current(i)?.path;if(path)onEditTags(path,button.dataset.removeTag);return;}
     if(button.dataset.tag!==undefined){render();notify();onTag(button.dataset.tag);return;}
     if(button.dataset.tab){model.select(i,button.dataset.tab);render();notify();$('#tab-'+button.dataset.tab).focus();return;}
     if(button.dataset.close){closeTab(i,button.dataset.close);return;}
@@ -195,6 +196,7 @@
   render();
   return {model,frames,open,render,activate,moveHit,syncFocusedFrame,
    reset(){stopDrag();ratio=.5;model.reset();render();notify();},
+   metadataRefresh(paths){model.reconcile(getVault().notes);for(const tab of model.all())if(paths.has(tab.path))navigate(tab);render();notify();},
    refresh(){model.reconcile(getVault().notes);for(const tab of model.all())navigate(tab);render();notify();},
    theme(){for(const tab of model.all())navigate(tab);render();},
    served(payload){if(!note(payload.path))return;const tab=model.served(payload,getVault().token);if(tab){render();notify();}},

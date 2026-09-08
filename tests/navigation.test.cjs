@@ -5,6 +5,7 @@ const vm=require('node:vm');
 const {build}=require('../ui/graph.js');
 const ShioriSearch=require('../ui/search.js');
 const ShioriReader=require('../ui/reader.js');
+const ShioriTagEditor=require('../ui/tag-editor.js');
 const {create:terminalCreate}=require('../ui/terminal.js');
 const terminalStub=require('./terminal-stub.cjs');
 const ShioriTerminal={create:options=>terminalCreate({...options,...terminalStub})};
@@ -13,18 +14,18 @@ const {createDocument}=require('./dom.cjs');
 // Exercise app event handlers with a small DOM/Tauri adapter. These checks do not
 // simulate WebView rendering, layout, or iframe navigation; those require manual QA.
 async function setup(initialErrors=[],initialWarnings=[]){
- const events=new Map(),calls=[];let refreshResult,refreshError;
+ const events=new Map(),calls=[],commands={},intervals=[];let refreshResult,refreshError;
  const document=createDocument();
  const notes=Array.from({length:160},(_,i)=>({path:`notes/${i}.html`,title:`Note ${i}`,text:'knowledge',tags:[i%2?'odd':'even'],headings:[]}));
  const vault={root:'/test/vault',token:'test-token',revision:'r1',notes,errors:initialErrors,warnings:initialWarnings,scan_ms:1};
  refreshResult=vault;
- const context=vm.createContext({document,URL,performance,ShioriSearch,ShioriReader,ShioriTerminal,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(){},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(name==='terminal_start')return {cwd:'/test/workspace',vault:vault.root};if(name==='terminal_stop')return;if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
+ const context=vm.createContext({document,URL,performance,ShioriSearch,ShioriReader,ShioriTagEditor,ShioriTerminal,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(fn){intervals.push(fn);},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(commands[name])return commands[name](args);if(name==='terminal_start')return {cwd:'/test/workspace',vault:vault.root};if(name==='terminal_stop')return;if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
  const run=code=>vm.runInContext(code,context);
  run(fs.readFileSync(require.resolve('../ui/app.js'),'utf8'));
  await new Promise(resolve=>setImmediate(resolve));
  const get=id=>id==='#noteFrame'?run('reader.frames.get(reader.model.tab?.id)?.frame'):document.querySelector(id);
  const served=(count=3)=>events.get('note-served')({payload:{path:run('selected'),url:get('#noteFrame').src,hits:count}});
- return {run,get,served,events,vault,calls,setRefresh(result,error){refreshResult=result;refreshError=error;}};
+ return {run,get,served,events,vault,calls,commands,intervals,setRefresh(result,error){refreshResult=result;refreshError=error;}};
 }
 
 test('graph exploration survives opening a note and switching back; context changes reset it',async()=>{
@@ -63,7 +64,7 @@ test('filtering keeps the current title identifiable while tags appear only in t
  assert.match(get('#notes').innerHTML,/aria-current="true"/);
  assert.equal(get('#notes').querySelectorAll('[data-tag]').length,0);
  assert.equal(get('#currentNote').querySelectorAll('[data-tag]').length,0);
- assert.match(get('#pane-tags-0').innerHTML,/aria-label="タググラフを開く: even"/);
+ assert.match(get('#pane-tags-0').innerHTML,/aria-label="タグで絞り込む: even"/);
 });
 
 test('refresh resets graph after content changes and handles deleted notes and empty vaults',async()=>{
@@ -158,16 +159,16 @@ test('vault restoration warnings survive note events and refresh, then clear on 
 });
 
 
-test('reader tags open the graph from their own pane and preserve free text and reader state',async()=>{
+test('reader tags filter without opening the graph or writing from their own pane and preserve free text and reader state',async()=>{
  const {run,get}=await setup();
  get('#search').value='knowledge';run('applySearch();openNote("notes/0.html");openNote("notes/1.html","","side")');
  const frame=get('#noteFrame'),src=frame.src;
  const tag=get('#pane-tags-0').querySelector('[data-tag]');tag.focus();
  get('#pane-0').onclick({target:tag});
  assert.equal(run('reader.model.activePane'),0);assert.equal(run('selected'),'notes/0.html');
- assert.equal(run('graphMode'),true);assert.equal(get('#search').value,'knowledge tag: even');
- assert.equal(get('#showGraph').getAttribute('aria-pressed'),'true');
- assert.equal(run('document.activeElement.id'),'showGraph');
+ assert.equal(run('graphMode'),false);assert.equal(get('#search').value,'knowledge tag: even');
+ assert.equal(get('#showGraph').getAttribute('aria-pressed'),'false');
+ assert.equal(run('document.activeElement.dataset.tag'),'even');
  get('#showNote').onclick();
  assert.equal(frame.src,src);assert.equal(run('reader.model.panes[1].tabs[0].path'),'notes/1.html');
  assert.equal(run('reader.model.panes[1].tabs[0].query'),'knowledge');
@@ -184,4 +185,32 @@ test('terminal keeps refresh available and binds context to the vault rather tha
  await run('refresh()');assert.equal(calls.filter(c=>c.name==='refresh_vault').length,1);
  events.get('terminal-output')({payload:{session_id:args.sessionId,exit:true,message:'done'}});
  assert.equal(get('#open').disabled,false);assert.equal(run('changed'),true);
+});
+
+
+test('tag save refreshes both panes, candidates and graph while preserving queries and unrelated frames',async()=>{
+ const {run,get,vault,commands,calls}=await setup();
+ run('openNote("notes/0.html","","current");openNote("notes/2.html","","tab");openNote("notes/0.html","","side")');
+ run('reader.model.panes[0].tabs[0].query="alpha";reader.model.tab.query="beta"');
+ const untouched=run('reader.frames.get(reader.model.panes[0].tabs[1].id).frame'),src=untouched.src;
+ commands.get_note_tags=()=>({tags:['even'],expected_hash:'hash'});
+ commands.set_note_tags=()=>({saved:true,snapshot:{...vault,revision:'r2',notes:vault.notes.map(n=>n.path==='notes/0.html'?{...n,tags:['new'],source_hash:'new'}:n)},warning:null});
+ await run('tagEditor.open("notes/0.html","even")');assert.equal(get('#open').disabled,true);assert.equal(get('#reload').disabled,true);
+ get('#tag-editor-input').value='new';get('#tag-editor-add').onclick();await get('#tag-editor-save').onclick();
+ assert.equal(run('document.activeElement.dataset.addTag'),'');
+ assert.equal(run('vault.revision'),'r2');assert.equal(get('#open').disabled,false);assert.equal(untouched.src,src);
+ assert.equal(run('reader.model.panes[0].tabs[0].query'),'alpha');assert.equal(run('reader.model.tab.query'),'beta');
+ assert.equal(get('#pane-tags-1').querySelector('[data-tag]').dataset.tag,'new');
+ run('reader.model.select(0,reader.model.panes[0].tabs[0].id);reader.render()');assert.equal(get('#pane-tags-0').querySelector('[data-tag]').dataset.tag,'new');
+ run('setTag("new");setView(true)');assert.equal(run('currentMatches.length'),1);assert.ok(get('#graphSvg').innerHTML.includes('data-value="new"'));
+ assert.equal(calls.filter(c=>c.name==='set_note_tags').length,1);
+});
+
+test('a revision poll started before an edit cannot announce the completed save as external',async()=>{
+ const {run,get,vault,commands,intervals}=await setup();let resolve;
+ commands.vault_revision=()=>new Promise(r=>resolve=r);const poll=intervals[0]();
+ commands.get_note_tags=()=>({tags:['even'],expected_hash:'hash'});commands.set_note_tags=()=>({saved:true,snapshot:{...vault,revision:'r2'},warning:null});
+ await run('tagEditor.open("notes/0.html")');await get('#tag-editor-save').onclick();resolve('r1');await poll;
+ assert.equal(run('changed'),false);assert.equal(get('#notice').classList.contains('show'),false);
+ commands.vault_revision=()=> 'external';await intervals[0]();assert.equal(run('changed'),true);
 });
