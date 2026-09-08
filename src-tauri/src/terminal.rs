@@ -49,11 +49,22 @@ fn copy_skills(source:&Path,dest:&Path)->Result<(),String>{
         if kind.is_dir(){copy_skills(&entry.path(),&dest.join(entry.file_name()))?;}else if kind.is_file(){std::fs::copy(entry.path(),dest.join(entry.file_name())).map_err(|e|e.to_string())?;}
     }Ok(())
 }
+// Retire the old generated skill outside both discovery directories, preserving edits.
+fn retire_readable_skill(cwd:&Path)->Result<(),String>{
+    for directory in ["skills",".claude/skills"] {
+        let old=cwd.join(directory).join("shiori-readable-notes");
+        if old.symlink_metadata().is_ok() {
+            let archive=cwd.join("retired-skills");std::fs::create_dir_all(&archive).map_err(|e|e.to_string())?;
+            std::fs::rename(&old,archive.join(format!("shiori-readable-notes-{}",uuid::Uuid::new_v4()))).map_err(|e|e.to_string())?;
+        }
+    }Ok(())
+}
 fn workspace(base:&Path,vault:&Path,skills:&Path)->Result<PathBuf,String>{
     let mut hash=DefaultHasher::new();vault.hash(&mut hash);let cwd=base.join(format!("{:016x}",hash.finish()));
+    retire_readable_skill(&cwd)?;
     copy_skills(skills,&cwd.join("skills"))?;
     copy_skills(skills,&cwd.join(".claude/skills"))?;
-    let guide=format!("# shiori terminal workspace\n\nThis directory contains authoring skills; it is not the HTML vault.\nThe current vault is this absolute path (JSON string): {}\n\nUnless the user specifies another destination, create HTML notes in that vault's notes/ directory and supporting files in its assets/ and styles/ directories. Inspect existing vault conventions first. Never use this workspace or the application bundle as the default note destination.\n\nRead skills/shiori-notes/SKILL.md for metadata, IDs, tags, and links. Read skills/shiori-readable-notes/SKILL.md for prose, templates, and shared CSS. Preserve existing note IDs when editing. No particular note is selected for you. Git operations require the user's instruction.\n\nClaude project skills are installed in .claude/skills; invoke /shiori-readable-notes or /shiori-notes.\n\nSHIORI_VAULT and SHIORI_SKILLS contain the same absolute paths in the shell environment. Tool sandbox permissions may require granting access to the vault; do not disable protections automatically.\n",serde_json::to_string(vault).map_err(|e|e.to_string())?);
+    let guide=format!("# shiori terminal workspace\n\nThis directory contains authoring skills; it is not the HTML vault.\nThe current vault is this absolute path (JSON string): {}\n\nUnless the user specifies another destination, create HTML notes in that vault's notes/ directory and supporting files in its assets/ and styles/ directories. Inspect existing vault conventions first. Never use this workspace or the application bundle as the default note destination.\n\nRead skills/shiori-notes/SKILL.md for metadata, IDs, tags, links, prose, templates, and canonical shared CSS. Preserve existing note IDs when editing. No particular note is selected for you. Git operations require the user's instruction.\n\nClaude project skills are installed in .claude/skills; invoke /shiori-notes.\n\nSHIORI_VAULT and SHIORI_SKILLS contain the same absolute paths in the shell environment. Tool sandbox permissions may require granting access to the vault; do not disable protections automatically.\n",serde_json::to_string(vault).map_err(|e|e.to_string())?);
     for name in ["AGENTS.md","CLAUDE.md"]{std::fs::write(cwd.join(name),&guide).map_err(|e|e.to_string())?;}
     Ok(cwd)
 }
@@ -131,15 +142,30 @@ mod tests {
   let f=Fixture::new();let vault=f.0.join("日本語 vault $notes");std::fs::create_dir(&vault).unwrap();
   let cwd=workspace(&f.0.join("sessions"),&vault,&skills_dir()).unwrap();
   assert!(cwd.join("skills/shiori-notes/SKILL.md").is_file());
-  for name in ["shiori-notes","shiori-readable-notes"] {
+  for name in ["shiori-notes"] {
    assert_eq!(std::fs::read(cwd.join(".claude/skills").join(name).join("SKILL.md")).unwrap(),std::fs::read(skills_dir().join(name).join("SKILL.md")).unwrap());
   }
-  assert!(cwd.join(".claude/skills/shiori-readable-notes/assets/shiori-document.css").is_file());
+  assert!(cwd.join(".claude/skills/shiori-notes/assets/theme.css").is_file());
   for file in ["AGENTS.md","CLAUDE.md"]{let guide=std::fs::read_to_string(cwd.join(file)).unwrap();assert!(guide.contains(&serde_json::to_string(&vault).unwrap()));assert!(guide.contains("notes/"));}
   assert_eq!(std::fs::read_dir(&vault).unwrap().count(),0);
   let other=workspace(&f.0.join("sessions"),&f.0,&skills_dir()).unwrap();assert_ne!(cwd,other);
   let cmd=shell_command(&cwd,&vault);assert!(cmd.is_default_prog());assert!(cmd.iter_extra_env_as_str().any(|(k,v)|k=="SHIORI_VAULT"&&v==vault.to_str().unwrap()));
   assert!(size(0,80).is_err());assert!(size(24,401).is_err());
+ }
+ #[test]fn workspace_retires_legacy_skill_without_losing_custom_files(){
+  let f=Fixture::new();let base=f.0.join("sessions");let cwd=workspace(&base,&f.0,&skills_dir()).unwrap();
+  for directory in ["skills",".claude/skills"] {
+   let old=cwd.join(directory).join("shiori-readable-notes");std::fs::create_dir_all(&old).unwrap();std::fs::write(old.join("SKILL.md"),"custom legacy content").unwrap();
+   let custom=cwd.join(directory).join("my-skill");std::fs::create_dir_all(&custom).unwrap();std::fs::write(custom.join("SKILL.md"),"keep me").unwrap();
+  }
+  workspace(&base,&f.0,&skills_dir()).unwrap();workspace(&base,&f.0,&skills_dir()).unwrap();
+  for directory in ["skills",".claude/skills"] {
+   assert!(!cwd.join(directory).join("shiori-readable-notes").exists());
+   assert_eq!(std::fs::read_to_string(cwd.join(directory).join("my-skill/SKILL.md")).unwrap(),"keep me");
+  }
+  let archived=std::fs::read_dir(cwd.join("retired-skills")).unwrap().collect::<Result<Vec<_>,_>>().unwrap();assert_eq!(archived.len(),2);
+  for entry in archived {assert_eq!(std::fs::read_to_string(entry.path().join("SKILL.md")).unwrap(),"custom legacy content");}
+  for name in ["AGENTS.md","CLAUDE.md"] {let guide=std::fs::read_to_string(cwd.join(name)).unwrap();assert!(guide.contains("/shiori-notes"));assert!(!guide.contains("shiori-readable-notes"));}
  }
  #[test]fn output_waits_for_ack_and_stop_releases_backpressure(){
   let flow=Arc::new(Flow::default());let copy=flow.clone();let(send,recv)=std::sync::mpsc::channel();

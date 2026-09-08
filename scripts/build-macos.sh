@@ -22,6 +22,9 @@ shutil.copy2(app/'src-tauri/icons/shiori.icns', resources/'shiori.icns')
 staged=macos/'shiori.new'
 shutil.copy2(target/'debug/shiori', staged)
 staged.replace(macos/'shiori')
+# Remove retired generated resources when updating an existing app bundle.
+shutil.rmtree(resources/'skills/shiori-readable-notes', ignore_errors=True)
+(resources/'sample-vault/styles/shiori-document.css').unlink(missing_ok=True)
 # The outside-Vault symlink is a source fixture, not a bundle resource.
 shutil.copytree(app/'sample-vault', resources/'sample-vault', dirs_exist_ok=True,
                 ignore=shutil.ignore_patterns('outside.png', '.DS_Store'))

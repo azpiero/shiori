@@ -6,12 +6,14 @@
   <title>{{TITLE}}</title>
   <meta name="note-id" content="{{NEW_UUID}}">
   <meta name="note-tag" content="{{EXISTING_TAG}}">
-  <link rel="stylesheet" href="../styles/shiori-document.css">
+  <link rel="stylesheet" href="../styles/theme.css">
 </head>
 <body>
 <main class="document">
+  <p class="kicker">{{TOPIC}}</p>
   <h1 id="overview">{{TITLE}}</h1>
   <p class="lead">{{RESULT_AND_SCOPE}}</p>
+  <div class="meta"><span>{{AUTHOR_OR_CONTEXT}}</span><span>{{DATE}}</span></div>
   <!-- Remove the contents list for a short note; retain stable IDs when editing. -->
   <nav class="contents" aria-label="Contents">
     <strong>Contents</strong>
@@ -33,6 +35,7 @@
     <h2 id="limits">{{LIMITS_HEADING}}</h2>
     <p>{{LIMITS_AND_EVIDENCE}}</p>
   </section>
+  <footer class="footer">{{SOURCE_OR_RELATED_NOTE}}</footer>
 </main>
 </body>
 </html>

@@ -7,13 +7,15 @@
   <meta name="note-id" content="3bdf7583-69bf-40b9-8573-beff9f8e84bc">
   <meta name="note-tag" content="ガイド">
   <meta name="note-tag" content="設計">
-  <link rel="stylesheet" href="../styles/shiori-document.css">
+  <link rel="stylesheet" href="../styles/theme.css">
 </head>
 <body>
 <main class="document">
+  <p class="kicker">SHIORI NOTES</p>
   <h1 id="overview">HTMLとCSSを分けてノートを育てる</h1>
   <p class="lead">本文はHTMLに、複数のノートで使う文字や余白の指定は共有CSSに置く。
   同じCSSを参照すれば、一つのファイルの変更でノート全体の読み心地を調整できる。</p>
+  <div class="meta"><span>ガイド / 設計</span><span>共有テーマの使用例</span></div>
   <nav class="contents" aria-label="目次">
     <strong>目次</strong>
     <ol>
@@ -52,9 +54,9 @@
     <h2 id="example">一つのノートから始める</h2>
     <p>ノートをVaultの<code>notes/</code>に保存する場合、共有CSSは<code>styles/</code>に配置できる。
     次の指定では、HTMLのあるディレクトリから一つ上に戻り、CSSのファイルを参照する。</p>
-    <pre tabindex="0" aria-label="CSSを読み込むHTML"><code>&lt;link rel="stylesheet" href="../styles/shiori-document.css"&gt;</code></pre>
+    <pre tabindex="0" aria-label="CSSを読み込むHTML"><code>&lt;link rel="stylesheet" href="../styles/theme.css"&gt;</code></pre>
     <ol>
-      <li>共有CSSを配置し、ノートのheadから相対パスで参照する。</li>
+      <li>shiori-notes の共有CSSと既存のファイルを比較し、一致すれば再利用する。異なる場合は別名でコピーし、ノートのheadから相対パスで参照する。</li>
       <li>見出しと段落を書き、ライトとダークの両方で本文を読む。</li>
       <li>別のノートにも同じCSSへの参照を追加する。</li>
     </ol>
@@ -73,7 +75,7 @@
   <section aria-labelledby="limits">
     <h2 id="limits">変更が届く範囲を確かめる</h2>
     <p>共有CSSを変えると、それを参照するすべてのノートの表示が変わる。
-    <span class="accent">既存のCSSを置き換える前に、利用中のノートを確認する。</span>
+    <span class="accent">既存のCSSがSkillの正典と異なる場合は上書きせず、別名のCSSを対象ノートから参照する。</span>
     広い画面で収まる図や表でも、分割した狭いペインでは文字が読みにくくなる場合がある。</p>
     <aside class="note" aria-label="表示上の制約">
       <p>shioriではノート内のJavaScriptを実行しない。
@@ -88,6 +90,7 @@
     <p>CSSを書き換えた後の操作は、<a href="06-%E6%9B%B4%E6%96%B0%E3%81%AE%E7%A2%BA%E8%AA%8D.html">外部編集を反映する</a>を参照する。
     Gitで管理する場合は、本文と共有CSSの両方の差分を確認すると、内容の変更と表示の変更を追跡できる。</p>
   </section>
+  <footer class="footer">ノートの構造と体裁は shiori-notes にまとめています。</footer>
 </main>
 </body>
 </html>
