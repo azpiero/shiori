@@ -71,16 +71,16 @@ Edits change only `meta[name="note-tag"]` elements in an explicit HTML head. Oth
 
 Save checks the original source hash and refuses external changes. On conflict, cancel, reload the vault, and review the newer note before editing again. Successful saves update both panes, search candidates, and graph data while preserving tabs and queries. Edited notes and any other notes whose source hash changed reload, resetting their scroll/match position; unchanged iframes remain attached. Scan errors after a write are reported as **saved**, with details in the sidebar. A final hash check and atomic replacement cannot eliminate the small race with unrelated external editors; see the [tag editing contract](docs/TAG_EDITING.md).
 
-Pane controls stay fixed at the right of the horizontally scrolling tab row. Tags and document search remain on separate rows below it. The active pane has an accented top border. Opening a note from the sidebar or graph normally replaces its active tab. Click inside a pane or move focus into it with Tab to make it active. An empty pane itself is focusable; select it, then choose a note from the sidebar.
+Pane controls stay fixed at the right of the horizontally scrolling tab row. Tags appear below it; document search is hidden until invoked with ⌘F or Edit → Find → Find in Note. The active pane has an accented top border. Opening a note from the sidebar or graph normally replaces its active tab. Click inside a pane or move focus into it with Tab to make it active. An empty pane itself is focusable; select it, then choose a note from the sidebar.
 
 | Action | How |
 | --- | --- |
 | Open a new tab | ⌘/Ctrl-click a list item or graph note |
 | Open beside the current note | Use the **pane +** icon to duplicate the current note into a second pane, or Shift-click a list item or graph note |
 | Switch or close a tab | Select its title or use its × button |
-| Search one document | ⌘F (Ctrl+F outside macOS) focuses and selects the search text in the active pane. Enter a phrase and press Enter |
+| Search one document | ⌘F (Ctrl+F outside macOS) shows the search row and selects its text in the active pane. Enter a phrase and press Enter |
 | Next / previous search match | ⌘G / ⌘⇧G (Ctrl+G / Ctrl+Shift+G outside macOS), or ↑/↓ in the search row |
-| Clear document search | Use the search row’s × or **Edit → Find → Clear Note Search** |
+| Clear document search | Use ×, Escape while in the search input, or **Edit → Find → Clear Note Search** to clear and hide the search row |
 | Follow an internal link | Click it in the note to navigate within that same tab |
 | Move focus between panes | Click in the destination pane or use Tab to focus its controls |
 | Resize panes | Drag the divider; double-click to restore equal widths. With the divider focused, use ←/→ for 5% steps, Home for minimum left width, or End for equal widths |

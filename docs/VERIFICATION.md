@@ -274,3 +274,5 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - Headless Chromium with mocked native events verified iframe targeting, next/previous, clearing and Enter search. Native menu construction compiles and retains Tauri's default edit items.
 - Syntax/diff checks and macOS build/signature verification passed.
 - Native UI automation timed out. Manual checks remain: click a note body and press Cmd+F, submit a query, cycle with Cmd+G/Cmd+Shift+G, clear through Edit > Find, and verify copy/paste/select-all in the terminal. Browser event tests do not prove native accelerator or clipboard dispatch.
+
+- Follow-up: 69 JavaScript tests and browser checks passed for initial hidden search, Find-to-show, clear/Escape-to-hide, and reopening. macOS build/signature checks passed.

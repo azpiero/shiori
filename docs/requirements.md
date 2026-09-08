@@ -698,3 +698,5 @@ This replaces the earlier tag-membership graph described above.
 - Add Find in Note (CmdOrCtrl+F), Find Next (CmdOrCtrl+G), Find Previous (CmdOrCtrl+Shift+G), and Clear Note Search. Menu events target only the main window; only recognized IDs map to reader actions.
 - Synchronize the focused sandboxed iframe to its pane before dispatching. Find reveals the reader, focuses the active pane's search input and selects its text. Next/previous retain independent pane search positions. Empty panes safely ignore actions.
 - Remove the search-row submit button; Enter submits as before. Clear remains available through the row's × and the native menu, including when the note has focus.
+
+- Follow-up: keep each pane’s search row hidden until Find is invoked. Clearing via ×, Escape in the input, or the native menu clears the query and hides the row, restoring focus to the tab.
