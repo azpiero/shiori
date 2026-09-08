@@ -252,3 +252,9 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - JavaScript: 62 tests passed. Covers immediate removal, candidate acceptance versus save, IME, validation/count limits, duplicate operations, conflicts/retries, saved scan warnings, draft cancellation and focus after late completion. Existing cross-pane refresh and stale revision-poll checks pass.
 - Headless Chromium with mocked IPC verified immediate removal without a dialog, keyboard suggestions, Enter save, blur/Escape cancellation, composition events, both-pane updates, and light/dark split panes near the 320px minimum width.
 - Syntax/diff checks and macOS build/signature verification passed. Backend write commands are unchanged. Native WKWebView/IME interaction remains a manual check.
+
+## Issue #39: Notifications instead of a status bar (2026-09-09)
+
+- JavaScript: 66 tests passed. Covers notification lifetime, roles, safe text rendering, queue/deduplication, hover/focus timer pauses, explicit dismissal focus and polling suppression/recovery.
+- Headless Chromium with mocked IPC verified full-height layout, persistent errors/warnings, information expiry and focus pause, queue promotion, silent tag saving and contained notifications in light/dark themes at 1100px and 780px.
+- Syntax/diff checks and macOS build/signature verification passed. Native WKWebView and screen-reader announcements remain manual checks. Backend commands are unchanged.

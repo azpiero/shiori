@@ -11,7 +11,7 @@ const ShioriNoteMove=require('../ui/note-move.js');
 const {create:terminalCreate}=require('../ui/terminal.js');
 const terminalStub=require('./terminal-stub.cjs');
 const ShioriTerminal={create:options=>terminalCreate({...options,...terminalStub})};
-const {createDocument}=require('./dom.cjs');
+const {createDocument}=require('./dom.cjs');const ShioriToasts=require('../ui/toasts.js');
 
 // Exercise app event handlers with a small DOM/Tauri adapter. These checks do not
 // simulate WebView rendering, layout, or iframe navigation; those require manual QA.
@@ -21,7 +21,7 @@ async function setup(initialErrors=[],initialWarnings=[]){
  const notes=Array.from({length:160},(_,i)=>({path:`notes/${i}.html`,title:`Note ${i}`,text:'knowledge',tags:[i%2?'odd':'even'],headings:[]}));
  const vault={root:'/test/vault',token:'test-token',revision:'r1',notes,errors:initialErrors,warnings:initialWarnings,scan_ms:1};
  refreshResult=vault;
- const context=vm.createContext({document,URL,performance,ShioriSearch,ShioriReader,ShioriTagEditor,ShioriFolders,ShioriNoteMove,ShioriTerminal,ShioriGraph,ShioriGraphView,localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(fn){intervals.push(fn);},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(commands[name])return commands[name](args);if(name==='terminal_start')return {cwd:'/test/workspace',vault:vault.root};if(name==='terminal_stop')return;if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
+ const context=vm.createContext({document,URL,performance,ShioriToasts,ShioriSearch,ShioriReader,ShioriTagEditor,ShioriFolders,ShioriNoteMove,ShioriTerminal,ShioriGraph,ShioriGraphView,localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(fn){intervals.push(fn);},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(commands[name])return commands[name](args);if(name==='terminal_start')return {cwd:'/test/workspace',vault:vault.root};if(name==='terminal_stop')return;if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
  const run=code=>vm.runInContext(code,context);
  run(fs.readFileSync(require.resolve('../ui/app.js'),'utf8'));
  await new Promise(resolve=>setImmediate(resolve));
@@ -82,7 +82,7 @@ test('failed refresh keeps update notification and re-enables vault actions',asy
  const {run,get,setRefresh}=await setup();
  run('changed=true');get('#notice').classList.add('show');setRefresh(null,new Error('Cannot read vault'));
  await run('refresh()');assert.equal(run('changed'),true);assert.ok(get('#notice').classes.has('show'));
- assert.equal(get('#reload').disabled,false);assert.match(get('#status').textContent,/Cannot read vault/);
+ assert.equal(get('#reload').disabled,false);assert.match(get('.toast [role="alert"]').textContent,/Cannot read vault/);
 });
 
 test('Enter waits for IME completion; events from a previous vault are ignored',async()=>{
@@ -239,4 +239,12 @@ test('Space then a destination folder moves a note without a destination modal',
  commands.move_note=()=>({moved:true,old_path:'notes/0.html',path:'notes/empty/0.html',warnings:[],snapshot:{...vault,revision:'r2',notes:vault.notes.map(n=>n.path==='notes/0.html'?{...n,path:'notes/empty/0.html'}:n)}});
  get('#notes').onkeydown({key:' ',target:get('#notes').querySelector('[data-path]'),preventDefault(){}});
  get('#notes').onclick({target:get('#notes').querySelectorAll('[data-folder]').find(b=>b.dataset.folder==='notes/empty')});await new Promise(resolve=>setImmediate(resolve));assert.equal(run('selected'),'notes/empty/0.html');assert.equal(run('changed'),false);
+});
+
+test('poll errors use persistent deduplicated toasts, reset on recovery, and footer is absent',async()=>{
+ const {run,get,vault,commands,intervals}=await setup();assert.equal(get('#status'),null);assert.equal(get('#timing'),null);assert.equal(get('.statusbar'),null);assert.equal(get('.toast'),null);
+ commands.vault_revision=()=>{throw new Error('Cannot watch vault');};await intervals[0]();await intervals[0]();assert.equal(get('.toasts').querySelectorAll('.toast').length,1);
+ get('.toast').querySelector('button').onclick();await intervals[0]();assert.equal(get('.toast'),null);
+ commands.vault_revision=()=>vault.revision;await intervals[0]();commands.vault_revision=()=>{throw new Error('Cannot watch vault');};await intervals[0]();assert.match(get('.toast [role="alert"]').textContent,/Cannot watch vault/);
+ get('.toast').querySelector('button').onclick();run('openNote("notes/1.html")');assert.equal(get('.toast'),null);
 });
