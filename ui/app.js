@@ -1,7 +1,7 @@
 const boot = performance.now();
 const {invoke} = window.__TAURI__.core;
 const {listen} = window.__TAURI__.event;
-let vault=null, selected='', query='', tag='', theme=localStorage.getItem('theme')||'light', switching=0, hits=0, hit=0, revisionBusy=false, changed=false, composing=false, displayedUrl='';
+let vault=null, selected='', query='', activeTags=[], theme=localStorage.getItem('theme')||'light', switching=0, hits=0, hit=0, revisionBusy=false, changed=false, composing=false, displayedUrl='';
 let graphMode=false,graphPage=0,graphScale=1,graphX=0,graphY=0,currentMatches=[],graphKey=null,hitsQuery='',vaultBusy=false;
 const metrics={uiReadyMs:0,scanMs:0,lastSwitchMs:0};
 const $=s=>document.querySelector(s);
@@ -22,7 +22,6 @@ $('#app').innerHTML=`<header class="topbar">
 <svg viewBox="0 0 24 24" aria-hidden="true">
 <path d="M6 3h9l3 3v15H6zM9 10h6M9 14h6M9 18h4"/>
 </svg>
-<span>ノート</span>
 </button>
 <button id="showGraph" aria-label="タググラフ表示" title="タググラフ表示" aria-pressed="false" aria-controls="graphPanel">
 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -31,7 +30,6 @@ $('#app').innerHTML=`<header class="topbar">
 <circle cx="18" cy="9" r="3"/>
 <circle cx="11" cy="19" r="3"/>
 </svg>
-<span>グラフ</span>
 </button>
 </nav>
 <aside class="sidebar">
@@ -39,7 +37,6 @@ $('#app').innerHTML=`<header class="topbar">
 <div class="vault-name">
 <span id="vaultName">Sample Vault</span>
 <div class="vault-actions">
-<span id="count" class="pill">—</span>
 <button id="reload" title="Vault全体を再読込" aria-label="Vault全体を再読込">↻</button>
 </div>
 </div>
@@ -50,10 +47,10 @@ $('#app').innerHTML=`<header class="topbar">
 <ul id="readErrorsList"></ul>
 </details>
 <div class="search">
-<input id="search" placeholder="ノートを検索…" aria-label="ノートを検索" autocomplete="off">
-</div>
-<div class="filter-label">タグで絞り込み</div>
-<div class="filter-tags" id="tags" aria-label="タグで一覧を絞り込み">
+<input id="search" placeholder="検索 / tag: タグ名" aria-label="ノートとタグを検索" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="tagSuggestions" aria-describedby="searchHelp">
+<div id="tagSuggestions" class="tag-suggestions" role="listbox" aria-label="タグ候補" hidden></div>
+<span id="searchHelp" class="sr-only">tag: タグ名で完全一致。複数のタグはAND。空白を含むタグは二重引用符で囲みます。候補は上下キーで選び、Enterで確定、Escapeで閉じます。</span>
+<span id="suggestionStatus" class="sr-only" role="status"></span>
 </div>
 <section id="currentNote" class="current-note" aria-label="絞り込み対象外の表示中ノート" hidden>
 </section>
@@ -64,7 +61,6 @@ $('#app').innerHTML=`<header class="topbar">
 </div>
 <div class="notes" id="notes">
 </div>
-<div class="sidebar-footer">HTMLをそのまま正本に。<br>ノート内のJavaScript・外部資産は停止。<br>この試作はファイルを書き換えません。</div>
 </aside>
 <div class="splitter" id="splitter" role="separator" aria-label="サイドバー幅" aria-orientation="vertical">
 </div>
@@ -106,6 +102,7 @@ $('#app').innerHTML=`<header class="topbar">
 </main>
 </div>
 <footer class="statusbar">
+<span class="read-only" title="HTMLの正本は変更しません。ノート内のJavaScriptと外部資産は制限します。">読み取り専用</span>
 <span id="status">準備中</span>
 <span id="timing">Tauri + Rust · sandboxed iframe · WKWebView</span>
 </footer>`;
@@ -117,14 +114,12 @@ function renderList(){
  if(!vault)return;
  const focused=document.activeElement;
  const focusPath=focused?.dataset.path,focusTag=focused?.dataset.tag;
- const focusContainer=focused?.closest('#notes, #tags, #currentNote')?.id;
- const q=query.trim().toLocaleLowerCase();
- const matches=vault.notes.filter(n=>(!tag||n.tags.includes(tag))&&(!q||`${n.title}\n${n.text}`.toLocaleLowerCase().includes(q))).sort((a,b)=>Number(b.title.toLocaleLowerCase().includes(q))-Number(a.title.toLocaleLowerCase().includes(q)));
- $('#notes').innerHTML=matches.map(n=>`<article class="note ${n.path===selected?'active':''}"><button class="note-open" data-path="${escape(n.path)}" ${n.path===selected?'aria-current="true"':''}><span class="note-title"><span class="note-icon">▤</span>${escape(n.title)}</span><span class="note-path" title="${escape(n.path)}">${escape(n.path)}</span></button><div class="list-note-tags">${n.tags.map(t=>`<button class="note-tag" data-tag="${escape(t)}" title="タググラフを開く: ${escape(t)}" aria-label="タググラフを開く: ${escape(t)}">#${escape(t)} <span aria-hidden="true">↗</span></button>`).join('')||'<span class="untagged">タグなし</span>'}</div></article>`).join('')||'<div class="empty">一致するノートがありません</div>';
+ const focusContainer=focused?.closest('#notes, #currentNote')?.id;
+ const matches=ShioriSearch.filter(vault.notes,{text:query,tags:activeTags});
+ $('#notes').innerHTML=matches.map(n=>`<article class="note ${n.path===selected?'active':''}"><button class="note-open" title="${escape(n.path)}" aria-label="${escape(n.title)} — ${escape(n.path)}" data-path="${escape(n.path)}" ${n.path===selected?'aria-current="true"':''}><span class="note-title">${escape(n.title)}</span></button><div class="list-note-tags">${n.tags.map(t=>`<button class="note-tag" data-tag="${escape(t)}" title="タググラフを開く: ${escape(t)}" aria-label="タググラフを開く: ${escape(t)}">#${escape(t)} <span aria-hidden="true">↗</span></button>`).join('')||'<span class="untagged">タグなし</span>'}</div></article>`).join('')||'<div class="empty">一致するノートがありません</div>';
  currentMatches=matches;if(graphMode)renderGraph();
  $('#results').textContent=`${matches.length} 件`;
  renderCurrentNote();
- $('#tags').innerHTML=['',...new Set(vault.notes.flatMap(n=>n.tags))].map(t=>`<button class="tag ${t===tag?'active':''}" data-tag="${escape(t)}">${escape(t||'すべて')}</button>`).join('');
  updateHits();
  if(focusContainer){const buttons=$('#'+focusContainer).querySelectorAll('button');[...buttons].find(b=>focusPath!==undefined?b.dataset.path===focusPath:b.dataset.tag===focusTag)?.focus();}
 }
@@ -132,7 +127,7 @@ function renderCurrentNote(){
  const note=vault?.notes.find(n=>n.path===selected);
  const panel=$('#currentNote');
  panel.hidden=!note||currentMatches.some(n=>n.path===selected);
- panel.innerHTML=panel.hidden?'':`<div class="filter-label">表示中 · 絞り込み対象外</div><strong>${escape(note.title)}</strong><div class="note-path" title="${escape(note.path)}">${escape(note.path)}</div><div class="list-note-tags">${note.tags.map(t=>`<button class="note-tag" data-tag="${escape(t)}" aria-label="タググラフを開く: ${escape(t)}">#${escape(t)} ↗</button>`).join('')||'<span class="untagged">タグなし</span>'}</div>`;
+ panel.innerHTML=panel.hidden?'':`<div class="current-label">表示中 · 絞り込み対象外</div><strong title="${escape(note.path)}" aria-label="${escape(note.title)} — ${escape(note.path)}">${escape(note.title)}</strong><div class="list-note-tags">${note.tags.map(t=>`<button class="note-tag" data-tag="${escape(t)}" aria-label="タググラフを開く: ${escape(t)}">#${escape(t)} ↗</button>`).join('')||'<span class="untagged">タグなし</span>'}</div>`;
 }
 function selectedInfo(){renderList();}
 function activateNoteList(e){
@@ -142,7 +137,6 @@ function activateNoteList(e){
 }
 $('#notes').onclick=activateNoteList;
 $('#currentNote').onclick=activateNoteList;
-$('#tags').onclick=e=>{const button=e.target.closest('button[data-tag]');if(button){const value=button.dataset.tag;setTag(value);[...$('#tags').querySelectorAll('button')].find(b=>b.dataset.tag===value)?.focus();}};
 function invalidateGraph(){graphKey=null;graphPage=0;}
 function clearNote(){
  selected='';displayedUrl='';hitsQuery='';hits=0;hit=0;
@@ -183,39 +177,74 @@ async function load(path=null){
  status('HTMLを解析しています…');$('#loading').classList.remove('hidden');
  try{
   vault=await invoke('open_vault',{path});metrics.scanMs=vault.scan_ms;
-  selected='';invalidateGraph();tag='';query='';$('#search').value='';setView(false);
+  selected='';invalidateGraph();activeTags=[];query='';$('#search').value='';hideSuggestions();setView(false);
   $('#root').textContent=vault.root;$('#root').title=vault.root;$('#vaultName').textContent=vault.root.split('/').pop();$('#vaultName').title=vault.root;
-  $('#count').textContent=vault.notes.length;$('#notice').classList.remove('show');changed=false;
+  $('#notice').classList.remove('show');changed=false;
   renderList();if(vault.notes.length)openNote(vault.notes[0].path);else clearNote();
   renderReadErrors();
  }catch(e){status(String(e));$('#loading').classList.add('hidden');}finally{setVaultBusy(false);}
 }
 $('#open').onclick=async()=>{try{const path=await invoke('plugin:dialog|open',{options:{directory:true,multiple:false,title:'HTMLを保管したフォルダを選択'}});if(path)await load(path);}catch(e){status(String(e));}};
 $('#theme').onclick=()=>{const wasGraph=graphMode;theme=theme==='light'?'dark':'light';setTheme();if(selected)openNote(selected);setView(wasGraph);};
-$('#search').addEventListener('compositionstart',()=>composing=true);
-$('#search').addEventListener('compositionend',()=>{composing=false;search();});
-let timer;
+let timer,suggestions=null,suggestionIndex=-1;
+function hideSuggestions(){suggestions=null;suggestionIndex=-1;$('#tagSuggestions').hidden=true;$('#tagSuggestions').innerHTML='';$('#search').setAttribute('aria-expanded','false');$('#search').removeAttribute('aria-activedescendant');$('#suggestionStatus').textContent='';}
+function showSuggestions(){
+ if(composing||!vault)return;
+ const input=$('#search');if(document.activeElement!==input){hideSuggestions();return;}suggestions=ShioriSearch.suggest(input.value,input.selectionStart??input.value.length,vault.notes.flatMap(n=>n.tags));suggestionIndex=-1;
+ if(!suggestions){hideSuggestions();return;}
+ const options=suggestions.options;
+ $('#tagSuggestions').hidden=!options.length;input.setAttribute('aria-expanded',String(!!options.length));input.removeAttribute('aria-activedescendant');
+ $('#tagSuggestions').innerHTML=options.map((t,i)=>`<div id="tag-option-${i}" role="option" aria-selected="false" data-index="${i}">${escape(t)}</div>`).join('');
+ $('#suggestionStatus').textContent=options.length?`タグ候補 ${options.length}件。上下キーで選択できます。`:'一致するタグ候補はありません。';
+}
+function acceptSuggestion(index){
+ if(!suggestions?.options[index])return;
+ const input=$('#search'),result=ShioriSearch.complete(input.value,suggestions.token,suggestions.options[index]);
+ clearTimeout(timer);input.value=result.value;input.focus();input.setSelectionRange(result.caret,result.caret);hideSuggestions();applySearch();
+}
+$('#tagSuggestions').onmousedown=e=>e.preventDefault();
+$('#tagSuggestions').onclick=e=>{const option=e.target.closest('[data-index]');if(option)acceptSuggestion(Number(option.dataset.index));};
 function applySearch(){
- const next=$('#search').value;
- if(query!==next){query=next;invalidateGraph();renderList();
-  // Remove old highlights when clearing the search, without leaving the graph.
-  if(!query.trim()&&selected){const wasGraph=graphMode;openNote(selected);setView(wasGraph);}
+ if(composing)return;
+ const parsed=ShioriSearch.parse($('#search').value);
+ if(query!==parsed.text||JSON.stringify(activeTags)!==JSON.stringify(parsed.tags)){
+  const oldQuery=query;query=parsed.text;activeTags=parsed.tags;invalidateGraph();renderList();
+  if(oldQuery&&!query&&selected){const wasGraph=graphMode;openNote(selected);setView(wasGraph);}
  }
 }
-function search(){if(composing)return;clearTimeout(timer);timer=setTimeout(applySearch,120);}
+function search(){if(composing)return;clearTimeout(timer);hideSuggestions();timer=setTimeout(()=>{applySearch();showSuggestions();},120);}
+$('#search').addEventListener('compositionstart',()=>{composing=true;clearTimeout(timer);hideSuggestions();});
+$('#search').addEventListener('compositionend',()=>{composing=false;search();});
 $('#search').addEventListener('input',search);
+$('#search').addEventListener('click',showSuggestions);
+$('#search').addEventListener('blur',()=>{clearTimeout(timer);applySearch();hideSuggestions();});
 $('#search').addEventListener('keydown',e=>{
- if(e.key==='Enter'&&!e.isComposing&&!composing){clearTimeout(timer);applySearch();const first=currentMatches[0];if(first)openNote(first.path);}
+ if(e.isComposing||composing)return;
+ if(['ArrowLeft','ArrowRight','Home','End','Tab'].includes(e.key)){clearTimeout(timer);applySearch();hideSuggestions();return;}
+ if(e.key==='Escape'){clearTimeout(timer);applySearch();hideSuggestions();return;}
+ if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+  clearTimeout(timer);applySearch();
+  if(!suggestions)showSuggestions();
+  if(suggestions?.options.length){e.preventDefault();suggestionIndex=(suggestionIndex+(e.key==='ArrowDown'?1:suggestionIndex<0?0:-1)+suggestions.options.length)%suggestions.options.length;
+   $('#search').setAttribute('aria-activedescendant',`tag-option-${suggestionIndex}`);
+   $('#tagSuggestions').querySelectorAll('[role="option"]').forEach((option,i)=>{option.setAttribute('aria-selected',String(i===suggestionIndex));if(i===suggestionIndex)option.scrollIntoView({block:'nearest'});});
+  }return;
+ }
+ if(e.key==='Enter'){
+  e.preventDefault();clearTimeout(timer);
+  if(suggestionIndex>=0){acceptSuggestion(suggestionIndex);return;}
+  hideSuggestions();applySearch();const first=currentMatches[0];if(first)openNote(first.path);
+ }
 });
 
 function moveHit(delta){if(!hits)return;hit=(hit+delta+hits)%hits;const u=new URL(displayedUrl||$('#noteFrame').src);u.hash=`shiori-hit-${hit}`;$('#noteFrame').src=u.href;updateHits();}
 $('#prev').onclick=()=>moveHit(-1);$('#next').onclick=()=>moveHit(1);
 async function refresh(){
- if(vaultBusy||!vault)return;setVaultBusy(true);status('Vault全体を再読込しています…');
+ if(vaultBusy||!vault)return;setVaultBusy(true);hideSuggestions();status('Vault全体を再読込しています…');
  try{
   const old=selected,wasGraph=graphMode;
   vault=await invoke('refresh_vault');metrics.scanMs=vault.scan_ms;invalidateGraph();
-  $('#count').textContent=vault.notes.length;changed=false;$('#notice').classList.remove('show');
+  changed=false;$('#notice').classList.remove('show');
   renderList();
   if(vault.notes.length)openNote(vault.notes.some(n=>n.path===old)?old:vault.notes[0].path);else clearNote();
   setView(wasGraph);
@@ -225,19 +254,23 @@ async function refresh(){
 $('#reload').onclick=refresh;$('#update').onclick=refresh;
 setInterval(async()=>{if(!vault||vaultBusy||revisionBusy||changed)return;revisionBusy=true;try{const rev=await invoke('vault_revision');if(rev!==vault.revision){changed=true;$('#notice').classList.add('show');}}catch(e){status(String(e));}finally{revisionBusy=false;}},2000);
 $('#splitter').onpointerdown=e=>{e.preventDefault();const shield=document.createElement('div');Object.assign(shield.style,{position:'fixed',inset:'0',zIndex:50,cursor:'col-resize'});document.body.append(shield);const move=e=>document.documentElement.style.setProperty('--sidebar',`${Math.max(210,Math.min(460,window.innerWidth-$('.view-nav').offsetWidth-325,e.clientX-$('.view-nav').getBoundingClientRect().right))}px`);shield.onpointermove=move;shield.onpointerup=()=>shield.remove();};
-function setTag(value){if(tag!==value){tag=value;invalidateGraph();}renderList();}
+function setTag(value){
+ const parsed=ShioriSearch.parse($('#search').value);
+ $('#search').value=[parsed.text,value?ShioriSearch.formatTag(value):''].filter(Boolean).join(' ');
+ clearTimeout(timer);hideSuggestions();applySearch();
+}
 function setView(graph){graphMode=graph;$('#graphPanel').hidden=!graph;$('.frame-wrap').hidden=graph;updateHits();$('#showGraph').setAttribute('aria-pressed',String(graph));$('#showNote').setAttribute('aria-pressed',String(!graph));if(graph)renderGraph();}
 function graphTransform(){const g=$('#graphSvg .graph-world');if(g)g.setAttribute('transform',`translate(${graphX} ${graphY}) translate(500 370) scale(${graphScale}) translate(-500 -370)`);}
 function resetGraph(){graphScale=1;graphX=0;graphY=0;graphTransform();}
 function renderGraph(){
- const key=JSON.stringify([vault?.token,vault?.revision,query.trim(),tag,graphPage]);
+ const key=JSON.stringify([vault?.token,vault?.revision,query.trim(),activeTags,graphPage]);
  if(graphKey===key){
   $('#graphSvg').querySelectorAll('.graph-node.note').forEach(n=>n.classList.toggle('selected',n.dataset.value===selected));
   graphTransform();return;
  }
  graphKey=key;graphScale=1;graphX=0;graphY=0;
  const model=ShioriGraph.build(currentMatches,graphPage);graphPage=model.page;$('#graphSvg').classList.toggle('dense',model.shown>40);
- $('#graphSummary').textContent=`${tag?'#'+tag+' · ':''}${model.total}件中 ${model.shown?model.page*150+1:0}〜${model.page*150+model.shown}件 · ${model.page+1}/${model.pages}ページ（最大150ノート/ページ）`;
+ $('#graphSummary').textContent=`${activeTags.length?activeTags.map(t=>'#'+t).join(' + ')+' · ':''}${model.total}件中 ${model.shown?model.page*150+1:0}〜${model.page*150+model.shown}件 · ${model.page+1}/${model.pages}ページ（最大150ノート/ページ）`;
  $('#graphPrev').disabled=!model.page;$('#graphNext').disabled=model.page+1>=model.pages;$('#graphEmpty').hidden=!!model.shown;
  const byId=new Map(model.nodes.map(n=>[n.id,n]));
  const xs=model.nodes.map(n=>n.x),ys=model.nodes.map(n=>n.y),left=Math.min(0,...xs)-35,top=Math.min(0,...ys)-35;$('#graphSvg').setAttribute('viewBox',`${left} ${top} ${Math.max(1000,...xs)+220-left} ${Math.max(740,...ys)+35-top}`);
