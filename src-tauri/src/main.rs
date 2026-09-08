@@ -20,9 +20,7 @@ struct State { vault: Mutex<Option<Vault>> }
 #[derive(Serialize)]
 struct Heading { id: String, text: String }
 #[derive(Serialize)]
-struct NoteLink { href: String, text: String }
-#[derive(Serialize)]
-struct Note { path: String, title: String, tags: Vec<String>, headings: Vec<Heading>, links: Vec<NoteLink>, text: String, size: u64, source_hash: String }
+struct Note { path: String, title: String, tags: Vec<String>, headings: Vec<Heading>, text: String, size: u64, source_hash: String }
 #[derive(Serialize)]
 struct Snapshot { warnings: Vec<String>, root: String, token: String, notes: Vec<Note>, errors: Vec<String>, revision: String, scan_ms: u128 }
 fn current(state: &State) -> Result<Vault, String> { state.vault.lock().map_err(|_| "state error")?.clone().ok_or("Vaultが未選択です".into()) }
@@ -46,10 +44,9 @@ fn parse_note(path: &Path, root: &Path) -> Result<Note,String> {
     let title = doc.select_first("title").ok().map(|n| n.text_contents().trim().to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| path.file_stem().unwrap_or_default().to_string_lossy().into());
     let tags = doc.select("meta[name='note-tag']").unwrap().filter_map(|n| n.attributes.borrow().get("content").map(String::from)).collect();
     let headings = doc.select("h1[id],h2[id],h3[id],h4[id],h5[id],h6[id]").unwrap().map(|n| Heading { id:n.attributes.borrow().get("id").unwrap_or("").to_string(), text:n.text_contents() }).collect();
-    let links = doc.select("a[href]").unwrap().map(|n| NoteLink { href:n.attributes.borrow().get("href").unwrap_or("").to_string(), text:n.text_contents().trim().to_string() }).collect();
     for n in doc.select("script,style,template,noscript").unwrap().collect::<Vec<_>>() { n.as_node().detach(); }
     let text = doc.select_first("body").map(|n| n.text_contents()).unwrap_or_default();
-    Ok(Note { path:path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().into(), title, tags, headings, links, text, size:meta.len(), source_hash })
+    Ok(Note { path:path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().into(), title, tags, headings, text, size:meta.len(), source_hash })
 }
 fn scan(vault: &Vault) -> Snapshot {
     let start = Instant::now(); let mut notes = Vec::new(); let mut errors = Vec::new();
@@ -294,7 +291,7 @@ mod tests {
         let root=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sample-vault").canonicalize().unwrap();
         let v=Vault{root:root.clone(),token:"test".into()};
         let files:Vec<_>=WalkDir::new(&root).follow_links(false).into_iter().filter_map(Result::ok).filter(|e|e.file_type().is_file()).map(|e|{let p=e.into_path();let b=std::fs::read(&p).unwrap();(p,b)}).collect();
-        let snapshot=scan(&v); assert_eq!(snapshot.notes.len(),8);assert!(snapshot.errors.is_empty());assert!(snapshot.notes.iter().any(|n|!n.links.is_empty()));
+        let snapshot=scan(&v); assert_eq!(snapshot.notes.len(),8);assert!(snapshot.errors.is_empty());
         for note in &snapshot.notes {
             let mut u=Url::parse("vault://localhost/test/").unwrap();
             u.path_segments_mut().unwrap().pop_if_empty().extend(note.path.split('/'));
