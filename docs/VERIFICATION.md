@@ -285,3 +285,9 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - Chromium preview with JavaScript disabled: sample note at 320px and 1000px, explicit light/dark opposite to the OS preference, 14px body text, no page overflow, visible keyboard focus, and no remote requests. Print checks confirmed wrapped code and unbroken figures. Visually inspected the narrow dark screenshot.
 - The backend sanitizer test retains SVG, tables, code, and details, resolves local references, and checks stylesheet equality. Sample note UUID/heading IDs and the isolation fixture remain unchanged. Native viewer and AI-tool invocation still require manual confirmation.
 - Real-vault content migration remains in shiori-vault #1; no real-vault files were changed.
+
+## Issue #54: compact Vault footer menu
+
+- JavaScript: 71 tests passed. Added menu navigation/dismissal, terminal action restrictions, and deferred refresh failure/busy recovery coverage; existing switch, restoration warning, and read-error tests remain passing.
+- Headless Chromium with mocked Tauri IPC verified 760px and 1100px windows, light/dark themes, fixed footer position while scrolling 200 notes, menu viewport bounds, keyboard navigation/Escape/Tab, outside-click dismissal, and bounded diagnostics with 20 read errors. Visually inspected narrow dark and expanded diagnostics screenshots.
+- `git diff --check` passed. Native macOS folder-picker behavior and the packaged viewer remain manual checks.

@@ -25,20 +25,6 @@ $('#app').innerHTML=`<div class="layout">
 <button id="theme" title="ダークモード" aria-label="ダークモード" aria-pressed="false">◐</button>
 </nav>
 <aside class="sidebar">
-<div class="vault-name">
-<span id="vaultName">Sample Vault</span>
-<div class="vault-actions">
-<button id="open" title="フォルダを開く" aria-label="フォルダを開く"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5h6l2 2h10v3M3 7h6l2 3h10l-3 10H3z"/></svg></button>
-<button id="reload" title="Vault全体を再読込" aria-label="Vault全体を再読込">↻</button>
-</div>
-</div>
-<div class="vault-path" id="root">
-</div>
-<div id="vaultWarnings" class="vault-warnings" role="status" hidden></div>
-<details id="readErrors" class="read-errors" hidden>
-<summary id="readErrorsSummary">読み取りエラー</summary>
-<ul id="readErrorsList"></ul>
-</details>
 <div class="search">
 <input id="search" placeholder="検索 / tag: タグ名" aria-label="ノートとタグを検索" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="tagSuggestions" aria-describedby="searchHelp">
 <div id="tagSuggestions" class="tag-suggestions" role="listbox" aria-label="タグ候補" hidden></div>
@@ -50,6 +36,24 @@ $('#app').innerHTML=`<div class="layout">
 <span id="results" class="sr-only"></span>
 <div id="folderMenu" class="folder-menu" role="menu" aria-label="フォルダ操作" hidden></div>
 <span id="folderMoveHelp" class="sr-only">ノートをSpaceで選択し、移動先のフォルダへTabで移動してEnterで格納。Escapeで取消。</span><div class="notes" id="notes">
+</div>
+<div class="vault-footer">
+<div class="vault-diagnostics">
+<div id="vaultWarnings" class="vault-warnings" role="status" hidden></div>
+<details id="readErrors" class="read-errors" hidden>
+<summary id="readErrorsSummary">読み取りエラー</summary>
+<ul id="readErrorsList"></ul>
+</details>
+</div>
+<button id="vaultSwitch" class="vault-switch" aria-haspopup="menu" aria-expanded="false" aria-controls="vaultMenu" aria-label="Vault操作">
+<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5h6l2 2h10v13H3z"/></svg>
+<span id="vaultName">Vault</span><span class="vault-menu-indicator" aria-hidden="true">⌃</span>
+</button>
+</div>
+<div id="vaultMenu" class="folder-menu vault-menu" role="menu" aria-label="Vault操作" hidden>
+<div class="vault-path" id="root"></div>
+<button id="open" role="menuitem">Vaultを開く（切り替え）</button>
+<button id="reload" role="menuitem">再読込</button>
 </div>
 </aside>
 <div class="splitter" id="splitter" role="separator" aria-label="サイドバー幅" aria-orientation="vertical">
@@ -167,13 +171,34 @@ let menuPath=null;
 function closeFolderMenu(restore=false){$('#folderMenu').hidden=true;if(restore)focusFolder(menuPath);menuPath=null;}
 function showFolderMenu(path,point){
  if(moving||vaultBusy||tagEditing)return;
- menuPath=path;const menu=$('#folderMenu');menu.innerHTML=`<button role="menuitem" data-action="create">新規フォルダ</button>${path==='notes'?'':'<button role="menuitem" data-action="rename">名称変更</button>'}`;menu.hidden=false;
+ closeVaultMenu();menuPath=path;const menu=$('#folderMenu');menu.innerHTML=`<button role="menuitem" data-action="create">新規フォルダ</button>${path==='notes'?'':'<button role="menuitem" data-action="rename">名称変更</button>'}`;menu.hidden=false;
  menu.style.left=Math.max(0,Math.min(point.left,window.innerWidth-180))+'px';menu.style.top=Math.max(0,Math.min(point.bottom??point.top,window.innerHeight-90))+'px';menu.querySelector('button').focus();
 }
 $('#notes').oncontextmenu=e=>{const row=e.target.closest('[data-folder-heading]');if(row&&!folderEdit){e.preventDefault();showFolderMenu(row.dataset.folderHeading,{left:e.clientX,top:e.clientY});}};
 $('#folderMenu').onclick=e=>{const action=e.target.closest('[data-action]')?.dataset.action;if(action){const path=menuPath;closeFolderMenu();editFolder(action,path);}};
 $('#folderMenu').onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();closeFolderMenu(true);}if(e.key==='Tab')closeFolderMenu();if(['ArrowDown','ArrowUp'].includes(e.key)){e.preventDefault();const items=[...$('#folderMenu').querySelectorAll('button')],index=items.indexOf(document.activeElement);items[(index+(e.key==='ArrowDown'?1:items.length-1))%items.length].focus();}};
-document.addEventListener('pointerdown',e=>{if(!e.target.closest('#folderMenu'))closeFolderMenu();});
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('#folderMenu'))closeFolderMenu();if(!e.target.closest('#vaultMenu, #vaultSwitch'))closeVaultMenu();});
+function closeVaultMenu(restore=false){$('#vaultMenu').hidden=true;$('#vaultSwitch').setAttribute('aria-expanded','false');if(restore)$('#vaultSwitch').focus();}
+function showVaultMenu(last=false){
+ if(vaultBusy||tagEditing||moving)return;
+ closeFolderMenu();hideSuggestions();const menu=$('#vaultMenu'),trigger=$('#vaultSwitch');menu.hidden=false;trigger.setAttribute('aria-expanded','true');
+ const rect=trigger.getBoundingClientRect(),box=menu.getBoundingClientRect();
+ menu.style.left=Math.max(8,Math.min(rect.left,window.innerWidth-box.width-8))+'px';
+ menu.style.top=Math.max(8,rect.top-box.height-6)+'px';
+ const items=[...menu.querySelectorAll('button')].filter(b=>!b.disabled);items[last?items.length-1:0]?.focus();
+}
+$('#vaultSwitch').onclick=()=>{if($('#vaultMenu').hidden)showVaultMenu();else closeVaultMenu();};
+$('#vaultSwitch').onkeydown=e=>{if(['ArrowDown','ArrowUp'].includes(e.key)){e.preventDefault();showVaultMenu(e.key==='ArrowUp');}if(e.key==='Escape'){e.preventDefault();closeVaultMenu();}};
+$('#vaultMenu').onkeydown=e=>{
+ if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeVaultMenu(true);return;}
+ if(e.key==='Tab'){closeVaultMenu(true);return;}
+ if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){
+  e.preventDefault();const items=[...$('#vaultMenu').querySelectorAll('button')].filter(b=>!b.disabled),index=items.indexOf(document.activeElement);
+  const next=e.key==='Home'?0:e.key==='End'?items.length-1:(index+(e.key==='ArrowDown'?1:items.length-1))%items.length;items[next]?.focus();
+ }
+};
+document.addEventListener('focusin',e=>{if(!e.target.closest('#vaultMenu, #vaultSwitch'))closeVaultMenu();});
+document.defaultView.addEventListener('resize',()=>closeVaultMenu());
 function editFolder(mode,path){
  if(vaultBusy||moving||tagEditing||!vault)return;
  closeFolderMenu();folderEdit={mode,path,token:vault.token,revision:vault.revision,value:mode==='rename'?path.split('/').pop():''};
@@ -206,7 +231,7 @@ function renderReadErrors(){
  $('#readErrorsList').innerHTML=errors.map(error=>`<li>${escape(error)}</li>`).join('');
  if(!errors.length)$('#readErrors').open=false;
 }
-function setVaultBusy(busy){vaultBusy=busy;for(const id of ['reload','update','open'])$('#'+id).disabled=busy||tagEditing||moving||(id==='open'&&terminalBusy);$('#reload').setAttribute('aria-busy',String(busy));$('#notes').setAttribute('aria-busy',String(busy));terminalPanel?.contextChanged();}
+function setVaultBusy(busy){vaultBusy=busy;for(const id of ['reload','update','open'])$('#'+id).disabled=busy||tagEditing||moving||(id==='open'&&terminalBusy);$('#vaultSwitch').setAttribute('aria-busy',String(busy));$('#vaultSwitch').setAttribute('aria-disabled',String(busy||tagEditing||moving));if(busy||tagEditing||moving)closeVaultMenu();$('#notes').setAttribute('aria-busy',String(busy));terminalPanel?.contextChanged();}
 
 async function load(path=null){
  if(vaultBusy||terminalBusy||tagEditing||moving)return;setVaultBusy(true);clearTimeout(timer);
@@ -214,13 +239,13 @@ async function load(path=null){
   vault=await invoke('open_vault',{path});
   $('#vaultWarnings').textContent=(vault.warnings||[]).join('\n');$('#vaultWarnings').hidden=!vault.warnings?.length;
   folderEdit=null;closeFolderMenu();collapsedFolders.clear();clearDrag();reader.reset();terminalPanel.reset();selected='';invalidateGraph();activeTags=[];query='';$('#search').value='';hideSuggestions();setView(false);
-  $('#root').textContent=vault.root;$('#root').title=vault.root;$('#vaultName').textContent=vault.root.split('/').pop();$('#vaultName').title=vault.root;
+  $('#root').textContent=vault.root;$('#root').title=vault.root;$('#vaultName').textContent=vault.root.split('/').pop();$('#vaultName').title=vault.root;$('#vaultSwitch').title=vault.root;$('#vaultSwitch').setAttribute('aria-label',`Vault操作: ${vault.root.split('/').pop()}`);
   $('#notice').classList.remove('show');changed=false;
   renderList();const first=vault.notes.find(n=>n.path.startsWith('notes/'));if(first)openNote(first.path);else clearNote();
   renderReadErrors();
  }catch(e){showError(String(e));}finally{setVaultBusy(false);}
 }
-$('#open').onclick=async()=>{try{const path=await invoke('plugin:dialog|open',{options:{directory:true,multiple:false,title:'HTMLを保管したフォルダを選択'}});if(path)await load(path);}catch(e){showError(String(e));}};
+$('#open').onclick=async()=>{if($('#open').disabled)return;closeVaultMenu(true);try{const path=await invoke('plugin:dialog|open',{options:{directory:true,multiple:false,title:'HTMLを保管したフォルダを選択'}});if(path)await load(path);}catch(e){showError(String(e));}};
 $('#theme').onclick=()=>{theme=theme==='light'?'dark':'light';setTheme();reader.theme();graphView.redraw();};
 let timer,suggestions=null,suggestionIndex=-1;
 function hideSuggestions(){suggestions=null;suggestionIndex=-1;$('#tagSuggestions').hidden=true;$('#tagSuggestions').innerHTML='';$('#search').setAttribute('aria-expanded','false');$('#search').removeAttribute('aria-activedescendant');$('#suggestionStatus').textContent='';}
@@ -283,7 +308,7 @@ async function refresh(){
   renderReadErrors();
  }catch(e){showError(String(e));}finally{setVaultBusy(false);}
 }
-$('#reload').onclick=refresh;$('#update').onclick=refresh;
+$('#reload').onclick=()=>{if($('#reload').disabled)return;closeVaultMenu(true);return refresh();};$('#update').onclick=refresh;
 let pollError=null;
 setInterval(async()=>{if(!vault||vaultBusy||tagEditing||moving||revisionBusy||changed)return;revisionBusy=true;const epoch=revisionEpoch,token=vault.token;
  try{const rev=await invoke('vault_revision');if(epoch===revisionEpoch&&token===vault?.token&&!vaultBusy){pollError=null;if(rev!==vault.revision){changed=true;$('#notice').classList.add('show');}}}
