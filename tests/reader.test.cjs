@@ -206,7 +206,7 @@ test('two-action toolbar duplicates the note and preserves the survivor when add
  const {reader,document}=setup();const pane=i=>document.querySelector('#pane-'+i),button=(i,action)=>pane(i).querySelector(`[data-action="${action}"]`),click=(i,action)=>pane(i).onclick({target:button(i,action)});
  const left=reader.open('a.html','','current','alpha');
  assert.equal(pane(0).querySelector('.pane-controls').querySelectorAll('button').length,2);
- assert.equal(button(0,'split').closest('[role="tablist"]'),null);assert.equal(pane(0).querySelector('.reader-tabs').parentNode,pane(0).querySelector('.pane-controls').parentNode);assert.equal(button(0,'close-pane').disabled,true);click(0,'split');const right=reader.model.tab,frame=reader.frames.get(right.id).frame;
+ assert.equal(button(0,'split').closest('[role="tablist"]'),null);assert.equal(pane(0).querySelector('.reader-tabstrip').parentNode,pane(0).querySelector('.pane-controls').parentNode);assert.equal(button(0,'close-pane').disabled,true);click(0,'split');const right=reader.model.tab,frame=reader.frames.get(right.id).frame;
  assert.equal(right.path,left.path);assert.equal(right.query,'alpha');assert.notEqual(right.id,left.id);
  for(const i of [0,1])assert.equal(button(i,'split').disabled,true);
  click(1,'split');assert.equal(reader.model.all().length,2);
@@ -233,4 +233,26 @@ test('native find actions target the focused iframe and preserve independent pan
 });
 test('native find commands safely ignore empty panes and unknown actions',()=>{
  const {reader}=setup();for(const action of ['find','next','previous','clear','paste'])reader.menuAction(action);assert.equal(reader.model.all().length,0);
+});
+
+test('new-tab controls add and focus empty tabs in their own pane and share the global limit',()=>{
+ const {reader,document,error}=setup();reader.open('a.html');reader.open('b.html','','side');
+ const pane=i=>document.querySelector('#pane-'+i),button=i=>pane(i).querySelector('[data-action="new"]');
+ const click=i=>pane(i).onclick({target:button(i)});
+ assert.equal(button(0).closest('[role="tablist"]'),null);
+ click(0);assert.equal(reader.model.activePane,0);assert.equal(reader.model.tab.path,'');assert.equal(reader.model.panes[1].tabs.length,1);
+ assert.equal(document.activeElement.id,'tab-'+reader.model.tab.id);assert.equal(reader.frames.get(reader.model.tab.id).empty.hidden,false);
+ while(reader.model.all().length<12)click(1);
+ for(const i of [0,1])assert.equal(button(i).disabled,true);
+ click(0);assert.equal(reader.model.all().length,12);assert.equal(error(),'');
+ const closed=reader.model.tab.id;pane(1).onclick({target:document.querySelector('#tab-'+closed).parentNode.querySelector('[data-close]')});
+ for(const i of [0,1])assert.equal(button(i).disabled,false);
+ click(0);assert.equal(reader.model.all().length,12);assert.equal(document.activeElement.id,'tab-'+reader.model.tab.id);
+});
+
+test('tag rows include a decorative icon for tagged and untagged notes but stay hidden on empty tabs',()=>{
+ const {reader,document,vault}=setup();vault.notes[0].tags=['設計'];reader.open('a.html');
+ const tags=document.querySelector('#pane-tags-0');assert.equal(tags.querySelector('.tag-icon').getAttribute('aria-hidden'),'true');
+ reader.open('b.html');assert.ok(tags.querySelector('.tag-icon'));assert.ok(tags.querySelector('.untagged'));
+ reader.open('','','tab');assert.equal(tags.hidden,true);
 });

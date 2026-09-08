@@ -7,7 +7,7 @@
   const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const current=i=>model.panes[i]?.tabs.find(t=>t.id===model.panes[i].active);
   $('#readerPanel').innerHTML=[0,1].map(i=>`<section id="pane-${i}" class="reader-pane" tabindex="0" aria-label="ペイン ${i+1}" hidden>
-   <div class="pane-tabbar"><div id="tabs-${i}" class="reader-tabs" role="tablist" aria-label="ペイン ${i+1}のタブ"></div><div class="pane-controls"><button data-action="split" title="隣にペインを増やす" aria-label="隣にペインを増やす"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 21H3V3h18v9M8 3v18M18 14v8M14 18h8"/></svg></button><button data-action="close-pane" title="このペインを削除" aria-label="ペイン ${i+1}を削除"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 21H3V3h18v9M8 3v18M14 18h8"/></svg></button></div></div>
+   <div class="pane-tabbar"><div class="reader-tabstrip"><div id="tabs-${i}" class="reader-tabs" role="tablist" aria-label="ペイン ${i+1}のタブ"></div><button class="new-tab" data-action="new" title="新しいタブを追加" aria-label="ペイン ${i+1}に新しいタブを追加"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div><div class="pane-controls"><button data-action="split" title="隣にペインを増やす" aria-label="隣にペインを増やす"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 21H3V3h18v9M8 3v18M18 14v8M14 18h8"/></svg></button><button data-action="close-pane" title="このペインを削除" aria-label="ペイン ${i+1}を削除"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 21H3V3h18v9M8 3v18M14 18h8"/></svg></button></div></div>
    <div id="pane-tags-${i}" class="pane-tags" role="group" aria-label="ペイン ${i+1}のノートのタグ" hidden></div>
    <div id="pane-search-${i}" class="pane-search"><input id="pane-query-${i}" aria-label="ペイン ${i+1}の本文内検索" placeholder="本文内を検索（Enter）"><button data-action="clear" aria-label="ペイン ${i+1}の検索を解除">×</button><span id="pane-hits-${i}" aria-live="polite"></span><button id="pane-prev-${i}" data-action="prev" aria-label="前の検索箇所">↑</button><button id="pane-next-${i}" data-action="next-hit" aria-label="次の検索箇所">↓</button></div>
    <div id="documents-${i}" class="pane-documents"><div id="pane-empty-${i}" class="empty">このペインを選択して、一覧からノートを開いてください。</div></div>
@@ -100,14 +100,15 @@
     section.classList.toggle('active',i===model.activePane);
     section.setAttribute('aria-label',`ペイン ${i+1}${i===model.activePane?'（選択中）':''}`);
     section.querySelector('[data-action="close-pane"]').disabled=!split();section.querySelector('[data-action="split"]').disabled=split();
+    section.querySelector('[data-action="new"]').disabled=model.all().length>=12;
     const tab=current(i),query=$('#pane-query-'+i);
     if(document.activeElement!==query)query.value=tab?.query||'';
     query.disabled=!tab?.path;$('#pane-search-'+i).hidden=!tab?.path||!pane.searchOpen;
-    const tabsHtml=pane.tabs.map(t=>`<div class="reader-tab ${t.id===pane.active?'active':''}"><button id="tab-${t.id}" role="tab" data-tab="${t.id}" aria-selected="${t.id===pane.active}" aria-controls="panel-${t.id}" tabindex="${t.id===pane.active?0:-1}" title="${escape(t.path)}">${escape(note(t.path)?.title||'新しいタブ')}</button><button data-close="${t.id}" aria-label="タブを閉じる: ${escape(note(t.path)?.title||'新しいタブ')}">×</button></div>`).join('');
+    const tabsHtml=pane.tabs.map(t=>`<div class="reader-tab ${t.id===pane.active?'active':''}"><button id="tab-${t.id}" role="tab" data-tab="${t.id}" aria-selected="${t.id===pane.active}" aria-controls="panel-${t.id}" tabindex="${t.id===pane.active?0:-1}" title="${escape(t.path)}">${escape(note(t.path)?.title||'新しいタブ')}</button><button data-close="${t.id}" aria-label="タブを閉じる: ${escape(note(t.path)?.title||'新しいタブ')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>`).join('');
     if(tabMarkup.get(i)!==tabsHtml){$('#tabs-'+i).innerHTML=tabsHtml;tabMarkup.set(i,tabsHtml);}
     const tags=note(tab?.path)?.tags||[],tagsPanel=$('#pane-tags-'+i);
     tagsPanel.hidden=!tab?.path;
-    const tagsHtml=tab?.path?(tags.map(tag=>`<span class="tag-chip"><button class="note-tag" data-tag="${escape(tag)}" title="タグで絞り込む: ${escape(tag)}" aria-label="タグで絞り込む: ${escape(tag)}">#${escape(tag)}</button><button data-remove-tag="${escape(tag)}" aria-label="タグを外す: ${escape(tag)}">×</button></span>`).join('')||'<span class="untagged">タグなし</span>')+'<button data-add-tag aria-label="タグを追加">＋</button>':'';
+    const tagsHtml=tab?.path?'<svg class="tag-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7.5" cy="7.5" r="1"/></svg>'+(tags.map(tag=>`<span class="tag-chip"><button class="note-tag" data-tag="${escape(tag)}" title="タグで絞り込む: ${escape(tag)}" aria-label="タグで絞り込む: ${escape(tag)}">#${escape(tag)}</button><button data-remove-tag="${escape(tag)}" aria-label="タグを外す: ${escape(tag)}">×</button></span>`).join('')||'<span class="untagged">タグなし</span>')+'<button data-add-tag aria-label="タグを追加">＋</button>':'';
     if(tagMarkup.get(i)!==tagsHtml){tagsPanel.innerHTML=tagsHtml;tagMarkup.set(i,tagsHtml);}
     tagsPanel.querySelectorAll('button, input').forEach(el=>el.disabled=tagWriting);
     $('#pane-hits-'+i).textContent=tab?.query?(tab.loading?'読込中':tab.hits?`${tab.hit+1} / ${tab.hits}`:'0件'):'';
@@ -133,13 +134,14 @@
    $('#pane-'+i).addEventListener('pointerdown',()=>{if(model.activePane!==i){model.activate(i);markActive();notify();}});
    $('#pane-'+i).addEventListener('focusin',()=>{if(model.activePane!==i){model.activate(i);markActive();notify();}});
    $('#pane-'+i).onclick=e=>{
-    const button=e.target.closest('button');if(!button)return;
+    const button=e.target.closest('button');if(!button||button.disabled)return;
     model.activate(i);
     if(button.dataset.removeTag!==undefined||button.dataset.addTag!==undefined){const path=current(i)?.path;if(path)onEditTags(path,button.dataset.removeTag,$('#pane-tags-'+i));return;}
     if(button.dataset.tag!==undefined){render();notify();onTag(button.dataset.tag);return;}
     if(button.dataset.tab){model.select(i,button.dataset.tab);render();notify();$('#tab-'+button.dataset.tab).focus();return;}
     if(button.dataset.close){closeTab(i,button.dataset.close);return;}
     switch(button.dataset.action){
+     case 'new':{const tab=open('','','tab');if(tab){focusPane(i);$('#tab-'+tab.id).scrollIntoView({block:'nearest',inline:'nearest'});}break;}
      case 'split':if(!split()){const tab=open(current(i)?.path||'',current(i)?.anchor||'','side',current(i)?.query||'');if(tab)focusPane(model.activePane);}break;
      case 'close-pane':model.closePane(i);render();notify();focusPane(model.activePane);break;
      case 'clear':search(i,true);break;
