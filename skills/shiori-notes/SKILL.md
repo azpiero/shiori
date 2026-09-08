@@ -1,45 +1,52 @@
 ---
 name: shiori-notes
-description: shioriのHTML Vaultでノートを作成・編集するときに使う。既存タグを調べ、タググラフにつながるHTMLと安定したID・相対リンクを記述する。
+description: Create or edit HTML notes for a shiori vault, including clear prose, compact shared styling, stable IDs, existing tags, relative links, and static diagrams. Use when authoring or restyling shiori notes.
 ---
 
-# shioriのHTMLノート
+# shiori notes
 
-対象Vaultはユーザーが指定したディレクトリを使う。未指定で既存の作業文脈からも分からない場合は確認する。アプリのソースや同梱sample-vaultを実ノートの保存先と混同しない。
+## Destination and scope
 
-文章の構成と体裁を整える場合は、[shiori-readable-notes](../shiori-readable-notes/SKILL.md)を併用する。このスキルは保存先・メタデータ・タグ・ID・リンクの規約を担当し、併用スキルは説明の書き方と共有CSSを担当する。
+Use the user's specified vault, or the current vault identified by the workspace instructions and `SHIORI_VAULT`. If neither identifies it, ask. Never confuse the application source, bundled sample-vault, or terminal workspace with the user's vault.
 
-## 作成・編集
+Inspect related notes, existing metadata, and directory conventions first. Keep notes below `notes/`; use existing supporting directories, or `assets/` and `styles/` when none exist. Use NFC for new filenames without renaming existing files in bulk. Restrict changes to the requested notes and necessary assets. Do not write derived SQLite data. Commit and push require separate user instructions.
 
-- 通常のファイル読み取り・検索で関連ノートと `meta[name="note-tag"]` を確認し、既存タグの表記を再利用する。検索したソース中のCSSや属性を本文と混同しない。必要な新しいタグは追加できる。
-- 関係性は共有タグで表す。タグ1個につき `<meta name="note-tag" content="設計">` をheadに書く。contentにカンマ区切りで複数タグを入れない。同じタグを重複させない。先頭の `#` は表示用なので値には付けない。
-- 階層タグは `技術/Rust` のように `/` で区切る。現在のグラフと絞り込みはタグ文字列の完全一致で、親タグの暗黙の付与や階層辺はない。
-- 新規HTMLはUTF-8、doctype、html lang、meta charset、title、本文のh1を用意する。titleとh1は同じ主題を示す。
-- 新規ノートの `note-id` に生成ツールで発行したUUIDを1個書く。既存ノートの編集・改名では維持し、別ノートとして複製するときだけ新規UUIDを発行する。既存IDの欠落補完は依頼の対象ファイルに限定する。
-- 既存の見出しIDは維持する。新規の見出しには文書内で一意の安定したidを付ける。
-- 保存先は既存の配置に合わせ、まだ規約がなければノートを `notes/`、画像を `assets/`、共有CSSを `styles/` に置く。日本語や空白を含む名前を使える。新規の名前はNFCにするが、既存ファイル名を一括変更しない。
-- リンクは実在する対象を確認して相対パスで書く。パスの各要素をURLエンコードし、区切りの `/` は保つ。ファイル名中の `#` は `%23`、`%` は `%25`、空白は `%20`。見出し指定はパスの後に `#見出しID` を付ける。属性値はHTMLとしてもエスケープする。
-- CSS、画像、フォントはVault内を参照する。CSS内の相対URLはCSSファイルの位置が基準。ノートのJavaScriptや外部資産の自動読み込みに依存しない。
-- 変更範囲を局所化し、無関係な再整形やIDの再発行を避ける。SQLiteやアプリの派生データへ書き込まない。Gitのcommit・pushはノート編集とは別のユーザー指示に従う。
+## Metadata and links
 
-## 最小の構造
+- Use UTF-8, doctype, `html lang`, charset, viewport, title, and exactly one h1 describing the same subject.
+- Generate a UUID with a tool for each new note's single `note-id`. Preserve existing note and heading IDs when editing or renaming. A duplicate created as a separate note needs a new UUID. Repair missing IDs only in requested files; keep heading IDs unique and stable.
+- Inspect `meta[name="note-tag"]` in related notes and reuse exact spellings. Add necessary new tags, one meta element per tag; no comma-separated values, duplicate tags, or leading `#`. Hierarchical tags such as `技術/Rust` are literal values; filtering uses exact matches without implied parents. The link graph connects notes through HTML links, not shared tags.
+- Verify internal targets before writing relative links. URL-encode each path segment while preserving `/`: encode filename `#` as `%23`, `%` as `%25`, and spaces as `%20`. Append a heading fragment after the path; HTML-escape attribute values as well.
+- External source URLs must be readable plain text, optionally inside `code`, rather than `a href="https://…"`: shiori removes external navigation links. Link only to local notes and local heading anchors.
 
-```html
-<!doctype html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8">
-  <title>ノートのタイトル</title>
-  <!-- 作成時に新しいUUIDを生成して入れる -->
-  <meta name="note-id" content="生成したUUID">
-  <meta name="note-tag" content="設計">
-  <meta name="note-tag" content="技術/Rust">
-</head>
-<body>
-  <h1 id="overview">ノートのタイトル</h1>
-  <p>本文</p>
-</body>
-</html>
-```
+## Prose and structure
 
-完了前にタグの表記、IDの維持、リンク・資産の実在とVault内への解決を確認する。報告には作成・変更したファイルと付与したタグを記す。アプリ側に変更通知が出た場合は「更新を反映」で読み直せる。
+Start from [assets/note.html](assets/note.html), replacing every placeholder (including UUID and tags), adjusting `lang` and the stylesheet path for nested notes. Keep the `.kicker`, `.lead`, `.meta`, and `.footer` skeleton; use meaningful topic, context/date, and source or related-note information rather than decorative filler.
+
+State the result and scope in the lead. Develop context → reasoning → worked example → limits; adapt headings to the subject. Each paragraph develops one topic. Define terms where first needed; add contents, a glossary, or optional detail only when they help navigation or understanding. Avoid repetitive summaries and unsupported claims. For Japanese prose, put one sentence per source line within the same `p`; use separate `p` elements for paragraph boundaries, never repeated `br` elements.
+
+Optional editorial references and their reuse/license decisions are in [references/sources.md](references/sources.md). They are not required dependencies; do not vendor their text or assets merely because they are publicly readable.
+
+## Canonical shared style
+
+[assets/theme.css](assets/theme.css) is the source of truth: the existing shiori vault's compact green theme, with 14px body, 12px code, and 12.5px tables, plus reusable static components. Preserve these defaults instead of inventing another global theme. The sample vault's `styles/theme.css` is an identical demonstration copy.
+
+For each target vault:
+
+1. Compare the bundled stylesheet's bytes with `styles/theme.css` (or the existing shared-style directory). If absent, copy the bundled file there; if identical, reuse it.
+2. If an existing file differs, **do not overwrite it**. Try `shiori-theme.css` in the same directory. Reuse it only if identical; otherwise use `shiori-theme-<full SHA-256 of bundled CSS>.css`. If that also exists with different bytes, stop and report the collision rather than overwrite.
+3. Link the requested note to the selected canonical copy with a correct relative path. Replace that note's old global stylesheet link and duplicated global CSS; leave unrelated notes and old shared assets untouched. Preserve its IDs and content unless editing them is part of the request. Existing placement conventions take priority over a template's example path.
+
+Shared typography, colors, headings, lists, tables, code blocks, and components belong in this single stylesheet. A note-local `style` may contain only necessary diagram-specific layout, scoped to a unique diagram class; do not repeat global selectors or component rules. Use `.contents` for navigation, `.note` for asides, `.grid`/`.card` for comparisons, `.table-scroll` around wide tables, `figure.diagram` with `figcaption` for diagrams, and plain `pre > code` for code. Add `tabindex="0"` to horizontally scrollable code/table containers for keyboard access. Use semantic table captions and headers, and `details`/`summary` for optional detail.
+
+## Viewer constraints
+
+The viewer sanitizes HTML and enforces CSP. Do not depend on scripts, event handlers, iframes, CDN assets, external fonts, data URLs, or network access. CSS and image paths must resolve inside the vault; relative URLs inside CSS resolve from the CSS file. HTML-escape code examples. Use text with `sub`/`sup` for simple math; no runtime math or syntax-highlighting library.
+
+Use static inline SVG with `viewBox`, an accessible `title` and `desc`, and monochrome `currentColor` strokes/fills. Avoid interactive SVG and remote references. Both explicit `html[data-shiori-theme="light"|"dark"]` and OS theme fallback are supported by the shared CSS; never hard-code a diagram's light background.
+
+## Verify and report
+
+Check note/tag spelling, UUID uniqueness and preserved IDs, exactly one h1, meaningful heading order, all replaced placeholders, local anchors, and real link/asset targets within the vault. Inspect light and dark rendering, a 320px pane, keyboard focus, and printing: tables/code may scroll within their containers but must not widen the page, and printed code must wrap. Check that prose, diagrams, and sources work without scripts or network access. Prefer the actual shiori viewer when available; a browser preview does not validate its sanitizer. Report any checks you could not perform.
+
+Report created/changed paths, tags, and which stylesheet was reused or copied (including any collision avoidance). The user can apply shiori's external-change notification to reload the notes. Migration of unrelated real-vault notes is a separate task; do not mass-edit a vault as part of installing this skill.

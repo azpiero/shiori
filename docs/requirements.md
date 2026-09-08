@@ -606,7 +606,7 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 
 ## Readable HTML notes (Issue #17)
 
-- Keep `shiori-notes` responsible for vault destination, metadata, stable IDs, tags, and relative links. `shiori-readable-notes` handles explanation structure and document styling. Neither skill installs itself or authorizes Git operations.
+- `shiori-notes` owns vault destination, metadata, stable IDs, tags, relative links, explanation structure, and canonical shared styling. Its project copy is installed in the integrated terminal; external installations are user-managed. The Skill does not authorize Git operations.
 - Distribute shared CSS and a starter HTML file as skill assets. Copy CSS into a vault's `styles/` directory; inspect existing user styles before updating them. Maintain an identical sample-vault copy and one demonstration note.
 - Use local assets, OS fonts, static SVG and plain escaped code. Simple math uses text/sub/sup; complex math needs a local static asset and a textual equivalent. Do not rely on MathJax, Highlight.js, scripts, external fonts, or external navigation.
 - Respect explicit viewer theme attributes, follow system preference otherwise, and support narrow panes with wrapping prose and scrollable code/tables.
@@ -700,3 +700,12 @@ This replaces the earlier tag-membership graph described above.
 - Remove the search-row submit button; Enter submits as before. Clear remains available through the row's × and the native menu, including when the note has focus.
 
 - Follow-up: keep each pane’s search row hidden until Find is invoked. Clearing via ×, Escape in the input, or the native menu clears the query and hides the row, restoring focus to the tab.
+
+
+## Unified authoring Skill (#46)
+
+- Ship only `shiori-notes`, with `assets/note.html`, `assets/theme.css`, and preserved editorial source/reuse notes. Keep the sample stylesheet byte-identical.
+- Base typography and palette on the existing vault theme; consolidate reusable components, narrow-pane behavior, and print rules. Keep note-local styles limited to scoped diagram layout.
+- Preserve existing note IDs, heading anchors, tag spelling, and directory conventions. Never overwrite a different user stylesheet; select a separate canonical copy for requested notes.
+- Refresh terminal instructions and retire old generated Skill copies outside discovery directories without losing their contents. Remove obsolete bundled resources on app rebuild.
+- Keep real-vault migration outside this app change: [shiori-vault #1](https://github.com/azpiero/shiori-vault/issues/1) covers 19 external hrefs, the DI note reformat, and the old document stylesheet. The sample isolation note's external href is an intentional security fixture and remains unchanged.

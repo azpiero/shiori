@@ -156,7 +156,7 @@ iframe方式を最初の検証対象として実装した。Text fragmentは比�
 
 ## Issue #17: Readable HTML note skill (2026-09-08)
 
-- Added `shiori-readable-notes` for prose and presentation, with mutual links to the vault-convention skill. Added a starter HTML asset, shared script-free CSS, and source/reuse notes. No upstream files or text were vendored.
+- Initially added a separate readability Skill; #46 consolidates its prose guidance, starter HTML, shared script-free CSS, and source/reuse notes into `shiori-notes`. No upstream files or text were vendored.
 - Added the eighth bundled note, `notes/07-readable-notes.html`, using the new theme, local contents links, monochrome SVG, a three-column table, plain code, and native details/summary. The skill stylesheet and sample copy are identical.
 - Both skills passed the skill-creator validator (PyYAML installed only in a temporary validation environment). Sample UUID, unique IDs, relative assets/anchors, documentation links, and absence of CSS network dependencies passed checks.
 - Rust: 9 tests passed, 1 opt-in benchmark ignored. The new regression test passes the sample through `display_html` for light/dark/system, checks static components and local references, and verifies shared CSS consistency. The existing sample test checks all eight source files remain unchanged by rendering.
@@ -276,3 +276,12 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - Native UI automation timed out. Manual checks remain: click a note body and press Cmd+F, submit a query, cycle with Cmd+G/Cmd+Shift+G, clear through Edit > Find, and verify copy/paste/select-all in the terminal. Browser event tests do not prove native accelerator or clipboard dispatch.
 
 - Follow-up: 69 JavaScript tests and browser checks passed for initial hidden search, Find-to-show, clear/Escape-to-hide, and reopening. macOS build/signature checks passed.
+
+## Issue #46: unified note-authoring Skill
+
+- Consolidated metadata, prose, static-component guidance, template, and source/reuse records into `shiori-notes`. The canonical CSS derives from the existing vault theme; the sample copy is byte-identical. Existing user themes are preserved through an explicit separate-filename rule.
+- Added a workspace-upgrade regression test: both old discovery copies are archived with custom contents intact, unrelated skills remain, repeated opens are idempotent, and generated guides reference only the unified command.
+- Rust: 32 passed, 1 benchmark ignored. JavaScript: 69 passed. Skill creator's `quick_validate.py` passed using the existing temporary validation virtual environment.
+- Chromium preview with JavaScript disabled: sample note at 320px and 1000px, explicit light/dark opposite to the OS preference, 14px body text, no page overflow, visible keyboard focus, and no remote requests. Print checks confirmed wrapped code and unbroken figures. Visually inspected the narrow dark screenshot.
+- The backend sanitizer test retains SVG, tables, code, and details, resolves local references, and checks stylesheet equality. Sample note UUID/heading IDs and the isolation fixture remain unchanged. Native viewer and AI-tool invocation still require manual confirmation.
+- Real-vault content migration remains in shiori-vault #1; no real-vault files were changed.

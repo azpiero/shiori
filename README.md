@@ -112,21 +112,34 @@ Open tabs follow the new paths and retain their queries. Moved documents reload,
 
 1. Choose a vault folder, separate from the application source.
 2. Give your AI assistant the path to the bundled [shiori-notes Skill](skills/shiori-notes/SKILL.md) and the target vault.
-3. For structured explanations and shared document styling, also provide [shiori-readable-notes](skills/shiori-readable-notes/SKILL.md). Ask it to create or update HTML notes. The Skill describes existing-tag reuse, generated UUIDs, stable heading IDs, relative links, and local assets.
+3. Ask it to create or update HTML notes. This single Skill covers prose, compact shared styling, existing-tag reuse, generated UUIDs, stable heading IDs, relative links, and local assets.
 4. Open the folder in shiori, or apply the external-change notification to read the updated files.
 5. Review the changes and commit or sync the vault using your usual Git tools.
 
 Example prompt, from the application repository:
 
 ```text
-Read skills/shiori-notes/SKILL.md and skills/shiori-readable-notes/SKILL.md.
-Follow them to create a note about Rust ownership in ../vault. Check related notes and existing tags first, reuse
+Read skills/shiori-notes/SKILL.md.
+Follow it to create a note about Rust ownership in ../vault. Check related notes and existing tags first, reuse
 relevant tags, and link to existing notes where useful. Write the note in English.
 ```
 
-These Skills are included as files; they are not automatically installed into an AI tool. Use an assistant that can read the Skill and edit files in your chosen vault. The viewer does not edit notes. The integrated terminal runs your shell; you choose whether to start Codex, Claude, Git, or other installed tools. Those commands may edit files or contact external services. Commit and push are separate actions you request from your tools.
+The Skill is included as files. The integrated terminal installs a project copy; outside that workspace, supply its path or install it yourself. Use an assistant that can read the Skill and edit files in your chosen vault. The viewer does not edit notes. The integrated terminal runs your shell; you choose whether to start Codex, Claude, Git, or other installed tools. Those commands may edit files or contact external services. Commit and push are separate actions you request from your tools.
 
-The readability Skill includes a [starter HTML file](skills/shiori-readable-notes/assets/note.html) and [shared CSS](skills/shiori-readable-notes/assets/shiori-document.css) to copy into the vault. It uses OS fonts, static SVG, plain code, and explicit light/dark theme hooks without scripts or remote dependencies. The [eighth sample note](sample-vault/notes/07-readable-notes.html) demonstrates the style. Editorial sources and reuse decisions are documented in [sources.md](skills/shiori-readable-notes/references/sources.md).
+The unified Skill includes a [starter HTML file](skills/shiori-notes/assets/note.html) and [shared CSS](skills/shiori-notes/assets/theme.css) to copy into the vault. It uses OS fonts, static SVG, plain code, and explicit light/dark theme hooks without scripts or remote dependencies. The [eighth sample note](sample-vault/notes/07-readable-notes.html) demonstrates the style. Editorial sources and reuse decisions are documented in [sources.md](skills/shiori-notes/references/sources.md).
+
+The bundled `theme.css` is canonical and preserves the existing compact green design (14px body, 12px code, 12.5px tables). The sample copy is byte-identical. Reuse an identical vault stylesheet; never overwrite a different user theme. The Skill selects a separate `shiori-theme.css` or a content-hash filename on collision and changes only the requested notes. External reference URLs appear as plain text because the viewer removes external navigation links. Real-vault cleanup is tracked separately in [shiori-vault #1](https://github.com/azpiero/shiori-vault/issues/1).
+
+To install the single Skill for Claude outside shiori's terminal, run this from the app repository, replacing the destination with your Claude project:
+
+```sh
+project_dir="/absolute/path/to/your/project"
+mkdir -p "$project_dir/.claude/skills"
+# For a fresh installation; inspect an existing shiori-notes directory before updating it.
+cp -R skills/shiori-notes "$project_dir/.claude/skills/"
+```
+
+Start or restart Claude in that project, invoke `/shiori-notes`, and specify the target vault. If upgrading a manual installation, move the old `shiori-readable-notes` directory outside `.claude/skills` after reviewing any custom changes. The app does not modify these external installations.
 
 A vault can be its own Git repository. For example, after creating a new vault:
 
@@ -143,7 +156,7 @@ Configure a remote and push with your Git client when you want to sync. The vaul
 
 Select **>_** in the left rail to open an interactive shell inside shiori. Run `codex`, `claude`, or any other installed command yourself. There is no selected-note prompt, model picker, or tool-specific execution mode. The native PTY and locally bundled xterm.js support terminal input, ANSI output, Ctrl-C, and resizing.
 
-The shell starts in a vault-specific workspace under the app data directory's `terminal-workspaces/`. It contains `skills/`, `.claude/skills/`, `AGENTS.md`, and `CLAUDE.md`; the two instruction files name the currently selected vault as the default destination for HTML notes and point to the bundled authoring Skills. The workspace is distinct from the vault, so app helper files do not enter your notes repository. Claude discovers the project Skills under `.claude/skills/`; use `/shiori-readable-notes` or `/shiori-notes`. Reopen the shell after updating shiori to refresh these files, and restart Claude if its command list has not refreshed. The shell also receives:
+The shell starts in a vault-specific workspace under the app data directory's `terminal-workspaces/`. It contains `skills/`, `.claude/skills/`, `AGENTS.md`, and `CLAUDE.md`; the two instruction files name the currently selected vault as the default destination for HTML notes and point to the bundled authoring Skills. The workspace is distinct from the vault, so app helper files do not enter your notes repository. Claude discovers the project Skills under `.claude/skills/`; use `/shiori-notes`. Reopen the shell after updating shiori to refresh these files, and restart Claude if its command list has not refreshed. On upgrade, old generated `shiori-readable-notes` copies move into `retired-skills/` outside the discovery directories, preserving their contents. The shell also receives:
 
 | Variable | Value |
 | --- | --- |
@@ -252,8 +265,7 @@ shiori-workspace/
 │   ├── ui/                 # HTML/CSS/JavaScript interface and graph
 │   ├── src-tauri/          # Rust backend, Tauri config, icons, Cargo.lock
 │   ├── skills/
-│   │   ├── shiori-notes/   # Vault metadata and file conventions
-│   │   └── shiori-readable-notes/ # Writing guidance, CSS, and HTML template
+│   │   └── shiori-notes/   # Vault conventions, prose, theme.css, and HTML template
 │   ├── sample-vault/       # Eight demonstration and test notes
 │   ├── fixtures/           # Test assets, including vault-boundary fixtures
 │   ├── tests/              # JavaScript graph tests

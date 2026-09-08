@@ -313,7 +313,7 @@ mod tests {
                 } else { assert!(resolve(&vault,&uri.join(href).unwrap()).is_ok(),"unresolved {href}"); }
             }
         }
-        assert_eq!(std::fs::read(vault.root.join("styles/shiori-document.css")).unwrap(),include_bytes!("../../skills/shiori-readable-notes/assets/shiori-document.css"));
+        assert_eq!(std::fs::read(vault.root.join("styles/theme.css")).unwrap(),include_bytes!("../../skills/shiori-notes/assets/theme.css"));
     }
     #[test] fn sample_vault_is_readable_and_never_modified() {
         let root=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sample-vault").canonicalize().unwrap();
