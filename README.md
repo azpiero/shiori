@@ -148,7 +148,9 @@ cd app
 cargo run --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
 ```
 
-The app starts with seven bundled sample notes. Use the folder icon next to reload in the sidebar (**フォルダを開く** / Open folder) to open your vault, the graph icon in the left navigation rail to explore tags, and **更新を反映** (Apply updates) after editing notes externally. To return to the samples, restart the app or open `sample-vault/` through the folder picker. The theme toggle sits at the bottom of the left navigation rail; there is no app header above the workspace.
+On first launch, the app opens seven bundled sample notes. Subsequent launches restore the last folder you selected. Use the folder icon next to reload in the sidebar (**フォルダを開く** / Open folder) to open your vault, the graph icon in the left navigation rail to explore tags, and **更新を反映** (Apply updates) after editing notes externally. To return to the samples, open `sample-vault/` through the folder picker. The theme toggle sits at the bottom of the left navigation rail; there is no app header above the workspace.
+
+The canonical vault path is stored as `last_vault` in `settings.json` under Tauri's app configuration directory (on macOS, `~/Library/Application Support/dev.takeru.shiori/`). Vault tokens and reader tabs are not stored. If the saved folder is unavailable or settings cannot be read, the app opens the samples and displays the reason in the sidebar. The saved path is retained so a temporarily disconnected volume can be restored on a later launch. Selecting another folder replaces it; a settings write failure is shown without preventing the folder from opening. To reset the remembered folder, quit the app and remove `settings.json`. Theme preferences remain in local storage.
 
 Read-only status remains visible in the status bar, including while loading or showing errors. The development diagnostics panel and log collection have been removed; failed note reads are listed under **読み取りエラー** (Read errors) in the sidebar. The status bar retains basic load timings.
 

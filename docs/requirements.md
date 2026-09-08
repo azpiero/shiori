@@ -565,7 +565,7 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 ## 22. ヘッダーの整理（Issue #8）
 
 - Issue #13でヘッダー自体を撤去。フォルダ選択はサイドバーの再読込の隣、テーマ切替は左端ナビゲーションの最下部に配置する。キャプションと試作のpill、サンプル切替、検証ログボタンは置かない。
-- 起動時の同梱サンプル読み込みは維持する。サンプルへ戻る場合はアプリを再起動するか、フォルダ選択でsample-vaultを指定する。
+- 初回起動は同梱サンプルを開く。Issue #15以降、次回起動は最後に選択したVaultを復元する。サンプルへ戻る場合はフォルダ選択でsample-vaultを指定する。
 - 検証ログパネル、Rustのdiagnosticsコマンドとログ収集、未使用のIME回数計測は撤去する。ステータスバーで表示する起動・走査・表示時間の計測は維持する。
 - 読み取りエラーがある場合にのみ、サイドバーへ件数付きの展開欄を表示し、対象ファイルと理由を確認できるようにする。再読込でエラーが解消したら欄を閉じて隠す。
 - 読み取り専用の説明はサイドバーとステータスバーで維持する。
@@ -595,3 +595,11 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 - 外部更新の反映・再読込では存在するタブと検索語・選択状態を復元し、削除・改名されたパスのタブを閉じる。再読込・テーマ変更では全タブを再配信し、スクロールと一致位置を初期化する。
 - グラフは全体モードとして維持。戻る際にペインとタブは残る。各ペインの最小幅は320pxとし、狭い幅では本文ワークスペースを横スクロールする。
 - タブにはtablist/tab/tabpanelと選択状態を付け、タブタイトル上で左右・Home/End・Deleteを扱う。ペイン移動ボタンで別ペインへフォーカスを移せる。sandbox内のキーイベントはアプリへ伝播しないため、タブコマンドはアプリの操作部分にフォーカスがある場合に使う。
+
+## Remember the last vault (Issue #15)
+
+- Store the canonical absolute path in the `last_vault` field of `settings.json` in the Tauri app config directory after a successful explicit folder selection. Do not persist vault tokens. Preserve unknown settings fields when updating valid JSON.
+- Restore the saved folder at startup; use bundled samples when no path is saved. Validate that the folder is readable before changing the active vault.
+- If settings are corrupt/unreadable or the saved folder is missing/unreadable, show a persistent sidebar warning and open the samples without overwriting the saved preference. A later explicit selection repairs invalid JSON.
+- Write settings through a temporary file and rename. Report write failures without preventing use of the selected vault.
+- Pane/tab state remains session-only. Theme storage is unchanged.
