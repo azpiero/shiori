@@ -205,3 +205,11 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - Headless Chromium with a mocked IPC backend verified filter-only clicks, removal cancellation, suggestions, explicit save, modal interaction, and tag-chip layout at the minimum 320 px pane width without horizontal overflow. This checks frontend behavior, not native IPC or real files.
 - macOS app build and ad-hoc signature verification passed. Native WKWebView datalist/IME interaction and an end-to-end tag save in the built app remain manual checks.
 - The residual race with external editors and lack of custom ACL/extended-attribute preservation are documented in TAG_EDITING.md. No user vault files were changed during automated validation.
+
+## Issue #26: Remove the reader link panel (2026-09-09)
+
+- Removed the per-pane link menu, its rendering/click handlers, and its CSS. Removed the unused `Note.links` scan field and link extraction; the reader still rewrites internal links in the display copy for same-tab navigation.
+- README now directs users to sidebar entries or graph nodes for modifier-click tab/pane opening.
+- JavaScript: 45 tests passed. The originating-tab internal-navigation test and iframe sandbox assertion remain. Rust: 20 tests passed; 1 opt-in benchmark ignored, including retained internal-link routing and source-preservation checks.
+- Headless Chromium with mocked IPC confirmed the panel is absent and Shift-click / Meta-click from both the sidebar and graph open adjacent panes / new tabs.
+- Syntax and diff checks passed. macOS app build and ad-hoc signature verification passed. Native app appearance and modifier-click behavior remain manual checks.

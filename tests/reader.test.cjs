@@ -5,7 +5,7 @@ const {create}=require('../ui/reader.js');
 const {createDocument}=require('./dom.cjs');
 function setup(callbacks={}){
  const document=createDocument();document.querySelector('#app').innerHTML='<div id="readerPanel"></div>';
- let vault={token:'vault-token',revision:'v1',notes:[{path:'a.html',title:'A',links:[{href:'b.html#section',text:'Read B'},{href:'https://example.com',text:'External'},{href:'../outside.html',text:'Outside'}]},{path:'b.html',title:'B',links:[]},{path:'c.html',title:'C',links:[]}]};
+ let vault={token:'vault-token',revision:'v1',notes:[{path:'a.html',title:'A'},{path:'b.html',title:'B'},{path:'c.html',title:'C'}]};
  let selected='',error='';
  const reader=create({document,getVault:()=>vault,getTheme:()=> 'light',onSelect:path=>selected=path,onStatus:text=>error=text,...callbacks});
  const served=(tab,hits=2,url=tab.url)=>reader.served({path:tab.path,hits,url});
@@ -48,15 +48,6 @@ test('reload preserves surviving pane/tab selection and queries, closes missing 
  assert.equal(reader.model.activePane,1);assert.equal(reader.model.tab.path,'c.html');assert.equal(reader.model.tab.query,'gamma');
 });
 
-test('link choices open in a separate tab or pane and every frame retains its sandbox',()=>{
- const {reader,document}=setup();reader.open('a.html');
- const choices=document.querySelector('#links-0');assert.ok(!choices.innerHTML.includes('External'));assert.ok(!choices.innerHTML.includes('Outside'));
- const target=choices.querySelector('[data-mode="side"]');
- document.querySelector('#pane-0').onclick({target});
- assert.equal(reader.model.tab.path,'b.html');assert.equal(reader.model.activePane,1);assert.match(reader.model.tab.url,/#section$/);
- for(const {frame} of reader.frames.values())assert.equal(frame.getAttribute('sandbox'),'');
-});
-
 test('tab keyboard navigation and closing keep an accessible active tab and pane movement preserves frames',()=>{
  const {reader,document}=setup();const a=reader.open('a.html');const b=reader.open('b.html','','tab');
  const keys=document.querySelector('#tabs-0');keys.onkeydown({target:document.querySelector('#tab-'+b.id),key:'ArrowLeft',preventDefault(){}});
@@ -97,6 +88,7 @@ test('an internal link updates only its originating tab even while the other pan
  reader.served({path:'b.html',url:url.href,hits:4});
  assert.equal(left.path,'b.html');assert.equal(left.query,'alpha');assert.equal(left.hits,4);
  assert.equal(right.path,'c.html');assert.equal(right.query,'gamma');assert.equal(selected(),'c.html');
+ for(const {frame} of reader.frames.values())assert.equal(frame.getAttribute('sandbox'),'');
 });
 
 

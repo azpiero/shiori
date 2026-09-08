@@ -71,13 +71,6 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pane-search{display:flex;align-items:center;gap:4px;padding:6px;flex-shrink:0;flex-wrap:wrap;font-size:10px}
 .pane-search input{min-width:80px;flex:1;width:100px;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)}
 .pane-search button{font-size:10px;padding:5px 6px}
-.pane-links{position:relative;font-size:10px;padding:4px 10px 7px;flex-shrink:0}
-.pane-links summary{cursor:pointer;color:var(--muted)}
-.link-choices{position:absolute;top:100%;left:8px;right:8px;max-height:240px;overflow:auto;padding:8px;background:var(--surface);border:1px solid var(--line);box-shadow:0 8px 24px #0002;z-index:5}
-.pane-links:not([open]) .link-choices{display:none}
-.link-choice{display:flex;flex-wrap:wrap;gap:4px;padding:6px 0;border-bottom:1px solid var(--line)}
-.link-choice span{width:100%;overflow-wrap:anywhere}
-.link-choice button{font-size:10px;padding:5px}
 .pane-documents{position:relative;flex:1;min-height:250px}
 .tab-document{position:absolute;inset:0}
 .tab-document iframe{width:100%;height:100%;border:0;display:block;background:var(--surface)}

@@ -1,7 +1,7 @@
 (function(root){
  const {Workspace}=typeof module!=='undefined'?require('./workspace.js'):root.ShioriWorkspace;
  function create({document,getVault,getTheme,onSelect,onStatus,onTag=()=>{},onEditTags=()=>{}}){
-  const model=new Workspace(),frames=new Map(),tabMarkup=new Map(),linkMarkup=new Map(),tagMarkup=new Map();
+  const model=new Workspace(),frames=new Map(),tabMarkup=new Map(),tagMarkup=new Map();
   const $=id=>document.querySelector(id);
   const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const current=i=>model.panes[i]?.tabs.find(t=>t.id===model.panes[i].active);
@@ -10,7 +10,6 @@
    <div id="tabs-${i}" class="reader-tabs" role="tablist" aria-label="ペイン ${i+1}のタブ"></div>
    <div id="pane-tags-${i}" class="pane-tags" role="group" aria-label="ペイン ${i+1}のノートのタグ" hidden></div>
    <div id="pane-search-${i}" class="pane-search"><input id="pane-query-${i}" aria-label="ペイン ${i+1}の本文内検索" placeholder="本文内を検索（Enter）"><button data-action="search" aria-label="ペイン ${i+1}を検索">検索</button><button data-action="clear" aria-label="ペイン ${i+1}の検索を解除">×</button><span id="pane-hits-${i}" aria-live="polite"></span><button id="pane-prev-${i}" data-action="prev" aria-label="前の検索箇所">↑</button><button id="pane-next-${i}" data-action="next" aria-label="次の検索箇所">↓</button></div>
-   <details id="pane-links-${i}" class="pane-links"><summary>このノートのリンク</summary><div id="links-${i}" class="link-choices"></div></details>
    <div id="documents-${i}" class="pane-documents"><div id="pane-empty-${i}" class="empty">一覧からノートを開いてください。</div></div>
   </section>`).join('<div id="pane-splitter" class="pane-splitter" role="separator" tabindex="0" aria-label="左右ペインの幅" aria-orientation="vertical" aria-controls="pane-0 pane-1" title="ドラッグまたは←/→で幅を変更、Homeで最小、Endまたはダブルクリックで等幅" hidden></div>');
   const workspace=$('#readerPanel'),separator=$('#pane-splitter'),view=document.defaultView;
@@ -89,23 +88,6 @@
    url.hash=tab.anchor||(tab.query?'shiori-hit-0':'');tab.url=url.href;
    const {frame}=frameFor(tab);frame.title=note(tab.path)?.title||tab.path;frame.src=url.href;
   }
-  function links(tab){
-   if(!tab?.path)return [];
-   const vault=getVault(),base=new URL(tab.url),prefix='/'+vault.token+'/';
-   const out=[];const seen=new Set();
-   for(const link of note(tab.path)?.links||[]){
-    try{
-     const url=new URL(link.href,base);
-     if(url.protocol!=='vault:'||url.hostname!=='localhost'||!url.pathname.startsWith(prefix))continue;
-     const path=decodeURIComponent(url.pathname.slice(prefix.length));
-     const normalized=vault.notes.filter(n=>n.path.normalize('NFC')===path.normalize('NFC'));
-     const target=vault.notes.find(n=>n.path===path)||(normalized.length===1?normalized[0]:null);
-     if(!target||seen.has(target.path+url.hash))continue;
-     seen.add(target.path+url.hash);out.push({path:target.path,anchor:url.hash,text:link.text||target.title});
-    }catch{}
-   }
-   return out;
-  }
   function render(){
    const focusId=document.activeElement?.id?.startsWith('tab-')?document.activeElement.id:null;
    const ids=new Set(model.all().map(t=>t.id));
@@ -130,9 +112,6 @@
     if(tagMarkup.get(i)!==tagsHtml){tagsPanel.innerHTML=tagsHtml;tagMarkup.set(i,tagsHtml);}
     $('#pane-hits-'+i).textContent=tab?.query?(tab.loading?'読込中':tab.hits?`${tab.hit+1} / ${tab.hits}`:'0件'):'';
     for(const direction of ['prev','next'])$('#pane-'+direction+'-'+i).disabled=!tab?.hits||tab.loading;
-    const choices=links(tab);$('#pane-links-'+i).hidden=!choices.length;
-    const linksHtml=choices.map((link,index)=>`<div class="link-choice"><span>${escape(link.text)}</span><button data-link="${index}" data-mode="current">ここで開く</button><button data-link="${index}" data-mode="tab">新しいタブ</button><button data-link="${index}" data-mode="side">隣のペイン</button></div>`).join('');
-    if(linkMarkup.get(i)!==linksHtml){$('#links-'+i).innerHTML=linksHtml;linkMarkup.set(i,linksHtml);}
     $('#pane-empty-'+i).hidden=!!tab;
     for(const t of pane.tabs){
      const {panel,frame,empty}=frameFor(t);panel.hidden=t.id!==pane.active;frame.hidden=!t.path;empty.hidden=!!t.path;
@@ -160,7 +139,6 @@
     if(button.dataset.tag!==undefined){render();notify();onTag(button.dataset.tag);return;}
     if(button.dataset.tab){model.select(i,button.dataset.tab);render();notify();$('#tab-'+button.dataset.tab).focus();return;}
     if(button.dataset.close){closeTab(i,button.dataset.close);return;}
-    if(button.dataset.link!==undefined){const link=links(current(i))[Number(button.dataset.link)];if(link)open(link.path,link.anchor,button.dataset.mode,current(i)?.query||'');$('#pane-links-'+i).open=false;return;}
     switch(button.dataset.action){
      case 'activate':activate(i);break;
      case 'find':model.panes[i].searchOpen=true;render();$('#pane-query-'+i).focus();break;

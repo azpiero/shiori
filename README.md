@@ -76,12 +76,11 @@ The active pane has an accented top border. Opening a note from the sidebar or g
 | Switch or close a tab | Select its title or use its × button |
 | Search one document | Use **検索** (Search) in that pane, enter a phrase, and press Enter |
 | Follow an internal link | Click it in the note to navigate within that same tab |
-| Open a link elsewhere | Expand **このノートのリンク** (Links in this note) and choose a new tab or the adjacent pane |
 | Move focus between panes | Use **ペイン移動** (Move to other pane) |
 | Resize panes | Drag the divider; double-click to restore equal widths. With the divider focused, use ←/→ for 5% steps, Home for minimum left width, or End for equal widths |
 | Remove a pane | Use **分割解除** (Close pane); its tabs close too |
 
-Tab switches keep the existing sandboxed iframe attached, preserving its document scroll and search state. With focus on a tab title, use ←/→ or Home/End to switch tabs and Delete to close one. The buttons are reachable by Tab. Keyboard events inside the sandboxed note do not reach the app: move focus back to the app controls to use tab commands. Modifier-click handling inside note HTML is not available; use the link menu instead.
+Tab switches keep the existing sandboxed iframe attached, preserving its document scroll and search state. With focus on a tab title, use ←/→ or Home/End to switch tabs and Delete to close one. The buttons are reachable by Tab. Keyboard events inside the sandboxed note do not reach the app: move focus back to the app controls to use tab commands. Modifier-click handling inside note HTML is not available. To open another note in a new tab or beside the current note, use ⌘/Ctrl-click or Shift-click respectively on its sidebar list entry or graph node.
 
 This first version supports two horizontal panes and up to 12 tabs in one vault. Each pane stays at least 320 px wide; narrow windows scroll the reader workspace horizontally instead of silently closing a pane. The tag graph remains a whole-workspace mode and preserves the open reader tabs when switching back.
 
