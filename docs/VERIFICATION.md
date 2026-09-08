@@ -213,3 +213,14 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - JavaScript: 45 tests passed. The originating-tab internal-navigation test and iframe sandbox assertion remain. Rust: 20 tests passed; 1 opt-in benchmark ignored, including retained internal-link routing and source-preservation checks.
 - Headless Chromium with mocked IPC confirmed the panel is absent and Shift-click / Meta-click from both the sidebar and graph open adjacent panes / new tabs.
 - Syntax and diff checks passed. macOS app build and ad-hoc signature verification passed. Native app appearance and modifier-click behavior remain manual checks.
+
+## Issue #28: Folder navigation and note moves (2026-09-09)
+
+- Added collapsible sidebar groups with full folder paths and existing empty destinations. Search/tag filters show matching groups expanded; clearing filters restores collapse state. Scan exclusions and root assets/styles are omitted.
+- Sidebar HTML5 dragging and a keyboard-accessible move button open the same preview/confirmation dialog. External drag payloads are ignored. Native webview drag-drop interception is disabled to permit frontend HTML5 handling.
+- The backend reports potentially changed HTML URL attributes, srcset candidates, CSS URLs/imports, and incoming references from other notes. Unreadable or unsupported references generate warnings. Source hashes and vault revisions bind confirmation to the preview; moves use native no-overwrite rename and preserve source bytes.
+- JavaScript: 52 tests passed. Coverage includes folder grouping/filtering, exclusions, valid drop targets, cancellation, stale previews, duplicate operations, keyboard moves, both-pane path updates, and graph/sidebar refresh.
+- Rust: 28 tests passed; 1 opt-in benchmark ignored. New tests cover empty folders, excluded paths, Unicode filenames, byte/permission preservation, reference previews, CSS and image candidates, collisions, stale hashes/revisions/tokens, symlinks, read-only sources, concurrent moves, and completed-with-scan-error responses.
+- Headless Chromium with mocked IPC verified actual HTML5 drag/drop, preview/cancel, keyboard confirmation, tab path tracking, collapse restoration after filtering, and dialog/sidebar rendering. No user vault files were moved during validation; native filesystem tests use temporary fixtures.
+- Syntax and diff checks passed. macOS build and ad-hoc signature verification passed. Native WKWebView drag behavior and an end-to-end move in the built app remain manual checks.
+- Cross-filesystem moves, folder creation, Finder drag/drop, and automatic link repair are outside this implementation. Static reference analysis is bounded and does not eliminate races with unrelated external filesystem changes.

@@ -79,7 +79,7 @@ fn edit(source:&str,tags:Vec<String>)->Result<String,String>{
     let mut out=source.to_string();for (range,value) in edits.into_iter().rev(){out.replace_range(range,&value);}
     if out.len() as u64>MAX_FILE{return Err("保存後のファイルが16MBを超えます".into());}Ok(out)
 }
-fn target(vault:&Vault,path:&str)->Result<PathBuf,String>{
+pub(super) fn target(vault:&Vault,path:&str)->Result<PathBuf,String>{
     let relative=Path::new(path);
     if path.is_empty()||path.contains(['\\','\0'])||relative.extension().and_then(|s|s.to_str())!=Some("html") {return Err("HTMLノートの相対パスが必要です".into());}
     if vault.root.canonicalize().map_err(|e|e.to_string())?!=vault.root {return Err("Vaultの場所が変わりました".into());}
@@ -89,11 +89,11 @@ fn target(vault:&Vault,path:&str)->Result<PathBuf,String>{
         if name.to_str().is_some_and(|s|[".git",".shiori",".html-vault","node_modules",".DS_Store"].iter().any(|blocked|s.eq_ignore_ascii_case(blocked))){return Err("管理用ファイルは編集できません".into());}
         out.push(name);if fs::symlink_metadata(&out).map_err(|e|e.to_string())?.file_type().is_symlink(){return Err("シンボリックリンクは編集できません".into());}
     }
-    if relative.components().next().is_some_and(|c|c.as_os_str()=="assets"||c.as_os_str()=="styles"){return Err("資産フォルダはノートの編集対象外です".into());}
+    if relative.components().next().is_some_and(|c|c.as_os_str().to_str().is_some_and(|s|s.eq_ignore_ascii_case("assets")||s.eq_ignore_ascii_case("styles"))){return Err("資産フォルダはノートの編集対象外です".into());}
     if !out.is_file()||!out.canonicalize().map_err(|e|e.to_string())?.starts_with(&vault.root){return Err("Vault内の通常ファイルが必要です".into());}
     Ok(out)
 }
-fn read(path:&Path)->Result<(Vec<u8>,fs::Permissions),String>{
+pub(super) fn read(path:&Path)->Result<(Vec<u8>,fs::Permissions),String>{
     let mut options=OpenOptions::new();options.read(true);
     #[cfg(unix)] {use std::os::unix::fs::OpenOptionsExt;options.custom_flags(libc::O_NOFOLLOW);}
     let file=options.open(path).map_err(|e|e.to_string())?;let meta=file.metadata().map_err(|e|e.to_string())?;
@@ -128,10 +128,10 @@ fn save_with(vault:&Vault,path:&str,expected:&str,tags:Vec<String>,before_replac
     // This final comparison is not an OS-wide compare-and-swap with external editors.
     fs::rename(&temp.0,&dest).map_err(|e|e.to_string())?;Ok(())
 }
-fn active<'a>(guard:&'a Option<Vault>,token:&str)->Result<&'a Vault,String>{
+pub(super) fn active<'a>(guard:&'a Option<Vault>,token:&str)->Result<&'a Vault,String>{
     guard.as_ref().filter(|v|v.token==token).ok_or("Vaultが変更されました。編集を開き直してください".into())
 }
-fn main_window(window:&tauri::WebviewWindow)->Result<(),String>{if window.label()!="main"{return Err("メイン画面からのみ編集できます".into());}Ok(())}
+pub(super) fn main_window(window:&tauri::WebviewWindow)->Result<(),String>{if window.label()!="main"{return Err("メイン画面からのみ編集できます".into());}Ok(())}
 #[tauri::command]
 pub async fn get_note_tags(window:tauri::WebviewWindow,app:tauri::AppHandle,vault_token:String,path:String)->Result<Draft,String>{
     main_window(&window)?;

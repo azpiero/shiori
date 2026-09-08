@@ -91,9 +91,17 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pane-tags .tag-chip button{border:0;border-radius:0;background:transparent;margin:0}
 .tag-chip .note-tag{min-width:0;overflow-wrap:anywhere;text-align:left}
 .tag-chip button:last-child{flex-shrink:0}
-.tag-editor-backdrop{position:fixed;inset:0;z-index:60;background:#0006;display:flex;align-items:center;justify-content:center;padding:20px}
+.tag-editor-backdrop,.move-backdrop{position:fixed;inset:0;z-index:60;background:#0006;display:flex;align-items:center;justify-content:center;padding:20px}
 .tag-editor{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:20px;width:min(480px,100%);max-height:90vh;overflow:auto;box-shadow:0 12px 48px #0003}
 .tag-editor h2{margin:0;font-size:17px}.tag-editor p{font-size:12px;overflow-wrap:anywhere;color:var(--muted)}
 .tag-editor-tags{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0;max-height:180px;overflow:auto}.tag-editor-tags .tag-chip>span{padding:5px 8px;overflow-wrap:anywhere;min-width:0}
 .tag-editor-add{display:flex;gap:8px;margin-top:6px}.tag-editor-add input{flex:1;min-width:0;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px}
 .tag-editor-actions{display:flex;gap:8px;justify-content:flex-end}
+
+/* Existing folders double as explicit in-app drop targets. */
+.folder-row{display:flex;align-items:center;gap:6px;width:100%;border:0;border-radius:5px;padding:6px 5px;text-align:left;color:var(--muted);background:transparent;font-size:11px}
+.folder-row:disabled{opacity:1}.folder-name{overflow-wrap:anywhere;min-width:0;flex:1}.folder-count{font-size:10px;flex-shrink:0}.folder-row.drop-target{background:var(--tint);outline:2px solid var(--accent)}
+.folder-group{margin-bottom:8px}.folder-empty{display:block;padding:4px 10px;color:var(--muted);font-size:10px}
+.folder-group .note{display:flex;align-items:center;margin-bottom:2px}.folder-group .note-open{min-width:0;flex:1;padding:7px 8px;cursor:grab}.folder-group .note-title{overflow-wrap:anywhere}
+.note-move{flex-shrink:0;border:0;background:transparent;padding:5px;color:var(--muted);font-size:14px}.note-move:hover,.note-move:focus-visible{color:var(--accent);background:var(--tint)}
+.move-dialog{width:min(620px,100%)}#move-folder{display:block;max-width:100%;width:100%;margin-top:6px}.move-review{max-height:38vh;overflow:auto;overflow-wrap:anywhere;font-size:12px}.move-review ul{padding-left:20px}.move-review li{margin:8px 0}.move-review code{white-space:pre-wrap}

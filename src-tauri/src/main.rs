@@ -10,6 +10,7 @@ use walkdir::WalkDir;
 
 mod settings;
 mod tag_editing;
+mod note_move;
 mod terminal;
 
 const MAX_FILE: u64 = 16 * 1024 * 1024;
@@ -22,7 +23,7 @@ struct Heading { id: String, text: String }
 #[derive(Serialize)]
 struct Note { path: String, title: String, tags: Vec<String>, headings: Vec<Heading>, text: String, size: u64, source_hash: String }
 #[derive(Serialize)]
-struct Snapshot { warnings: Vec<String>, root: String, token: String, notes: Vec<Note>, errors: Vec<String>, revision: String, scan_ms: u128 }
+struct Snapshot { warnings: Vec<String>, root: String, token: String, folders: Vec<String>, notes: Vec<Note>, errors: Vec<String>, revision: String, scan_ms: u128 }
 fn current(state: &State) -> Result<Vault, String> { state.vault.lock().map_err(|_| "state error")?.clone().ok_or("Vaultが未選択です".into()) }
 fn allowed_entry(entry: &walkdir::DirEntry) -> bool {
     !matches!(entry.file_name().to_str(), Some(".git" | ".DS_Store" | "node_modules" | ".shiori" | ".html-vault"))
@@ -49,9 +50,16 @@ fn parse_note(path: &Path, root: &Path) -> Result<Note,String> {
     Ok(Note { path:path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().into(), title, tags, headings, text, size:meta.len(), source_hash })
 }
 fn scan(vault: &Vault) -> Snapshot {
-    let start = Instant::now(); let mut notes = Vec::new(); let mut errors = Vec::new();
+    let start = Instant::now(); let mut notes = Vec::new(); let mut folders = Vec::new(); let mut errors = Vec::new();
     for entry in WalkDir::new(&vault.root).follow_links(false).sort_by_file_name().into_iter().filter_entry(allowed_entry) {
         match entry {
+            Ok(e) if e.file_type().is_dir() => {
+                if let Ok(relative)=e.path().strip_prefix(&vault.root) {
+                    if !relative.components().next().is_some_and(|c| c.as_os_str()=="assets"||c.as_os_str()=="styles") {
+                        folders.push(relative.to_string_lossy().into_owned());
+                    }
+                }
+            },
             Ok(e) if e.file_type().is_file() && e.path().extension().and_then(|s| s.to_str()) == Some("html") => {
                 if e.path().strip_prefix(&vault.root).ok().and_then(|p| p.components().next()).is_some_and(|c| c.as_os_str() == "assets" || c.as_os_str() == "styles") { continue; }
                 match parse_note(e.path(), &vault.root) { Ok(note) => notes.push(note), Err(err) => errors.push(format!("{}: {}", e.path().display(),err)) }
@@ -59,7 +67,7 @@ fn scan(vault: &Vault) -> Snapshot {
             Err(e) => errors.push(e.to_string()), _ => ()
         }
     }
-    Snapshot { warnings:vec![], root:vault.root.to_string_lossy().into(), token:vault.token.clone(), notes, errors, revision:revision(&vault.root), scan_ms:start.elapsed().as_millis() }
+    Snapshot { warnings:vec![], root:vault.root.to_string_lossy().into(), token:vault.token.clone(), folders, notes, errors, revision:revision(&vault.root), scan_ms:start.elapsed().as_millis() }
 }
 #[tauri::command]
 async fn open_vault(path: Option<String>, app: tauri::AppHandle) -> Result<Snapshot,String> {
@@ -220,7 +228,7 @@ fn main() {
         .manage(State { vault:Mutex::new(None) })
         .manage(terminal::Runner::default())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![tag_editing::get_note_tags,tag_editing::set_note_tags,open_vault,refresh_vault,vault_revision,terminal::terminal_start,terminal::terminal_write,terminal::terminal_resize,terminal::terminal_ack,terminal::terminal_stop])
+        .invoke_handler(tauri::generate_handler![note_move::preview_note_move,note_move::move_note,tag_editing::get_note_tags,tag_editing::set_note_tags,open_vault,refresh_vault,vault_revision,terminal::terminal_start,terminal::terminal_write,terminal::terminal_resize,terminal::terminal_ack,terminal::terminal_stop])
         .register_asynchronous_uri_scheme_protocol("vault",|ctx,request,responder| { let app=ctx.app_handle().clone(); std::thread::spawn(move || responder.respond(respond(&app,request))); })
         .build(tauri::generate_context!()).expect("Tauri app failed")
         .run(|app,event| { if matches!(event,tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit) { app.state::<terminal::Runner>().stop(); } });

@@ -627,3 +627,15 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 - Keep one shell per app. Hide/show retains it; explicit session close and app exit stop the shell/foreground group. Require session closure before switching vaults, but allow manual refresh and revision notifications while the shell runs.
 - Carry PTY output as bytes, acknowledge parsed chunks, and bound scrollback/input queues. Forward keyboard input, binary mouse input, and resize without interpreting commands. No terminal access from sandboxed notes.
 - Preserve ordinary shell/CLI authentication, configuration, logging, and permission behavior. Remove the superseded Claude-only settings and controls. Keep third-party license notices with vendored files.
+
+
+## Issue #28 implementation: folder groups and note moves (2026-09-09)
+
+- The sidebar displays collapsible groups labelled with full relative directory paths. Real existing directories, including empty directories and the vault root, are returned by the scanner. Excluded directories and root-level assets/styles are omitted.
+- Text/tag filtering displays only folders containing matching notes and temporarily expands them. Clearing filters restores the session’s collapsed state. Vault switches and restarts reset it.
+- Sidebar-only HTML drag-and-drop prepares a move to a folder heading. Each note also has a keyboard-accessible move button and destination selector. No new-folder operation or Finder drag-and-drop is introduced.
+- A read-only preview precedes explicit confirmation. It reports potentially changed outgoing HTML/asset references, srcset candidates, inline CSS URLs/imports, and references from other HTML notes. Unsupported constructs and read failures are shown as incomplete-analysis warnings. Automatic repair and a persistent reference index remain separate work.
+- Move commands share active-vault validation and app-write serialization with tag editing. They reject traversal, excluded folders, symbolic links, read-only sources, same-folder moves, and existing destination names. Revalidate the source digest, vault revision, and paths before a native no-overwrite rename. Cross-filesystem moves fail without copying/deleting the source.
+- Successful moves preserve all source bytes, filename, note ID, and filesystem metadata through rename. Return a fresh snapshot and update every open tab for the old path to the new path. Retain tab IDs/queries; reload the moved document. Keep unchanged iframes attached.
+- Suspend revision polling while the move dialog is open and discard earlier poll responses. Report scan failures after a completed move as completed, never as an invitation to repeat the move.
+- The implemented UI reports up to 200 affected references plus an omitted count. This is a bounded static preview and cannot certify references outside scanned HTML notes or eliminate races with external filesystem actors. This implementation does not replace the broader future link-repair requirements above.

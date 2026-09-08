@@ -185,3 +185,9 @@ test('metadata snapshots update both panes but reload only changed notes and pre
  for(const i of [0,1])assert.equal(document.querySelector('#pane-tags-'+i).querySelector('[data-tag]').dataset.tag,'new');
  assert.equal(reader.model.activePane,1);assert.equal(reader.model.tab.id,other.id);
 });
+
+test('a moved note follows its new path in both panes while keeping tabs and queries',()=>{
+ const {reader,vault,setVault}=setup();const left=reader.open('a.html','','current','alpha'),right=reader.open('a.html','','side','beta');const ids=[left.id,right.id];
+ setVault({...vault,revision:'moved',notes:vault.notes.map(n=>n.path==='a.html'?{...n,path:'folder/a.html'}:n)});reader.moved('a.html','folder/a.html',new Set(['folder/a.html']));
+ assert.deepEqual(reader.model.all().map(t=>t.id),ids);assert.equal(left.path,'folder/a.html');assert.equal(right.path,'folder/a.html');assert.equal(left.query,'alpha');assert.equal(right.query,'beta');assert.equal(reader.model.activePane,1);assert.match(right.url,/folder\/a.html/);
+});

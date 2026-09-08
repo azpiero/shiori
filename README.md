@@ -16,7 +16,7 @@ A local HTML knowledge library. Let an AI assistant write and update your notes,
 
 Your vault is a folder of ordinary HTML, CSS, and images. HTML files remain the source of truth: shiori reads them without rewriting the originals, preserving the layouts, tables, and illustrations that make each note useful.
 
-**Status:** early desktop prototype for macOS, with HTML reading, per-note tag editing, and an integrated terminal. The interface and bundled sample notes are currently in Japanese.
+**Status:** early desktop prototype for macOS, with HTML reading, per-note tag editing, folder moves, and an integrated terminal. The interface and bundled sample notes are currently in Japanese.
 
 ## Screenshots
 
@@ -33,7 +33,7 @@ Earlier macOS prototype showing the bundled sample vault in dark mode. These scr
 - Compare notes in two side-by-side panes, each with its own tabs and document search.
 - Move between highlighted matches independently in each tab.
 - Explore a graph connecting notes to their tags. Select a tag to filter or a note to read it.
-- Browse a compact title list and hover over a note title to see its path. Tags appear below each reader pane’s tab bar; tag names filter the sidebar without leaving the reader. Use × or ＋ to prepare a tag edit.
+- Browse notes grouped by folder and hover over a note title to see its path. Tags appear below each reader pane’s tab bar; tag names filter the sidebar without leaving the reader. Use × or ＋ to prepare a tag edit.
 - Switch between light and dark themes and resize the sidebar.
 - Reload the entire vault from the button beside its name, or apply an external-change notification.
 - Expand the sidebar’s read-error details to see which files could not be loaded and why.
@@ -61,7 +61,7 @@ The search field is the source of filter state. Selecting a tag in the graph or 
 
 ## Read with panes and tabs
 
-Each pane shows the tags of its selected tab below the tab bar, or **タグなし** for an untagged note. Empty tabs have no tag row. Many tags wrap within a bounded, scrollable row. The sidebar keeps titles only, including the reminder for a current note outside the filter; discover tags through `tag:` suggestions or the graph. Use **×** beside a tag to prepare its removal, or **＋** to open the tag editor. Existing tags are suggested as you type; choose **追加** (Add) to add the input to the draft, then **保存** (Save) to write the changes. **取消** (Cancel) or Escape discards the draft. Tag-name clicks only filter and never write a file. Use the navigation rail to open the graph.
+Each pane shows the tags of its selected tab below the tab bar, or **タグなし** for an untagged note. Empty tabs have no tag row. Many tags wrap within a bounded, scrollable row. The sidebar groups note titles by folder and includes a reminder for a current note outside the filter; discover tags through `tag:` suggestions or the graph. Use **×** beside a tag to prepare its removal, or **＋** to open the tag editor. Existing tags are suggested as you type; choose **追加** (Add) to add the input to the draft, then **保存** (Save) to write the changes. **取消** (Cancel) or Escape discards the draft. Tag-name clicks only filter and never write a file. Use the navigation rail to open the graph.
 
 Edits change only `meta[name="note-tag"]` elements in an explicit HTML head. Other source bytes are retained. Supported notes are UTF-8, at most 16 MiB, with unambiguous head markup; malformed or unsupported head structures, read-only files, and symlink targets are rejected. A note can have up to 128 exact, case-sensitive tags, each at most 256 UTF-8 bytes without control characters. Empty or whitespace-only tags are rejected; duplicate values are removed.
 
@@ -85,6 +85,18 @@ Tab switches keep the existing sandboxed iframe attached, preserving its documen
 This first version supports two horizontal panes and up to 12 tabs in one vault. Each pane stays at least 320 px wide; narrow windows scroll the reader workspace horizontally instead of silently closing a pane. The tag graph remains a whole-workspace mode and preserves the open reader tabs when switching back.
 
 Reloading the vault restores surviving tabs, their selected pane/tab, and their search phrases. Tabs whose paths were deleted or renamed close; an empty pane stays available for another note. Reload and theme changes regenerate the documents and reset scroll positions and the current search match. The split ratio is retained when closing and reopening a pane in the same vault. Narrow windows temporarily clamp the widths to the 320 px minimum; the preferred ratio returns when space is available. Pane widths reset to equal on vault switches and app restarts; pane/tab state is not saved.
+
+## Folders and moving notes
+
+The sidebar groups notes by their full relative folder path. Folder headings expand or collapse their direct notes and show the matching note count. Empty existing folders and **Vault直下** (vault root) remain visible when no filter is active. While searching by text or tag, only groups with matching notes appear and are expanded; clearing the filter restores their prior collapsed state. Collapse state resets when switching vaults or restarting the app.
+
+Drag a note title onto a folder heading to prepare a move. For keyboard access, Tab to the note’s **↪** (Move note) button, press Enter, and choose a destination. The selector includes empty existing folders even if search hides them from the sidebar. Inspect the reference preview, then choose **確認して移動** (Confirm and move). Cancel leaves the file unchanged. Folder creation and Finder drag-and-drop are outside this feature; create folders externally and reload the vault.
+
+Moves retain the filename, source bytes, and note ID. A same-name destination, including one created during the operation, is never overwritten. Moves reject stale vault/source state, excluded directories, symlink paths, read-only notes, and unsupported cross-filesystem moves. Root-level `assets/` and `styles/`, Git internals, and other scan-excluded folders are not destinations.
+
+The preview lists potential changes to outgoing note/asset URLs and links from other HTML notes. It checks common HTML URL attributes, `srcset` candidates, and embedded CSS `url()`/`@import` references. Up to 200 affected references and bounded warnings are displayed. References using a `base` element, unreadable notes, or unsupported CSS constructs require manual review. This is static analysis, not proof that every reference is safe; dynamic JavaScript references and references from files outside the scanned HTML notes are not indexed. Links are reported, not rewritten.
+
+After moving, open tabs in both panes follow the new path while retaining their queries. The moved note reloads, resetting document scroll and the current search-match position. Sidebar groups, tag suggestions, and graph data use the returned snapshot. A scan error after a successful move is reported as **completed**, with errors in the sidebar. If anything changes while a preview is pending, confirm a new preview before retrying. As with tag edits, final validation cannot lock out unrelated external filesystem changes.
 
 ## Workflow: AI writes, shiori reads, Git keeps history
 
@@ -249,7 +261,7 @@ The `notes/`, `assets/`, and `styles/` layout is the Skill's default for a new v
 
 ## Limitations and security model
 
-The reader can add and remove tags through an explicit save, but does not edit body content. Commands in the terminal can edit source files. Global tag renaming, automatic link repair, navigation history, and Git synchronization are not implemented.
+The reader can add and remove tags through an explicit save and move notes between existing folders after review, but does not edit body content. Commands in the terminal can edit source files. Global tag renaming, automatic link repair, navigation history, and Git synchronization are not implemented.
 
 Notes are served through a vault-scoped protocol after resolving paths and symlinks. A sandboxed iframe, Content Security Policy, and display-copy sanitization restrict scripts, forms, frames, and external resources. Original HTML remains unchanged. External links are currently disabled.
 
