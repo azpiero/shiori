@@ -12,9 +12,7 @@ const MAX_FILE: u64 = 16 * 1024 * 1024;
 const NOTE_CSP: &str = "default-src 'none'; script-src 'none'; style-src vault: 'unsafe-inline'; img-src vault:; font-src vault:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; sandbox";
 #[derive(Clone)]
 struct Vault { root: PathBuf, token: String }
-struct State { vault: Mutex<Option<Vault>>, logs: Mutex<Vec<Log>>, start: Instant }
-#[derive(Clone, Serialize)]
-struct Log { kind: String, path: String, detail: String }
+struct State { vault: Mutex<Option<Vault>> }
 #[derive(Serialize)]
 struct Heading { id: String, text: String }
 #[derive(Serialize)]
@@ -22,9 +20,6 @@ struct Note { path: String, title: String, tags: Vec<String>, headings: Vec<Head
 #[derive(Serialize)]
 struct Snapshot { root: String, token: String, notes: Vec<Note>, errors: Vec<String>, revision: String, scan_ms: u128 }
 fn current(state: &State) -> Result<Vault, String> { state.vault.lock().map_err(|_| "state error")?.clone().ok_or("Vaultが未選択です".into()) }
-fn log(state: &State, kind: &str, path: &str, detail: &str) {
-    if let Ok(mut logs) = state.logs.lock() { if logs.len() >= 250 { logs.remove(0); } logs.push(Log { kind:kind.into(), path:path.into(), detail:detail.into() }); }
-}
 fn allowed_entry(entry: &walkdir::DirEntry) -> bool {
     !matches!(entry.file_name().to_str(), Some(".git" | ".DS_Store" | "node_modules" | ".shiori" | ".html-vault"))
 }
@@ -73,7 +68,6 @@ async fn open_vault(path: Option<String>, app: tauri::AppHandle) -> Result<Snaps
     if !root.is_dir() { return Err("フォルダを選んでください".into()); }
     let vault = Vault { root, token:uuid::Uuid::new_v4().to_string() };
     *app.state::<State>().vault.lock().map_err(|_| "state error")? = Some(vault.clone());
-    app.state::<State>().logs.lock().unwrap().clear();
     tauri::async_runtime::spawn_blocking(move || scan(&vault)).await.map_err(|e|e.to_string())
 }
 #[tauri::command]
@@ -85,10 +79,6 @@ async fn refresh_vault(app: tauri::AppHandle) -> Result<Snapshot,String> {
 async fn vault_revision(app: tauri::AppHandle) -> Result<String,String> {
     let vault = current(&app.state::<State>())?;
     tauri::async_runtime::spawn_blocking(move || revision(&vault.root)).await.map_err(|e|e.to_string())
-}
-#[tauri::command]
-fn diagnostics(state: tauri::State<State>) -> serde_json::Value {
-    serde_json::json!({"uptime_ms":state.start.elapsed().as_millis(),"logs":state.logs.lock().unwrap().clone()})
 }
 fn resolve(vault: &Vault, uri: &Url) -> Result<PathBuf,String> {
     if uri.scheme() != "vault" || uri.host_str() != Some("localhost") { return Err("許可外のURL".into()); }
@@ -119,11 +109,11 @@ fn fragment_node(html:String) -> NodeRef {
     let body = d.select_first("body").unwrap(); let holder = NodeRef::new_document();
     for node in body.as_node().children().collect::<Vec<_>>() { holder.append(node); } holder
 }
-fn display_html(source:&str, uri:&Url, state:&State) -> (String,usize) {
+fn display_html(source:&str, uri:&Url) -> (String,usize) {
     let doc = kuchiki::parse_html().one(source);
     // Only this transient display copy is rewritten; original bytes never change.
     for n in doc.select("script,iframe,frame,frameset,object,embed,base,meta[http-equiv],link[rel='preload'],link[rel='prefetch']").unwrap().collect::<Vec<_>>() {
-        log(state,"removed",uri.path(),n.name.local.as_ref()); n.as_node().detach();
+        n.as_node().detach();
     }
     for n in doc.select("*").unwrap() {
         let mut attrs = n.attributes.borrow_mut();
@@ -136,7 +126,7 @@ fn display_html(source:&str, uri:&Url, state:&State) -> (String,usize) {
                             if let Some(theme) = uri.query_pairs().find(|(k,_)|k=="theme").map(|(_,v)|v.to_string()) { dest.query_pairs_mut().append_pair("theme",&theme); }
                             attrs.insert("href", dest.to_string());
                         },
-                        _ => { attrs.insert("href","#shiori-blocked-link".into()); attrs.insert("title",format!("試作では外部遷移を停止: {href}")); log(state,"blocked-link",uri.path(),&href); }
+                        _ => { attrs.insert("href","#shiori-blocked-link".into()); attrs.insert("title",format!("試作では外部遷移を停止: {href}")); }
                     }
                 }
             }
@@ -182,23 +172,22 @@ fn respond(app: &tauri::AppHandle, request: tauri::http::Request<Vec<u8>>) -> ta
         let data=std::fs::read(&target).map_err(|e|e.to_string())?;
         if ext=="html" {
             let source=String::from_utf8(data).map_err(|e|e.to_string())?;
-            let (html,hits)=display_html(&source,&url,&state);
+            let (html,hits)=display_html(&source,&url);
             let path=target.strip_prefix(&vault.root).unwrap().to_string_lossy().to_string();
-            log(&state,"served",&path,&format!("HTML / {hits} highlights"));
             let _=app.emit_to("main","note-served",serde_json::json!({"path":path,"hits":hits,"url":url.to_string()}));
             Ok((html.into_bytes(),"text/html; charset=utf-8".into()))
-        } else { log(&state,"asset",url.path(),&mime); Ok((data,mime)) }
+        } else { Ok((data,mime)) }
     })();
     match result {
         Ok((body,mime)) => response.header("Content-Type",mime).body(body).unwrap(),
-        Err(e) => { log(&state,"denied",&request.uri().to_string(),&e); response=response.status(403); response.header("Content-Type","text/html; charset=utf-8").body(format!("<!doctype html><meta charset=utf-8><h2>読み込みを停止しました</h2><p>{}</p>",escape(&e)).into_bytes()).unwrap() }
+        Err(e) => { response=response.status(403); response.header("Content-Type","text/html; charset=utf-8").body(format!("<!doctype html><meta charset=utf-8><h2>読み込みを停止しました</h2><p>{}</p>",escape(&e)).into_bytes()).unwrap() }
     }
 }
 fn main() {
     tauri::Builder::default()
-        .manage(State { vault:Mutex::new(None),logs:Mutex::new(Vec::new()),start:Instant::now() })
+        .manage(State { vault:Mutex::new(None) })
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![open_vault,refresh_vault,vault_revision,diagnostics])
+        .invoke_handler(tauri::generate_handler![open_vault,refresh_vault,vault_revision])
         .register_asynchronous_uri_scheme_protocol("vault",|ctx,request,responder| { let app=ctx.app_handle().clone(); std::thread::spawn(move || responder.respond(respond(&app,request))); })
         .run(tauri::generate_context!()).expect("Tauri app failed");
 }
@@ -206,10 +195,9 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn state()->State { State{vault:Mutex::new(None),logs:Mutex::new(Vec::new()),start:Instant::now()} }
     #[test] fn display_removes_active_content_and_preserves_text() {
         let source="<html><head><meta http-equiv='refresh' content='0;url=https://example.com'></head><body onload='evil()'><script>evil()</script><iframe src='https://example.com'></iframe><a href='javascript:evil()'>外部</a><p>日本語の検索</p></body></html>";
-        let (out,hits)=display_html(source,&Url::parse("vault://localhost/token/n.html?q=検索").unwrap(),&state());
+        let (out,hits)=display_html(source,&Url::parse("vault://localhost/token/n.html?q=検索").unwrap());
         assert!(!out.contains("<script")); assert!(!out.contains("<iframe")); assert!(!out.contains("http-equiv")); assert!(!out.contains("onload=")); assert!(!out.contains("href=\"javascript:")); assert!(out.contains("id=\"shiori-hit-0\"")); assert_eq!(hits,1);
     }
     #[test] fn paths_do_not_escape_vault() {
@@ -222,7 +210,7 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
     #[test] fn source_is_unchanged_and_highlight_is_escaped() {
-        let source="<p>A&amp;B &lt;test&gt;</p>"; let (html,n)=display_html(source,&Url::parse("vault://localhost/token/x.html?q=A%26B").unwrap(),&state()); assert_eq!(n,1); assert!(html.contains("A&amp;B")); assert_eq!(source,"<p>A&amp;B &lt;test&gt;</p>");
+        let source="<p>A&amp;B &lt;test&gt;</p>"; let (html,n)=display_html(source,&Url::parse("vault://localhost/token/x.html?q=A%26B").unwrap()); assert_eq!(n,1); assert!(html.contains("A&amp;B")); assert_eq!(source,"<p>A&amp;B &lt;test&gt;</p>");
     }
     #[test] fn sample_vault_is_readable_and_never_modified() {
         let root=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sample-vault").canonicalize().unwrap();
@@ -233,7 +221,7 @@ mod tests {
             let mut u=Url::parse("vault://localhost/test/").unwrap();
             u.path_segments_mut().unwrap().pop_if_empty().extend(note.path.split('/'));
             u.query_pairs_mut().append_pair("q","知識").append_pair("theme","dark");
-            let p=resolve(&v,&u).unwrap();let source=std::fs::read_to_string(p).unwrap();let (out,_)=display_html(&source,&u,&state());
+            let p=resolve(&v,&u).unwrap();let source=std::fs::read_to_string(p).unwrap();let (out,_)=display_html(&source,&u);
             assert!(out.contains("data-shiori-theme=\"dark\""));assert!(!out.contains("<script"));assert!(!out.contains("<iframe"));assert!(!out.contains("http-equiv="));
         }
         for (p,b) in files {assert_eq!(std::fs::read(p).unwrap(),b);}

@@ -24,9 +24,8 @@ fn measure_current_scanner() {
         }
         // Single-node display work, independent of list/DOM paint costs.
         let path=vault.root.join("notes/note-00000.html");let source=std::fs::read_to_string(path).unwrap();
-        let state=State{vault:Mutex::new(None),logs:Mutex::new(Vec::new()),start:Instant::now()};
         let url=Url::parse("vault://localhost/benchmark/notes/note-00000.html?q=知識").unwrap();
-        let start=Instant::now();for _ in 0..20 {std::hint::black_box(display_html(&source,&url,&state));}
+        let start=Instant::now();for _ in 0..20 {std::hint::black_box(display_html(&source,&url));}
         let display_ms=start.elapsed().as_secs_f64()*1000.0/20.0;
         results.push(serde_json::json!({"count":count,"runs":runs,"display_copy_5kb_mean_ms":display_ms}));
     }

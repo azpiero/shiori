@@ -6,8 +6,8 @@ const {build}=require('../ui/graph.js');
 
 // Exercise app event handlers with a small DOM/Tauri adapter. These checks do not
 // simulate WebView rendering, layout, or iframe navigation; those require manual QA.
-async function setup(){
- const elements=new Map(),events=new Map();let refreshResult,refreshError;
+async function setup(initialErrors=[]){
+ const elements=new Map(),events=new Map(),calls=[];let refreshResult,refreshError;
  const document={activeElement:null,body:{append(){}},documentElement:{style:{setProperty(){}},classList:{toggle(){}}}};
  class Element{
   constructor(name){this.name=name;this.id=name.startsWith('#')?name.slice(1):'';this.dataset={};this.attributes={};this.events={};this.hidden=false;this.value='';this.textContent='';this.classes=new Set();this.classList={add:k=>this.classes.add(k),remove:k=>this.classes.delete(k),toggle:(k,on)=>on?this.classes.add(k):this.classes.delete(k)};this.style={};}
@@ -24,15 +24,15 @@ async function setup(){
  document.querySelector=name=>{const el=elements.get(name);assert.ok(el,'Unknown selector: '+name);return el;};
  document.createElement=()=>new Element('new');
  const notes=Array.from({length:160},(_,i)=>({path:`notes/${i}.html`,title:`Note ${i}`,text:'knowledge',tags:[i%2?'odd':'even'],headings:[]}));
- const vault={root:'/test/vault',token:'test-token',revision:'r1',notes,errors:[],scan_ms:1};
+ const vault={root:'/test/vault',token:'test-token',revision:'r1',notes,errors:initialErrors,scan_ms:1};
  refreshResult=vault;
- const context=vm.createContext({document,URL,performance,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(){},window:{__TAURI__:{core:{invoke:async name=>{if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
+ const context=vm.createContext({document,URL,performance,ShioriGraph:{build},localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(){},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
  const run=code=>vm.runInContext(code,context);
  run(fs.readFileSync(require.resolve('../ui/app.js'),'utf8'));
  await new Promise(resolve=>setImmediate(resolve));
  const get=id=>elements.get(id);
  const served=(count=3)=>events.get('note-served')({payload:{path:run('selected'),url:get('#noteFrame').src,hits:count}});
- return {run,get,served,events,vault,setRefresh(result,error){refreshResult=result;refreshError=error;}};
+ return {run,get,served,events,vault,calls,setRefresh(result,error){refreshResult=result;refreshError=error;}};
 }
 
 test('graph exploration survives opening a note and switching back; context changes reset it',async()=>{
@@ -98,4 +98,27 @@ test('Enter waits for IME completion; events from a previous vault are ignored',
  get('#search').events.keydown({key:'Enter',isComposing:false});assert.equal(run('selected'),'notes/5.html');
  events.get('note-served')({payload:{path:'stale.html',url:'vault://localhost/old-token/stale.html',hits:9}});
  assert.equal(run('selected'),'notes/5.html');
+});
+
+
+test('scan errors remain accessible after note load and clear after a successful refresh',async()=>{
+ const error='/vault/<img onerror="bad">.html: Invalid UTF-8';
+ const {run,get,served,vault,setRefresh}=await setup([error]);
+ assert.equal(get('#readErrors').hidden,false);
+ assert.equal(get('#readErrorsSummary').textContent,'読み取りエラー 1件');
+ assert.match(get('#readErrorsList').innerHTML,/&lt;img onerror=&quot;bad&quot;&gt;/);
+ assert.ok(!get('#readErrorsList').innerHTML.includes('<img'));
+ served();assert.equal(get('#readErrors').hidden,false);
+ get('#readErrors').open=true;setRefresh({...vault,errors:[]});await run('refresh()');
+ assert.equal(get('#readErrors').hidden,true);assert.equal(get('#readErrors').open,false);assert.equal(get('#readErrorsList').innerHTML,'');
+});
+
+test('startup still opens samples; the remaining folder and theme controls work',async()=>{
+ const {run,get,calls}=await setup();
+ assert.equal(calls[0].name,'open_vault');assert.equal(calls[0].args.path,null);
+ await get('#open').onclick();assert.ok(calls.some(c=>c.name==='open_vault'&&c.args.path==='/another-vault'));
+ assert.equal(get('#open').disabled,false);
+ run('setView(true)');get('#theme').onclick();
+ assert.equal(get('#theme').attributes['aria-pressed'],'true');assert.equal(run('graphMode'),true);
+ get('#theme').onclick();assert.equal(get('#theme').attributes['aria-pressed'],'false');
 });

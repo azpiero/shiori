@@ -20,7 +20,7 @@ Your vault is a folder of ordinary HTML, CSS, and images. HTML files remain the 
 
 ## Screenshots
 
-Earlier macOS prototype showing the bundled sample vault in dark mode. These screenshots predate the sidebar navigation changes; updated captures are pending native UI verification.
+Earlier macOS prototype showing the bundled sample vault in dark mode. These screenshots predate the sidebar navigation and simplified header changes; updated captures are pending native UI verification.
 
 | Read HTML notes | Explore shared tags |
 | --- | --- |
@@ -35,6 +35,7 @@ Earlier macOS prototype showing the bundled sample vault in dark mode. These scr
 - See titles, paths, and tags in the sidebar. Tag buttons marked ↗ open a tag graph; the filter above the list narrows the results.
 - Switch between light and dark themes and resize the sidebar.
 - Reload the entire vault from the button beside its name, or apply an external-change notification.
+- Expand the sidebar’s read-error details to see which files could not be loaded and why.
 
 Use the left navigation rail to switch between notes and the tag graph. Returning from a note preserves the graph page, zoom, and pan. Changing the search or tag filter, opening a vault, or refreshing its contents resets graph exploration; switching pages resets zoom and pan. A note excluded by the active filters remains identified in a compact sidebar section.
 
@@ -108,7 +109,9 @@ cd app
 cargo run --locked --manifest-path src-tauri/Cargo.toml --features custom-protocol
 ```
 
-The app starts with seven bundled sample notes. Choose **フォルダを開く** (Open folder) to open your vault, **グラフ** (Graph) in the left navigation rail to explore tags, and **更新を反映** (Apply updates) after editing notes externally.
+The app starts with seven bundled sample notes. The header contains the app name, folder picker, and theme toggle. Choose **フォルダを開く** (Open folder) to open your vault, **グラフ** (Graph) in the left navigation rail to explore tags, and **更新を反映** (Apply updates) after editing notes externally. To return to the samples, restart the app or open `sample-vault/` through the folder picker.
+
+Read-only status remains visible in the sidebar and status bar. The development diagnostics panel and log collection have been removed; failed note reads are listed under **読み取りエラー** (Read errors) in the sidebar. The status bar retains basic load timings.
 
 ### Build a macOS app bundle
 
