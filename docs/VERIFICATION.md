@@ -186,3 +186,12 @@ iframe方式を最初の検証対象として実装した。Text fragmentは比�
 ### Claude project Skill discovery
 
 Terminal workspace setup now copies both bundled Skills, including their supporting assets, into `.claude/skills/`. The workspace test verifies both Skill definitions match the bundled originals and the shared stylesheet is present. The focused Rust workspace test passed. Claude slash-command discovery itself still requires a native CLI check.
+
+## Issue #22: Resizable reader panes (2026-09-09)
+
+- Added a focusable vertical separator between the two reader panes. Pointer capture and a full-window shield keep iframe content from intercepting a drag; updates are batched with requestAnimationFrame.
+- Arrow keys adjust the left width in 5% steps, Home selects its minimum width, and End or double-click restores equal widths. Accessible values reflect the actual clamped widths.
+- Both panes remain at least 320 px wide. Narrow workspaces scroll horizontally, and ResizeObserver restores the preferred ratio when space returns. Closing either pane retains the ratio; a vault/session reset restores equal widths.
+- JavaScript: 37 tests passed, including divider order, keyboard limits, narrow-width clamping, close/reopen/reset, drag batching, cancellation, and unchanged iframe URLs. Syntax and diff checks passed.
+- A headless Chromium layout check exercised real pointer drag, double-click, keyboard input, ResizeObserver, horizontal overflow, and closing/reopening the left pane. The mock DOM tests alone do not verify layout.
+- macOS app build and ad-hoc signature verification passed. Native WKWebView dragging and rendering still require a manual app check.

@@ -12,7 +12,62 @@
    <div id="pane-search-${i}" class="pane-search"><input id="pane-query-${i}" aria-label="ペイン ${i+1}の本文内検索" placeholder="本文内を検索（Enter）"><button data-action="search" aria-label="ペイン ${i+1}を検索">検索</button><button data-action="clear" aria-label="ペイン ${i+1}の検索を解除">×</button><span id="pane-hits-${i}" aria-live="polite"></span><button id="pane-prev-${i}" data-action="prev" aria-label="前の検索箇所">↑</button><button id="pane-next-${i}" data-action="next" aria-label="次の検索箇所">↓</button></div>
    <details id="pane-links-${i}" class="pane-links"><summary>このノートのリンク</summary><div id="links-${i}" class="link-choices"></div></details>
    <div id="documents-${i}" class="pane-documents"><div id="pane-empty-${i}" class="empty">一覧からノートを開いてください。</div></div>
-  </section>`).join('');
+  </section>`).join('<div id="pane-splitter" class="pane-splitter" role="separator" tabindex="0" aria-label="左右ペインの幅" aria-orientation="vertical" aria-controls="pane-0 pane-1" title="ドラッグまたは←/→で幅を変更、Homeで最小、Endまたはダブルクリックで等幅" hidden></div>');
+  const workspace=$('#readerPanel'),separator=$('#pane-splitter'),view=document.defaultView;
+  let ratio=.5,drag=null,resizeFrame=null,pendingX=null;
+  const split=()=>model.panes.every(Boolean);
+  function geometry(){
+   const width=Math.max(640,(workspace.clientWidth||0)-5),min=320/width;
+   return {width,min,value:Math.max(min,Math.min(1-min,ratio))};
+  }
+  function resize(){
+   const {width,min,value}=geometry();
+   workspace.style.setProperty('--pane-a',`${width*value}px`);
+   workspace.style.setProperty('--pane-b',`${width*(1-value)}px`);
+   for(const [key,n] of Object.entries({min:min*100,max:(1-min)*100,now:value*100}))separator.setAttribute('aria-value'+key,String(Math.round(n*100)/100));
+   separator.setAttribute('aria-valuetext',`左 ${Math.round(value*100)}%、右 ${Math.round((1-value)*100)}%`);
+  }
+  function setRatio(value){const {min}=geometry();ratio=Math.max(min,Math.min(1-min,value));resize();}
+  function moveDivider(){
+   resizeFrame=null;
+   if(!drag||pendingX===null)return;
+   const x=pendingX;pendingX=null;
+   setRatio((x-workspace.getBoundingClientRect().left+(workspace.scrollLeft||0)-drag.offset)/geometry().width);
+  }
+  function stopDrag(){
+   if(resizeFrame!==null)view.cancelAnimationFrame(resizeFrame);
+   resizeFrame=null;pendingX=null;
+   if(drag){const {shield,id}=drag;drag=null;shield.remove();if(separator.hasPointerCapture?.(id))separator.releasePointerCapture(id);}
+  }
+  separator.onpointerdown=e=>{
+   if(!split()||e.button!==0||drag)return;
+   e.preventDefault();separator.focus();
+   const shield=document.createElement('div');shield.className='pane-resize-shield';
+   document.body.append(shield);
+   drag={shield,id:e.pointerId,offset:e.clientX-separator.getBoundingClientRect().left};
+   separator.onpointermove=event=>{
+    if(event.pointerId!==drag?.id)return;
+    pendingX=event.clientX;
+    if(resizeFrame===null)resizeFrame=view.requestAnimationFrame(moveDivider);
+   };
+   separator.onpointerup=event=>{if(event.pointerId!==drag?.id)return;if(resizeFrame!==null)view.cancelAnimationFrame(resizeFrame);pendingX=event.clientX;moveDivider();stopDrag();};
+   separator.onpointercancel=separator.onlostpointercapture=()=>stopDrag();
+   separator.setPointerCapture?.(e.pointerId);
+  };
+  separator.ondblclick=()=>{if(split())setRatio(.5);};
+  separator.onkeydown=e=>{
+   if(!split()||e.isComposing)return;
+   let value;
+   if(e.key==='ArrowLeft')value=geometry().value-.05;
+   if(e.key==='ArrowRight')value=geometry().value+.05;
+   if(e.key==='Home')value=0;
+   if(e.key==='End')value=.5;
+   if(value!==undefined){e.preventDefault();setRatio(value);}
+   if(e.key==='Escape')stopDrag();
+  };
+  view?.addEventListener('blur',stopDrag);
+  if(view?.ResizeObserver)new view.ResizeObserver(resize).observe(workspace);
+  else view?.addEventListener('resize',resize);
   function note(path){return getVault()?.notes.find(n=>n.path===path);}
   function notify(){onSelect(model.tab?.path||'');}
   function markActive(){for(let i=0;i<2;i++){const section=$('#pane-'+i);section.classList.toggle('active',i===model.activePane);section.querySelector('[data-action="activate"]').setAttribute('aria-pressed',String(i===model.activePane));}}
@@ -55,7 +110,9 @@
    const focusId=document.activeElement?.id?.startsWith('tab-')?document.activeElement.id:null;
    const ids=new Set(model.all().map(t=>t.id));
    for(const [id,{panel}] of frames)if(!ids.has(id)){panel.remove();frames.delete(id);}
-   $('#readerPanel').classList.toggle('split',model.panes.filter(Boolean).length===2);
+   workspace.classList.toggle('split',split());separator.hidden=!split();
+   if(!split())stopDrag();
+   resize();
    for(let i=0;i<2;i++){
     const pane=model.panes[i],section=$('#pane-'+i);section.hidden=!pane;if(!pane)continue;
     section.classList.toggle('active',i===model.activePane);
@@ -137,7 +194,7 @@
   document.defaultView?.setInterval?.(syncFocusedFrame,200);
   render();
   return {model,frames,open,render,activate,moveHit,syncFocusedFrame,
-   reset(){model.reset();render();notify();},
+   reset(){stopDrag();ratio=.5;model.reset();render();notify();},
    refresh(){model.reconcile(getVault().notes);for(const tab of model.all())navigate(tab);render();notify();},
    theme(){for(const tab of model.all())navigate(tab);render();},
    served(payload){if(!note(payload.path))return;const tab=model.served(payload,getVault().token);if(tab){render();notify();}},
