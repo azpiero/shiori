@@ -86,23 +86,22 @@ $('#app').innerHTML=`<div class="layout">
 </div>
 </div>
 <footer class="statusbar">
-<span class="read-only" title="本文は閲覧専用です。タグ編集とフォルダ移動は確認後に実行します。ターミナルの外部プロセスも編集できます。">本文は閲覧・タグ編集／移動可</span>
+<span class="read-only" title="本文は閲覧専用です。タグ編集とフォルダ移動はファイルに反映されます。ターミナルの外部プロセスも編集できます。">本文は閲覧・タグ編集／移動可</span>
 <span id="status">準備中</span>
 <span id="timing">Tauri + Rust · sandboxed iframe · WKWebView</span>
 </footer>`;
 function setTheme(){document.documentElement.classList.toggle('theme-dark',theme==='dark');localStorage.setItem('theme',theme);$('#theme').setAttribute('aria-pressed',String(theme==='dark'));}
 setTheme();
 function status(s){$('#status').textContent=s;}
-const reader=ShioriReader.create({document,getVault:()=>vault,getTheme:()=>theme,onSelect:path=>{selected=path;renderList();terminalPanel?.contextChanged();status(path?`表示中: ${path}`:'一覧からノートを開いてください');},onStatus:status,onTag:setTag,onEditTags:(path,remove)=>{if(!vaultBusy&&!moving)tagEditor.open(path,remove);}});
+const reader=ShioriReader.create({document,getVault:()=>vault,getTheme:()=>theme,onSelect:path=>{selected=path;renderList();tagEditor?.contextChanged();terminalPanel?.contextChanged();status(path?`表示中: ${path}`:'一覧からノートを開いてください');},onStatus:status,onTag:setTag,onEditTags:(path,remove,host)=>{if(!vaultBusy&&!moving&&!tagEditing)tagEditor.open(path,remove,host);}});
 
-tagEditor=ShioriTagEditor.create({document,getVault:()=>vault,invoke,onBusy:busy=>{tagEditing=busy;revisionEpoch++;setVaultBusy(vaultBusy);},onSaved:(result,path)=>{
+tagEditor=ShioriTagEditor.create({document,getVault:()=>vault,getTarget:()=>({path:reader.model.tab?.path,host:$('#pane-tags-'+reader.model.activePane)}),invoke,onError:status,onBusy:busy=>{tagEditing=busy;revisionEpoch++;reader.tagBusy(busy);setVaultBusy(vaultBusy);},onSaved:(result,path)=>{
  if(result.snapshot.token!==vault?.token)return;
  const previous=new Map(vault.notes.map(n=>[n.path,n.source_hash]));
  const reloadPaths=new Set(result.snapshot.notes.filter(n=>n.path===path||previous.get(n.path)!==n.source_hash).map(n=>n.path));
  vault=result.snapshot;metrics.scanMs=vault.scan_ms;invalidateGraph();hideSuggestions();changed=false;$('#notice').classList.remove('show');
  reader.metadataRefresh(reloadPaths);renderList();renderReadErrors();
  status(result.warning||'タグを保存しました');
- $('#pane-tags-'+reader.model.activePane)?.querySelector('[data-add-tag]')?.focus();
 }});
 
 noteMover=ShioriNoteMove.create({document,getVault:()=>vault,invoke,onError:status,onBusy:busy=>{moving=busy;revisionEpoch++;setVaultBusy(vaultBusy);},onMoved:result=>{

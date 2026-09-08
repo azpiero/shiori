@@ -197,8 +197,7 @@ test('tag save refreshes both panes, candidates and graph while preserving queri
  const untouched=run('reader.frames.get(reader.model.panes[0].tabs[1].id).frame'),src=untouched.src;
  commands.get_note_tags=()=>({tags:['even'],expected_hash:'hash'});
  commands.set_note_tags=()=>({saved:true,snapshot:{...vault,revision:'r2',notes:vault.notes.map(n=>n.path==='notes/0.html'?{...n,tags:['new'],source_hash:'new'}:n)},warning:null});
- await run('tagEditor.open("notes/0.html","even")');assert.equal(get('#open').disabled,true);assert.equal(get('#reload').disabled,true);
- get('#tag-editor-input').value='new';get('#tag-editor-add').onclick();await get('#tag-editor-save').onclick();
+ await run('tagEditor.open("notes/0.html")');get('#tag-inline-input').value='new';await get('#tag-inline-input').onkeydown({key:'Enter',preventDefault(){}});
  assert.equal(run('document.activeElement.dataset.addTag'),'');
  assert.equal(run('vault.revision'),'r2');assert.equal(get('#open').disabled,false);assert.equal(untouched.src,src);
  assert.equal(run('reader.model.panes[0].tabs[0].query'),'alpha');assert.equal(run('reader.model.tab.query'),'beta');
@@ -212,7 +211,7 @@ test('a revision poll started before an edit cannot announce the completed save 
  const {run,get,vault,commands,intervals}=await setup();let resolve;
  commands.vault_revision=()=>new Promise(r=>resolve=r);const poll=intervals[0]();
  commands.get_note_tags=()=>({tags:['even'],expected_hash:'hash'});commands.set_note_tags=()=>({saved:true,snapshot:{...vault,revision:'r2'},warning:null});
- await run('tagEditor.open("notes/0.html")');await get('#tag-editor-save').onclick();resolve('r1');await poll;
+ await run('tagEditor.open("notes/0.html","even")');resolve('r1');await poll;
  assert.equal(run('changed'),false);assert.equal(get('#notice').classList.contains('show'),false);
  commands.vault_revision=()=> 'external';await intervals[0]();assert.equal(run('changed'),true);
 });

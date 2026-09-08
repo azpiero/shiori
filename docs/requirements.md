@@ -666,3 +666,11 @@ This replaces the earlier tag-membership graph described above.
 - Replace SVG and 150-note pagination with Canvas 2D. Use deterministic initial positions and 60 bounded local-force iterations, one per animation frame. Pause hidden layout and cancel obsolete work; reuse layout and camera when returning from notes.
 - Keep search/tag filtering, click/modifier-click opening, hover titles, and pan/zoom. Keyboard arrows/Home/End select and center nodes; Enter/Space opens them. Accessible status exposes the focused node title and path without creating thousands of DOM elements.
 - No new vendor dependencies. A few thousand notes are the primary target; 10,000 are retained but may render below 60 fps. Worker/WebGL optimization remains future work if measurements require it.
+
+## Issue #36: Inline tag editing (2026-09-09)
+
+- Remove the tag editing modal. Clicking a chip's × immediately reads current tags/hash, removes that exact tag and saves. Restore removed tags by adding them again; no separate undo action.
+- The + control appends an input only in the active pane's tag row. Enter validates and saves one tag; Escape or focus leaving the input discards the draft. Switching pane, tab or vault invalidates its draft.
+- Use existing tag suggestions with a combobox/listbox. Arrow keys select, Enter or a pointer click fills the input, and the next Enter saves. Composition events and isComposing prevent premature IME submission.
+- Retain blank/control-character/256-byte/128-tag validation, fresh source hashes and backend conflict checks. Disable tag controls in both panes for the complete read/write operation; report failures through the status bar.
+- Successful writes refresh both panes and search/graph metadata through the existing revision-epoch flow. Scan warnings remain saved outcomes. Late completion does not steal focus from a different pane/note.

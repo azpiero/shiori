@@ -1,70 +1,53 @@
 (function(root){
  const Search=typeof module!=='undefined'?require('./search.js'):root.ShioriSearch;
- function create({document,getVault,invoke,onBusy,onSaved}){
-  const panel=document.createElement('div');panel.className='tag-editor-backdrop';panel.hidden=true;
-  panel.innerHTML='<section class="tag-editor" role="dialog" aria-modal="true" aria-labelledby="tag-editor-title"><h2 id="tag-editor-title">ノートのタグを編集</h2><p id="tag-editor-path"></p><p>変更は「保存」で確定します。</p><div id="tag-editor-tags" class="tag-editor-tags"></div><label for="tag-editor-input">追加するタグ</label><div class="tag-editor-add"><input id="tag-editor-input" autocomplete="off" list="tag-editor-suggestions"><datalist id="tag-editor-suggestions"></datalist><button id="tag-editor-add">追加</button></div><p id="tag-editor-message" role="status"></p><div class="tag-editor-actions"><button id="tag-editor-cancel">取消</button><button id="tag-editor-save" class="primary">保存</button></div></section>';
-  document.body.append(panel);const $=id=>panel.querySelector('#'+id);
+ function create({document,getVault,getTarget,invoke,onBusy,onSaved,onError}){
+  let draft=null,saving=false;
   const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  let session=null,loading=false,saving=false,composing=false;
-  function message(text){$('tag-editor-message').textContent=text;}
-  function controls(){
-   const locked=loading||saving;
-   for(const id of ['tag-editor-input','tag-editor-add','tag-editor-save'])$(id).disabled=locked||!session?.hash;
-   $('tag-editor-cancel').disabled=saving;
-   for(const button of $('tag-editor-tags').querySelectorAll('button'))button.disabled=locked;
-   panel.setAttribute('aria-busy',String(locked));
-  }
-  function render(){
-   $('tag-editor-tags').innerHTML=session.tags.map((tag,i)=>`<span class="tag-chip"><span>${escape(tag)}</span><button data-remove="${i}" aria-label="タグを外す: ${escape(tag)}">×</button></span>`).join('')||'<span class="untagged">タグなし</span>';controls();
-  }
-  function suggest(){
-   const value=$('tag-editor-input').value;
-   const text='tag: '+JSON.stringify(value),result=Search.suggest(text,text.length,getVault()?.notes.flatMap(n=>n.tags)||[]);
-   $('tag-editor-suggestions').innerHTML=(result?.options||[]).filter(t=>!session.tags.includes(t)).map(t=>`<option value="${escape(t)}"></option>`).join('');
-  }
-  function add(){
-   if(loading||saving||!session?.hash||composing)return;
-   const value=$('tag-editor-input').value;
-   if(!value.trim()||new TextEncoder().encode(value).length>256||/[\u0000-\u001f\u007f-\u009f]/.test(value)){message('空白のみのタグや制御文字は使えません。UTF-8で256バイト以内にしてください。');return;}
-   if(!session.tags.includes(value)){if(session.tags.length>=128){message('タグは128個までです。');return;}session.tags.push(value);}
-   $('tag-editor-input').value='';message('未保存の変更があります。');render();suggest();$('tag-editor-input').focus();
-  }
-  function close(){if(saving)return;const focus=session?.focus;session=null;loading=false;panel.hidden=true;document.querySelector('#app').inert=false;onBusy(false);focus?.focus();}
-  $('tag-editor-cancel').onclick=close;
-  $('tag-editor-add').onclick=add;
-  $('tag-editor-input').oninput=()=>{if(!composing)suggest();};
-  $('tag-editor-input').oncompositionstart=()=>{composing=true;};$('tag-editor-input').oncompositionend=()=>{composing=false;suggest();};
-  $('tag-editor-input').onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing&&!composing){e.preventDefault();add();}};
-  $('tag-editor-tags').onclick=e=>{const b=e.target.closest('[data-remove]');if(b&&!loading&&!saving){session.tags.splice(Number(b.dataset.remove),1);render();suggest();message('未保存の変更があります。');$('tag-editor-input').focus();}};
-  $('tag-editor-save').onclick=async()=>{
-   if(!session?.hash||loading||saving)return;
-   if($('tag-editor-input').value){message('入力中のタグを「追加」するか、入力欄を空にしてから保存してください。');$('tag-editor-input').focus();return;}
-   const draft=session;saving=true;controls();message('保存しています…');
+  function valid(value){return value.trim()&&new TextEncoder().encode(value).length<=256&&!/[\u0000-\u001f\u007f-\u009f]/.test(value);}
+  function cancel(restore=false){if(saving)return;const old=draft;draft=null;if(!old)return;old.host.classList.remove('editing');old.panel.remove();if(restore)old.host.querySelector('[data-add-tag]')?.focus();}
+  function matches(path,host,token){const target=getTarget();return getVault()?.token===token&&target?.path===path&&target.host===host;}
+  async function write(path,host,change){
+   if(saving||!getVault())return false;
+   if(change.add!==undefined&&!valid(change.add)){onError('空白のみのタグや制御文字は使えません。UTF-8で256バイト以内にしてください。');return false;}
+   const token=getVault().token;saving=true;onBusy(true);let saved=false;
    try{
-    const result=await invoke('set_note_tags',{vaultToken:draft.token,path:draft.path,expectedHash:draft.hash,tags:[...draft.tags]});
-    // Saved is explicit: scan warnings must never appear as a retryable unsaved draft.
+    const current=await invoke('get_note_tags',{vaultToken:token,path});
+    if(getVault()?.token!==token)throw new Error('Vaultが変更されました。');
+    const tags=[...new Set(current.tags)].filter(t=>t!==change.remove);
+    if(change.add!==undefined&&!tags.includes(change.add)){if(tags.length>=128)throw new Error('タグは128個までです。');tags.push(change.add);}
+    const result=await invoke('set_note_tags',{vaultToken:token,path,expectedHash:current.expected_hash,tags});
     if(!result.saved)throw new Error('保存結果を確認できません。Vaultを再読込してください。');
-    saving=false;close();onSaved(result,draft.path);
-   }catch(e){saving=false;message(String(e));controls();}
-  };
-  panel.onkeydown=e=>{
-   if(e.key==='Escape'&&!e.isComposing){e.preventDefault();close();}
-   if(e.key==='Tab'){
-    const items=[...panel.querySelectorAll('input, button')].filter(el=>!el.disabled),first=items[0],last=items.at(-1);
-    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}
-    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}
+    saved=true;saving=false;cancel();onSaved(result,path);
+   }catch(e){onError(String(e));}
+   finally{saving=false;onBusy(false);if(!matches(path,host,token))cancel();else if(saved)host.querySelector('[data-add-tag]')?.focus();else draft?.input.focus();}
+   return saved;
+  }
+  function open(path,remove,host=getTarget()?.host){
+   if(saving||!host||!getVault())return;
+   cancel();if(remove!==undefined)return write(path,host,{remove});
+   const panel=document.createElement('div');panel.className='tag-inline';panel.innerHTML='<input id="tag-inline-input" aria-label="追加するタグ" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="tag-inline-options" aria-describedby="tag-inline-help"><span id="tag-inline-help" class="sr-only">Enterで保存。候補選択中はEnterで入力に反映し、もう一度Enterで保存。Escapeで取消。</span><div id="tag-inline-options" class="tag-inline-options" role="listbox" aria-label="既存タグの候補" hidden></div>';
+   host.append(panel);host.classList.add('editing');
+   const input=panel.querySelector('input'),list=panel.querySelector('[role="listbox"]');
+   const session={path,host,panel,token:getVault().token,input,options:[],index:-1,composing:false};draft=session;
+   function suggest(){if(draft!==session||session.composing)return;const text='tag: '+JSON.stringify(input.value),existing=getVault().notes.find(n=>n.path===path)?.tags||[];
+    session.options=(Search.suggest(text,text.length,getVault().notes.flatMap(n=>n.tags))?.options||[]).filter(t=>!existing.includes(t));session.index=-1;
+    list.innerHTML=session.options.map((t,i)=>`<div id="tag-inline-option-${i}" role="option" aria-selected="false" data-option="${i}">${escape(t)}</div>`).join('');list.hidden=!session.options.length;input.setAttribute('aria-expanded',String(!list.hidden));input.removeAttribute('aria-activedescendant');
    }
-  };
-  return {async open(path,remove){
-   if(session||!getVault())return;
-   session={path,token:getVault().token,tags:[],hash:null,focus:document.activeElement};const draft=session;
-   panel.hidden=false;document.querySelector('#app').inert=true;loading=true;composing=false;onBusy(true);$('tag-editor-path').textContent=path;$('tag-editor-input').value='';$('tag-editor-suggestions').innerHTML='';message('タグを読み込んでいます…');render();$('tag-editor-cancel').focus();
-   try{
-    const result=await invoke('get_note_tags',{vaultToken:draft.token,path});if(session!==draft)return;
-    draft.hash=result.expected_hash;draft.tags=[...new Set(result.tags)].filter(t=>t!==remove);loading=false;render();suggest();
-    message(remove===undefined?'タグを追加・削除して保存してください。':'タグの削除を保留しています。保存で確定します。');$('tag-editor-input').focus();
-   }catch(e){if(session!==draft)return;loading=false;message(String(e));controls();}
-  }};
+   function accept(index){if(!session.options[index])return;input.value=session.options[index];session.index=-1;list.hidden=true;input.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');input.focus();}
+   list.onmousedown=e=>e.preventDefault();list.onclick=e=>{const option=e.target.closest('[data-option]');if(option)accept(Number(option.dataset.option));};
+   input.oninput=suggest;input.addEventListener('compositionstart',()=>{session.composing=true;list.hidden=true;input.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');session.index=-1;});input.addEventListener('compositionend',()=>{session.composing=false;suggest();});
+   input.onkeydown=e=>{
+    if(saving||e.isComposing||session.composing)return;
+    if(e.key==='Escape'){e.preventDefault();cancel(true);return;}
+    if(['ArrowDown','ArrowUp'].includes(e.key)&&session.options.length){e.preventDefault();if(list.hidden){suggest();if(!session.options.length)return;}session.index=session.index<0?(e.key==='ArrowDown'?0:session.options.length-1):(session.index+(e.key==='ArrowDown'?1:session.options.length-1))%session.options.length;
+     const options=list.querySelectorAll('[role="option"]');options.forEach((el,i)=>el.setAttribute('aria-selected',String(i===session.index)));input.setAttribute('aria-activedescendant','tag-inline-option-'+session.index);options[session.index]?.scrollIntoView({block:'nearest'});return;
+    }
+    if(e.key==='Enter'){e.preventDefault();if(session.index>=0&&!list.hidden)accept(session.index);else return write(path,host,{add:input.value});}
+   };
+   input.onblur=()=>{if(!saving)cancel();};
+   suggest();input.focus();panel.scrollIntoView({block:'nearest'});
+  }
+  return {open,write,cancel,contextChanged(){if(draft&&!saving&&(!matches(draft.path,draft.host,draft.token)||document.querySelector('#tag-inline-input')!==draft.input))cancel();}};
  }
  root.ShioriTagEditor={create};if(typeof module!=='undefined')module.exports=root.ShioriTagEditor;
 })(globalThis);
