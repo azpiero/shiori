@@ -4,6 +4,14 @@
 
 # shiori
 
+[![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)](https://tauri.app/)
+[![Rust](https://img.shields.io/badge/Rust-2021_edition-CE422B?logo=rust&logoColor=white)](src-tauri/Cargo.toml)
+[![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?logo=javascript&logoColor=black)](ui/app.js)
+[![HTML5](https://img.shields.io/badge/HTML-5-E34F26?logo=html5&logoColor=white)](ui/index.html)
+[![CSS](https://img.shields.io/badge/CSS-663399?logo=css&logoColor=white)](ui/app.css)
+[![macOS](https://img.shields.io/badge/macOS-Apple_Silicon-000000?logo=apple&logoColor=white)](#supported-operating-systems)
+[![Status: Prototype](https://img.shields.io/badge/Status-Prototype-D69E2E)](#limitations-and-security-model)
+
 A local HTML knowledge library. Let an AI assistant write and update your notes, read them in shiori, and keep their history in Git.
 
 Your vault is a folder of ordinary HTML, CSS, and images. HTML files remain the source of truth: shiori reads them without rewriting the originals, preserving the layouts, tables, and illustrations that make each note useful.
