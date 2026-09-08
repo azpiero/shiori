@@ -6,7 +6,7 @@
   const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const current=i=>model.panes[i]?.tabs.find(t=>t.id===model.panes[i].active);
   $('#readerPanel').innerHTML=[0,1].map(i=>`<section id="pane-${i}" class="reader-pane" tabindex="0" aria-label="ペイン ${i+1}" hidden>
-   <div class="pane-actions"><span id="pane-label-${i}" class="pane-label"></span><button data-action="split" title="現在のノートを複製して隣にペインを増やす">隣にペインを増やす</button><button data-action="close-pane" aria-label="ペイン ${i+1}を削除">このペインを削除</button></div>
+   <div class="pane-actions"><button data-action="split" title="隣にペインを増やす" aria-label="隣にペインを増やす"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 21H3V3h18v9M8 3v18M18 14v8M14 18h8"/></svg></button><button data-action="close-pane" title="このペインを削除" aria-label="ペイン ${i+1}を削除"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 21H3V3h18v9M8 3v18M14 18h8"/></svg></button></div>
    <div id="tabs-${i}" class="reader-tabs" role="tablist" aria-label="ペイン ${i+1}のタブ"></div>
    <div id="pane-tags-${i}" class="pane-tags" role="group" aria-label="ペイン ${i+1}のノートのタグ" hidden></div>
    <div id="pane-search-${i}" class="pane-search"><input id="pane-query-${i}" aria-label="ペイン ${i+1}の本文内検索" placeholder="本文内を検索（Enter）"><button data-action="search" aria-label="ペイン ${i+1}を検索">検索</button><button data-action="clear" aria-label="ペイン ${i+1}の検索を解除">×</button><span id="pane-hits-${i}" aria-live="polite"></span><button id="pane-prev-${i}" data-action="prev" aria-label="前の検索箇所">↑</button><button id="pane-next-${i}" data-action="next-hit" aria-label="次の検索箇所">↓</button></div>
@@ -69,7 +69,7 @@
   else view?.addEventListener('resize',resize);
   function note(path){return getVault()?.notes.find(n=>n.path===path);}
   function notify(){onSelect(model.tab?.path||'');}
-  function markActive(){for(let i=0;i<2;i++){const section=$('#pane-'+i);section.classList.toggle('active',i===model.activePane);$('#pane-label-'+i).textContent=`ペイン ${i+1}${i===model.activePane?' · 選択中':''}`;section.setAttribute('aria-label',`ペイン ${i+1}${i===model.activePane?'（選択中）':''}`);}}
+  function markActive(){for(let i=0;i<2;i++){const section=$('#pane-'+i);section.classList.toggle('active',i===model.activePane);section.setAttribute('aria-label',`ペイン ${i+1}${i===model.activePane?'（選択中）':''}`);}}
   function focusPane(i){const tab=current(i);if(tab)$('#tab-'+tab.id).focus();else $('#pane-'+i).focus();$('#pane-'+i).scrollIntoView({block:'nearest',inline:'nearest'});}
   function activate(i,focus=false){model.activate(i);render();notify();if(focus)focusPane(i);}
   function frameFor(tab){
@@ -98,7 +98,7 @@
    for(let i=0;i<2;i++){
     const pane=model.panes[i],section=$('#pane-'+i);section.hidden=!pane;if(!pane)continue;
     section.classList.toggle('active',i===model.activePane);
-    $('#pane-label-'+i).textContent=`ペイン ${i+1}${i===model.activePane?' · 選択中':''}`;section.setAttribute('aria-label',`ペイン ${i+1}${i===model.activePane?'（選択中）':''}`);
+    section.setAttribute('aria-label',`ペイン ${i+1}${i===model.activePane?'（選択中）':''}`);
     section.querySelector('[data-action="close-pane"]').disabled=!split();section.querySelector('[data-action="split"]').disabled=split();
     const tab=current(i),query=$('#pane-query-'+i);
     if(document.activeElement!==query)query.value=tab?.query||'';

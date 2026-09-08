@@ -650,7 +650,7 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 
 ## Issue #31: Minimal pane toolbar (2026-09-09)
 
-- Keep only Add adjacent pane and Remove this pane as toolbar buttons, with a non-interactive pane label marking the active target.
+- Keep only Add adjacent pane and Remove this pane as toolbar buttons, using pane-frame icons with + and −. Omit visible pane labels; the active border indicates the target, while accessible pane labels retain its state.
 - Adding duplicates the current note, anchor and query into the vacant pane; disable it at two panes. Use adjacent wording because closing the left pane retains the right slot and re-adding fills the left slot without relocating its iframe.
 - Removing closes that pane's tabs; disable it for the sole remaining pane.
 - Keep document search visible whenever a note is open. New tabs remain available through modifier-clicks in the sidebar/graph.

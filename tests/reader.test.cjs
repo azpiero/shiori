@@ -220,5 +220,5 @@ test('search stays available without a query and an empty pane remains a selecta
  pane.onclick({target:pane.querySelector('[data-action="clear"]')});assert.equal(document.querySelector('#pane-search-0').hidden,false);
  pane.onclick({target:pane.querySelector('[data-close]')});assert.equal(reader.model.all().length,0);assert.equal(document.activeElement,pane);
  pane.events.focusin();reader.open('b.html');assert.equal(reader.model.tab.path,'b.html');
- assert.match(document.querySelector('#pane-label-0').textContent,/選択中/);
+ assert.equal(document.querySelector('#pane-label-0'),null);assert.match(pane.getAttribute('aria-label'),/選択中/);
 });

@@ -237,3 +237,5 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - JavaScript: 59 tests passed. Added coverage for two toolbar actions, duplication/query preservation, the two-pane limit, left-pane removal and re-addition without replacing the survivor iframe, persistent search and empty-pane focus/opening.
 - Headless Chromium with mocked IPC verified split, close/re-add, focus after closing the last tab, sidebar opening into the empty pane, and search after clearing. Light/dark screenshots inspected at 1100px and 780px.
 - Syntax and diff checks passed. macOS build and signature verification passed. Native WKWebView interaction remains a manual check.
+
+- Follow-up: pane-frame +/− icons replace toolbar text; visible pane labels are removed. Tooltips and accessible names remain. Re-ran all 59 JavaScript tests, browser checks and the macOS build.
