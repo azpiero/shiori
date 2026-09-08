@@ -689,3 +689,5 @@ This replaces the earlier tag-membership graph described above.
 - Keep tags and document search in separate rows. Validate the header at 320px and 640px and in split mode with five tags.
 - Match folder labels to note titles: ink color, 12px, weight 550, line height 1.6. Align same-level text and row heights while retaining disclosure arrows, indentation and hierarchy guides.
 - Follow-up: remove the per-row folder creation button. Use the folder context menu (secondary click or Shift+F10) for creation. Prefix folder names and HTML note titles with distinct folder/document icons, retaining aligned labels and existing indentation.
+
+- Tree labels remain on one line and truncate with ellipsis. Remove disclosure arrows; open/closed folder icons convey expansion while aria-expanded retains the accessible state. Full note titles and paths remain available on hover.
