@@ -93,33 +93,31 @@ $('#app').innerHTML=`<div class="layout">
 function setTheme(){document.documentElement.classList.toggle('theme-dark',theme==='dark');localStorage.setItem('theme',theme);$('#theme').setAttribute('aria-pressed',String(theme==='dark'));}
 setTheme();
 function status(s){$('#status').textContent=s;}
-const reader=ShioriReader.create({document,getVault:()=>vault,getTheme:()=>theme,onSelect:path=>{selected=path;renderList();status(path?`表示中: ${path}`:'一覧からノートを開いてください');},onStatus:status});
+const reader=ShioriReader.create({document,getVault:()=>vault,getTheme:()=>theme,onSelect:path=>{selected=path;renderList();status(path?`表示中: ${path}`:'一覧からノートを開いてください');},onStatus:status,onTag:tag=>{setTag(tag);setView(true);$('#showGraph').focus();}});
 
 function renderList(){
  if(!vault)return;
  const focused=document.activeElement;
- const focusPath=focused?.dataset.path,focusTag=focused?.dataset.tag;
+ const focusPath=focused?.dataset.path;
  const focusContainer=focused?.closest('#notes, #currentNote')?.id;
  const matches=ShioriSearch.filter(vault.notes,{text:query,tags:activeTags});
- $('#notes').innerHTML=matches.map(n=>`<article class="note ${n.path===selected?'active':''}"><button class="note-open" title="${escape(n.path)}" aria-label="${escape(n.title)} — ${escape(n.path)}" data-path="${escape(n.path)}" ${n.path===selected?'aria-current="true"':''}><span class="note-title">${escape(n.title)}</span></button><div class="list-note-tags">${n.tags.map(t=>`<button class="note-tag" data-tag="${escape(t)}" title="タググラフを開く: ${escape(t)}" aria-label="タググラフを開く: ${escape(t)}">#${escape(t)} <span aria-hidden="true">↗</span></button>`).join('')||'<span class="untagged">タグなし</span>'}</div></article>`).join('')||'<div class="empty">一致するノートがありません</div>';
+ $('#notes').innerHTML=matches.map(n=>`<article class="note ${n.path===selected?'active':''}"><button class="note-open" title="${escape(n.path)}" aria-label="${escape(n.title)} — ${escape(n.path)}" data-path="${escape(n.path)}" ${n.path===selected?'aria-current="true"':''}><span class="note-title">${escape(n.title)}</span></button></article>`).join('')||'<div class="empty">一致するノートがありません</div>';
  currentMatches=matches;if(graphMode)renderGraph();
  $('#results').textContent=`${matches.length} 件`;
  renderCurrentNote();
- if(focusContainer){const buttons=$('#'+focusContainer).querySelectorAll('button');[...buttons].find(b=>focusPath!==undefined?b.dataset.path===focusPath:b.dataset.tag===focusTag)?.focus();}
+ if(focusContainer){const buttons=$('#'+focusContainer).querySelectorAll('button');[...buttons].find(b=>b.dataset.path===focusPath)?.focus();}
 }
 function renderCurrentNote(){
  const note=vault?.notes.find(n=>n.path===selected);
  const panel=$('#currentNote');
  panel.hidden=!note||currentMatches.some(n=>n.path===selected);
- panel.innerHTML=panel.hidden?'':`<div class="current-label">表示中 · 絞り込み対象外</div><strong title="${escape(note.path)}" aria-label="${escape(note.title)} — ${escape(note.path)}">${escape(note.title)}</strong><div class="list-note-tags">${note.tags.map(t=>`<button class="note-tag" data-tag="${escape(t)}" aria-label="タググラフを開く: ${escape(t)}">#${escape(t)} ↗</button>`).join('')||'<span class="untagged">タグなし</span>'}</div>`;
+ panel.innerHTML=panel.hidden?'':`<div class="current-label">表示中 · 絞り込み対象外</div><strong title="${escape(note.path)}" aria-label="${escape(note.title)} — ${escape(note.path)}">${escape(note.title)}</strong>`;
 }
 function activateNoteList(e){
  const button=e.target.closest('button');if(!button)return;
  if(button.dataset.path!==undefined)openNote(button.dataset.path,'',e.shiftKey?'side':e.metaKey||e.ctrlKey?'tab':'current');
- else if(button.dataset.tag!==undefined){setTag(button.dataset.tag);setView(true);$('#showGraph').focus();}
 }
 $('#notes').onclick=activateNoteList;
-$('#currentNote').onclick=activateNoteList;
 function invalidateGraph(){graphKey=null;graphPage=0;}
 function clearNote(){reader.reset();selected='';renderList();status('HTMLノートがありません');}
 function openNote(path,anchor='',mode='current'){

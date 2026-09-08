@@ -162,3 +162,12 @@ iframe方式を最初の検証対象として実装した。Text fragmentは比�
 - Rust: 9 tests passed, 1 opt-in benchmark ignored. The new regression test passes the sample through `display_html` for light/dark/system, checks static components and local references, and verifies shared CSS consistency. The existing sample test checks all eight source files remain unchanged by rendering.
 - macOS build, ad-hoc signing, signature verification, and diff checks passed.
 - Native visual verification remains pending: Computer Use could not connect to shiori (`timeoutReached`, -10005). Open `sample-vault/` explicitly if startup restores a personal vault, then inspect “HTMLとCSSを分けてノートを育てる” in light/dark modes and a narrow split pane. Check diagram label legibility, table/code scrolling, contents links, keyboard focus, and disclosure behavior. Automated DOM checks do not establish visual correctness.
+
+## Issue #19: Move tags into the reader (2026-09-08)
+
+- Removed tags from sidebar note rows and the filtered-out current-note reminder. Each pane now displays its selected tab's tags below the tab bar, with an untagged label or no row for an empty tab. Long tag lists wrap inside a bounded scroll area.
+- Tag buttons preserve graph navigation and free-text filtering, activate their originating pane, and focus the graph navigation control. Cached tag markup avoids replacing focused buttons during unrelated reader renders.
+- JavaScript: all 31 tests passed. Coverage includes independent pane tags, tab switches, internal navigation, refresh, empty tabs, escaping, focus retention, and graph navigation without reloading the neighboring document. JavaScript syntax and diff checks passed.
+- macOS build, ad-hoc signing, and signature verification passed.
+- Native layout verification remains pending: Computer Use failed to connect to shiori (`timeoutReached`, -10005). Check narrow panes with many/long tags, light/dark styles, keyboard access to tag buttons, and graph return behavior.
+- The future write feature is documented in [TAG_EDITING.md](TAG_EDITING.md) as a proposal awaiting agreement. No writing or tag-rename functionality was added.

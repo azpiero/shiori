@@ -1,13 +1,14 @@
 (function(root){
  const {Workspace}=typeof module!=='undefined'?require('./workspace.js'):root.ShioriWorkspace;
- function create({document,getVault,getTheme,onSelect,onStatus}){
-  const model=new Workspace(),frames=new Map(),tabMarkup=new Map(),linkMarkup=new Map();
+ function create({document,getVault,getTheme,onSelect,onStatus,onTag=()=>{}}){
+  const model=new Workspace(),frames=new Map(),tabMarkup=new Map(),linkMarkup=new Map(),tagMarkup=new Map();
   const $=id=>document.querySelector(id);
   const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const current=i=>model.panes[i]?.tabs.find(t=>t.id===model.panes[i].active);
   $('#readerPanel').innerHTML=[0,1].map(i=>`<section id="pane-${i}" class="reader-pane" aria-label="ペイン ${i+1}" hidden>
    <div class="pane-actions"><button data-action="activate" title="このペインを操作対象にする">ペイン ${i+1}</button><button data-action="new" title="新しいタブ" aria-label="ペイン ${i+1}に新しいタブ">＋</button><button data-action="find" aria-label="本文内検索を開く">検索</button><button data-action="split" title="このノートを隣のペインで開く" aria-label="隣のペインで開く">左右分割</button><button data-action="next" title="別のペインへ移動">ペイン移動</button><button data-action="close-pane" aria-label="ペイン ${i+1}を閉じる">分割解除</button></div>
    <div id="tabs-${i}" class="reader-tabs" role="tablist" aria-label="ペイン ${i+1}のタブ"></div>
+   <div id="pane-tags-${i}" class="pane-tags" role="group" aria-label="ペイン ${i+1}のノートのタグ" hidden></div>
    <div id="pane-search-${i}" class="pane-search"><input id="pane-query-${i}" aria-label="ペイン ${i+1}の本文内検索" placeholder="本文内を検索（Enter）"><button data-action="search" aria-label="ペイン ${i+1}を検索">検索</button><button data-action="clear" aria-label="ペイン ${i+1}の検索を解除">×</button><span id="pane-hits-${i}" aria-live="polite"></span><button id="pane-prev-${i}" data-action="prev" aria-label="前の検索箇所">↑</button><button id="pane-next-${i}" data-action="next" aria-label="次の検索箇所">↓</button></div>
    <details id="pane-links-${i}" class="pane-links"><summary>このノートのリンク</summary><div id="links-${i}" class="link-choices"></div></details>
    <div id="documents-${i}" class="pane-documents"><div id="pane-empty-${i}" class="empty">一覧からノートを開いてください。</div></div>
@@ -66,6 +67,10 @@
     section.querySelector('[data-action="find"]').disabled=!tab?.path;
     const tabsHtml=pane.tabs.map(t=>`<div class="reader-tab"><button id="tab-${t.id}" role="tab" data-tab="${t.id}" aria-selected="${t.id===pane.active}" aria-controls="panel-${t.id}" tabindex="${t.id===pane.active?0:-1}" title="${escape(t.path)}">${escape(note(t.path)?.title||'新しいタブ')}</button><button data-close="${t.id}" aria-label="タブを閉じる: ${escape(note(t.path)?.title||'新しいタブ')}">×</button></div>`).join('');
     if(tabMarkup.get(i)!==tabsHtml){$('#tabs-'+i).innerHTML=tabsHtml;tabMarkup.set(i,tabsHtml);}
+    const tags=note(tab?.path)?.tags||[],tagsPanel=$('#pane-tags-'+i);
+    tagsPanel.hidden=!tab?.path;
+    const tagsHtml=tab?.path?(tags.map(tag=>`<button class="note-tag" data-tag="${escape(tag)}" title="タググラフを開く: ${escape(tag)}" aria-label="タググラフを開く: ${escape(tag)}">#${escape(tag)} <span aria-hidden="true">↗</span></button>`).join('')||'<span class="untagged">タグなし</span>'):'';
+    if(tagMarkup.get(i)!==tagsHtml){tagsPanel.innerHTML=tagsHtml;tagMarkup.set(i,tagsHtml);}
     $('#pane-hits-'+i).textContent=tab?.query?(tab.loading?'読込中':tab.hits?`${tab.hit+1} / ${tab.hits}`:'0件'):'';
     for(const direction of ['prev','next'])$('#pane-'+direction+'-'+i).disabled=!tab?.hits||tab.loading;
     const choices=links(tab);$('#pane-links-'+i).hidden=!choices.length;
@@ -94,6 +99,7 @@
    $('#pane-'+i).onclick=e=>{
     const button=e.target.closest('button');if(!button)return;
     model.activate(i);
+    if(button.dataset.tag!==undefined){render();notify();onTag(button.dataset.tag);return;}
     if(button.dataset.tab){model.select(i,button.dataset.tab);render();notify();$('#tab-'+button.dataset.tab).focus();return;}
     if(button.dataset.close){closeTab(i,button.dataset.close);return;}
     if(button.dataset.link!==undefined){const link=links(current(i))[Number(button.dataset.link)];if(link)open(link.path,link.anchor,button.dataset.mode,current(i)?.query||'');$('#pane-links-'+i).open=false;return;}

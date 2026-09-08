@@ -47,7 +47,7 @@ test('list search does not change an already-open tab search',async()=>{
  get('#showGraph').onclick();get('#showNote').onclick();assert.equal(run('reader.model.tab.hit'),1);
 });
 
-test('filtering keeps the current note identifiable without putting tag buttons inside note buttons',async()=>{
+test('filtering keeps the current title identifiable while tags appear only in the reader',async()=>{
  const {run,get}=await setup();
  run('setTag("odd")');assert.equal(get('#currentNote').hidden,false);assert.match(get('#currentNote').innerHTML,/Note 0/);
  assert.match(get('#currentNote').innerHTML,/notes\/0.html/);
@@ -58,7 +58,9 @@ test('filtering keeps the current note identifiable without putting tag buttons 
  }
  assert.equal(depth,0);
  assert.match(get('#notes').innerHTML,/aria-current="true"/);
- assert.match(get('#notes').innerHTML,/aria-label="タググラフを開く: even"/);
+ assert.equal(get('#notes').querySelectorAll('[data-tag]').length,0);
+ assert.equal(get('#currentNote').querySelectorAll('[data-tag]').length,0);
+ assert.match(get('#pane-tags-0').innerHTML,/aria-label="タググラフを開く: even"/);
 });
 
 test('refresh resets graph after content changes and handles deleted notes and empty vaults',async()=>{
@@ -150,4 +152,20 @@ test('vault restoration warnings survive note events and refresh, then clear on 
  vault.warnings=[];await get('#open').onclick();
  assert.equal(get('#vaultWarnings').hidden,true);
  assert.equal(get('#open').disabled,false);
+});
+
+
+test('reader tags open the graph from their own pane and preserve free text and reader state',async()=>{
+ const {run,get}=await setup();
+ get('#search').value='knowledge';run('applySearch();openNote("notes/0.html");openNote("notes/1.html","","side")');
+ const frame=get('#noteFrame'),src=frame.src;
+ const tag=get('#pane-tags-0').querySelector('[data-tag]');tag.focus();
+ get('#pane-0').onclick({target:tag});
+ assert.equal(run('reader.model.activePane'),0);assert.equal(run('selected'),'notes/0.html');
+ assert.equal(run('graphMode'),true);assert.equal(get('#search').value,'knowledge tag: even');
+ assert.equal(get('#showGraph').getAttribute('aria-pressed'),'true');
+ assert.equal(run('document.activeElement.id'),'showGraph');
+ get('#showNote').onclick();
+ assert.equal(frame.src,src);assert.equal(run('reader.model.panes[1].tabs[0].path'),'notes/1.html');
+ assert.equal(run('reader.model.panes[1].tabs[0].query'),'knowledge');
 });

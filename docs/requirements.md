@@ -546,7 +546,7 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 
 - 関係性の初期表示は、共有タグを介するグラフとする。ノートとタグを別々の点にし、所属関係を線にする。バックリンク一覧ではなく、このタググラフを優先する。HTMLリンクに基づくグラフは追加候補。
 - タグをクリックして絞り込み、ノートをクリックして本文を開く。検索条件もグラフへ反映する。初期実装は150ノートずつページ表示し、表示範囲と総件数を明示する。タグの階層は現状、文字列の完全一致で扱う。
-- ノート一覧と本文上部で付与済みタグを見せる。タグなしも明示する。本文上部のタグから関連グラフへ移動できる。
+- Issue #19以降、ノート一覧はタイトルのみ。付与済みタグとタグなし表示は各リーダーペインのタブバー直下に置き、タグから関連グラフへ移動できる。
 - SQLiteは当面導入を保留する。100〜10,000件の合成データ計測および1,000件の実機での操作感を踏まえ、メモリ上での部分一致検索を継続する。SQLiteの永続キャッシュとFTS5の検索索引は別々に判断する。
 - AI向けSkillを `skills/shiori-notes/SKILL.md` に同梱した。新規ノートのIDはAIが作成時にUUID生成ツールを使って発行する。既存IDを維持し、初回の全ノートへの一括付与は行わない。
 - Skillの同梱は完了。ユーザー環境への自動インストールと実Vaultでの利用検証は未実施。
@@ -555,7 +555,7 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 ## 21. 本文とVault操作の配置（Issue #7）
 
 - 本文には常設の操作ツールバーを置かず、ノート／タググラフの切替はサイドバー左のナビゲーションへ配置する。
-- タイトル・パス・タグはサイドバーで確認する。絞り込み対象外の表示中ノートには補足表示を用意する。
+- タイトル・パスはサイドバー、タグは各リーダーペインで確認する。絞り込み対象外の表示中ノートにはタイトルの補足表示を用意する。
 - タグの一覧絞り込みと、ノートに付いたタグからグラフへ移動する操作を区別する。
 - 再読込はVault全体に対する操作としてVault名横に配置し、外部変更の通知・更新反映は維持する。
 - 見出し移動とText fragment比較は通常UIから除く。本文内の検索箇所への移動は維持し、検索時だけ操作を表示する。
@@ -611,3 +611,11 @@ CLI・MCPが必要かどうかを今決める必要はない。Skillによる運
 - Use local assets, OS fonts, static SVG and plain escaped code. Simple math uses text/sub/sup; complex math needs a local static asset and a textual equivalent. Do not rely on MathJax, Highlight.js, scripts, external fonts, or external navigation.
 - Respect explicit viewer theme attributes, follow system preference otherwise, and support narrow panes with wrapping prose and scrollable code/tables.
 - Keep editorial source links and reviewed revisions with reuse decisions. Refer to the Japanese writing guides without bundling their text; they are optional references rather than required installed skills.
+
+## Reader tags (Issue #19)
+
+- Show tags for each pane's selected tab directly below its tab bar. Update them on tab selection, internal navigation, and vault refresh. Show “タグなし” for an untagged note and hide the row for empty tabs.
+- Keep the sidebar note list and filtered-out current-note reminder free of tag duplication. Tag discovery uses search suggestions and the graph.
+- Reader tag buttons activate their originating pane and open the tag graph, preserving free text while replacing tag filters with the chosen tag. Returning to notes retains both panes and their document state.
+- Bound the height of wrapping tag rows so long tag lists can scroll without taking over the reader.
+- Tag editing remains unimplemented. The proposed per-note write design and agreement status are recorded in [TAG_EDITING.md](TAG_EDITING.md); global rename is separate.
