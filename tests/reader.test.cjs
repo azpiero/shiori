@@ -3,11 +3,11 @@ const assert=require('node:assert/strict');
 const {Workspace}=require('../ui/workspace.js');
 const {create}=require('../ui/reader.js');
 const {createDocument}=require('./dom.cjs');
-function setup(){
+function setup(callbacks={}){
  const document=createDocument();document.querySelector('#app').innerHTML='<div id="readerPanel"></div>';
  let vault={token:'vault-token',revision:'v1',notes:[{path:'a.html',title:'A',links:[{href:'b.html#section',text:'Read B'},{href:'https://example.com',text:'External'},{href:'../outside.html',text:'Outside'}]},{path:'b.html',title:'B',links:[]},{path:'c.html',title:'C',links:[]}]};
  let selected='',error='';
- const reader=create({document,getVault:()=>vault,getTheme:()=> 'light',onSelect:path=>selected=path,onStatus:text=>error=text});
+ const reader=create({document,getVault:()=>vault,getTheme:()=> 'light',onSelect:path=>selected=path,onStatus:text=>error=text,...callbacks});
  const served=(tab,hits=2,url=tab.url)=>reader.served({path:tab.path,hits,url});
  return {reader,document,served,selected:()=>selected,error:()=>error,setVault:v=>vault=v,vault};
 }
@@ -172,4 +172,24 @@ test('drag shields iframe input, batches motion, accounts for scroll, and cleans
  divider.onpointerup({pointerId:1,clientX:702});assert.equal(styles['--pane-a'],'650px');assert.equal(shield(),null);assert.equal(frame.src,url);
  down();divider.onpointermove({pointerId:1,clientX:0});divider.onpointercancel();flush();assert.equal(shield(),null);assert.equal(styles['--pane-a'],'650px');
  down();reader.reset();assert.equal(shield(),null);assert.equal(callbacks.size,0);
+});
+
+
+test('tag names only filter while remove and add request an editor for the originating note',()=>{
+ const filtered=[],edits=[];const {reader,document,vault}=setup({onTag:t=>filtered.push(t),onEditTags:(...args)=>edits.push(args)});
+ vault.notes[0].tags=['design'];reader.open('a.html');reader.open('b.html','','side');
+ const pane=document.querySelector('#pane-0'),tags=document.querySelector('#pane-tags-0');
+ pane.onclick({target:tags.querySelector('[data-tag]')});assert.deepEqual(filtered,['design']);assert.deepEqual(edits,[]);
+ pane.onclick({target:tags.querySelector('[data-remove-tag]')});pane.onclick({target:tags.querySelector('[data-add-tag]')});
+ assert.deepEqual(edits,[['a.html','design'],['a.html',undefined]]);assert.deepEqual(vault.notes[0].tags,['design']);
+ assert.equal(tags.querySelector('[data-remove-tag]').getAttribute('aria-label'),'タグを外す: design');
+});
+
+test('metadata snapshots update both panes but reload only changed notes and preserve queries',()=>{
+ const {reader,document,vault,setVault}=setup();const a=reader.open('a.html','','current','alpha');const b=reader.open('b.html','','tab','beta');const other=reader.open('a.html','','side','other');
+ const frame=reader.frames.get(b.id).frame,url=frame.src;
+ setVault({...vault,revision:'new',notes:vault.notes.map(n=>({...n,tags:['new']}))});reader.metadataRefresh(new Set(['a.html']));
+ assert.equal(frame.src,url);assert.equal(a.query,'alpha');assert.equal(other.query,'other');
+ for(const i of [0,1])assert.equal(document.querySelector('#pane-tags-'+i).querySelector('[data-tag]').dataset.tag,'new');
+ assert.equal(reader.model.activePane,1);assert.equal(reader.model.tab.id,other.id);
 });

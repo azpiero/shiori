@@ -195,3 +195,13 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - JavaScript: 37 tests passed, including divider order, keyboard limits, narrow-width clamping, close/reopen/reset, drag batching, cancellation, and unchanged iframe URLs. Syntax and diff checks passed.
 - A headless Chromium layout check exercised real pointer drag, double-click, keyboard input, ResizeObserver, horizontal overflow, and closing/reopening the left pane. The mock DOM tests alone do not verify layout.
 - macOS app build and ad-hoc signature verification passed. Native WKWebView dragging and rendering still require a manual app check.
+
+## Issue #25: Per-note tag editing (2026-09-09)
+
+- Tag-name clicks filter the sidebar without switching to the graph or writing a file. × and ＋ open an explicit draft with Save/Cancel, existing-tag suggestions, and keyboard/IME handling.
+- The backend uses html5gum source spans and SHA-256 preconditions. It rejects unsupported heads, invalid inputs, stale tokens/hashes, traversal, read-only files, and symlink destinations; app writes are serialized and replacements use a flushed same-directory temporary file.
+- JavaScript: 46 tests passed. Coverage includes cancellation, retained drafts on failure, concurrent input/save guards, both-pane snapshot updates, unchanged iframe retention, and stale revision-poll suppression.
+- Rust: 20 tests passed; 1 opt-in benchmark ignored. Coverage includes byte preservation with CRLF/BOM, entities, quoted delimiters and raw text, atomic replacement/cleanup, permissions, boundary revalidation, concurrent saves, and saved-with-scan-error responses.
+- Headless Chromium with a mocked IPC backend verified filter-only clicks, removal cancellation, suggestions, explicit save, modal interaction, and tag-chip layout at the minimum 320 px pane width without horizontal overflow. This checks frontend behavior, not native IPC or real files.
+- macOS app build and ad-hoc signature verification passed. Native WKWebView datalist/IME interaction and an end-to-end tag save in the built app remain manual checks.
+- The residual race with external editors and lack of custom ACL/extended-attribute preservation are documented in TAG_EDITING.md. No user vault files were changed during automated validation.

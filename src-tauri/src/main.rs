@@ -9,6 +9,7 @@ use url::Url;
 use walkdir::WalkDir;
 
 mod settings;
+mod tag_editing;
 mod terminal;
 
 const MAX_FILE: u64 = 16 * 1024 * 1024;
@@ -21,7 +22,7 @@ struct Heading { id: String, text: String }
 #[derive(Serialize)]
 struct NoteLink { href: String, text: String }
 #[derive(Serialize)]
-struct Note { path: String, title: String, tags: Vec<String>, headings: Vec<Heading>, links: Vec<NoteLink>, text: String, size: u64 }
+struct Note { path: String, title: String, tags: Vec<String>, headings: Vec<Heading>, links: Vec<NoteLink>, text: String, size: u64, source_hash: String }
 #[derive(Serialize)]
 struct Snapshot { warnings: Vec<String>, root: String, token: String, notes: Vec<Note>, errors: Vec<String>, revision: String, scan_ms: u128 }
 fn current(state: &State) -> Result<Vault, String> { state.vault.lock().map_err(|_| "state error")?.clone().ok_or("Vaultが未選択です".into()) }
@@ -40,6 +41,7 @@ fn parse_note(path: &Path, root: &Path) -> Result<Note,String> {
     let meta = std::fs::metadata(path).map_err(|e| e.to_string())?;
     if meta.len() > MAX_FILE { return Err("16MBを超えるため試作では未対応".into()); }
     let source = std::fs::read_to_string(path).map_err(|e| format!("UTF-8として読めません: {e}"))?;
+    let source_hash = tag_editing::digest(source.as_bytes());
     let doc = kuchiki::parse_html().one(source);
     let title = doc.select_first("title").ok().map(|n| n.text_contents().trim().to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| path.file_stem().unwrap_or_default().to_string_lossy().into());
     let tags = doc.select("meta[name='note-tag']").unwrap().filter_map(|n| n.attributes.borrow().get("content").map(String::from)).collect();
@@ -47,7 +49,7 @@ fn parse_note(path: &Path, root: &Path) -> Result<Note,String> {
     let links = doc.select("a[href]").unwrap().map(|n| NoteLink { href:n.attributes.borrow().get("href").unwrap_or("").to_string(), text:n.text_contents().trim().to_string() }).collect();
     for n in doc.select("script,style,template,noscript").unwrap().collect::<Vec<_>>() { n.as_node().detach(); }
     let text = doc.select_first("body").map(|n| n.text_contents()).unwrap_or_default();
-    Ok(Note { path:path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().into(), title, tags, headings, links, text, size:meta.len() })
+    Ok(Note { path:path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().into(), title, tags, headings, links, text, size:meta.len(), source_hash })
 }
 fn scan(vault: &Vault) -> Snapshot {
     let start = Instant::now(); let mut notes = Vec::new(); let mut errors = Vec::new();
@@ -221,7 +223,7 @@ fn main() {
         .manage(State { vault:Mutex::new(None) })
         .manage(terminal::Runner::default())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![open_vault,refresh_vault,vault_revision,terminal::terminal_start,terminal::terminal_write,terminal::terminal_resize,terminal::terminal_ack,terminal::terminal_stop])
+        .invoke_handler(tauri::generate_handler![tag_editing::get_note_tags,tag_editing::set_note_tags,open_vault,refresh_vault,vault_revision,terminal::terminal_start,terminal::terminal_write,terminal::terminal_resize,terminal::terminal_ack,terminal::terminal_stop])
         .register_asynchronous_uri_scheme_protocol("vault",|ctx,request,responder| { let app=ctx.app_handle().clone(); std::thread::spawn(move || responder.respond(respond(&app,request))); })
         .build(tauri::generate_context!()).expect("Tauri app failed")
         .run(|app,event| { if matches!(event,tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit) { app.state::<terminal::Runner>().stop(); } });

@@ -3,7 +3,7 @@ const {invoke} = window.__TAURI__.core;
 const {listen} = window.__TAURI__.event;
 let vault=null, selected='', query='', activeTags=[], theme=localStorage.getItem('theme')||'light', revisionBusy=false, changed=false, composing=false;
 let graphMode=false,graphPage=0,graphScale=1,graphX=0,graphY=0,currentMatches=[],graphKey=null,vaultBusy=false;
-let terminalPanel=null,terminalBusy=false;
+let terminalPanel=null,terminalBusy=false,tagEditing=false,tagEditor=null,revisionEpoch=0;
 const metrics={uiReadyMs:0,scanMs:0};
 const $=s=>document.querySelector(s);
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -91,14 +91,24 @@ $('#app').innerHTML=`<div class="layout">
 </div>
 </div>
 <footer class="statusbar">
-<span class="read-only" title="ビューアはHTMLの正本を変更しません。ターミナルの外部プロセスは編集できます。ノート内のJavaScriptと外部資産は制限します。">ビューアは読み取り専用</span>
+<span class="read-only" title="本文は閲覧専用です。タグは明示的な保存操作で編集できます。ターミナルの外部プロセスも編集できます。">本文は閲覧・タグは編集可</span>
 <span id="status">準備中</span>
 <span id="timing">Tauri + Rust · sandboxed iframe · WKWebView</span>
 </footer>`;
 function setTheme(){document.documentElement.classList.toggle('theme-dark',theme==='dark');localStorage.setItem('theme',theme);$('#theme').setAttribute('aria-pressed',String(theme==='dark'));}
 setTheme();
 function status(s){$('#status').textContent=s;}
-const reader=ShioriReader.create({document,getVault:()=>vault,getTheme:()=>theme,onSelect:path=>{selected=path;renderList();terminalPanel?.contextChanged();status(path?`表示中: ${path}`:'一覧からノートを開いてください');},onStatus:status,onTag:tag=>{setTag(tag);setView(true);$('#showGraph').focus();}});
+const reader=ShioriReader.create({document,getVault:()=>vault,getTheme:()=>theme,onSelect:path=>{selected=path;renderList();terminalPanel?.contextChanged();status(path?`表示中: ${path}`:'一覧からノートを開いてください');},onStatus:status,onTag:setTag,onEditTags:(path,remove)=>{if(!vaultBusy)tagEditor.open(path,remove);}});
+
+tagEditor=ShioriTagEditor.create({document,getVault:()=>vault,invoke,onBusy:busy=>{tagEditing=busy;revisionEpoch++;setVaultBusy(vaultBusy);},onSaved:(result,path)=>{
+ if(result.snapshot.token!==vault?.token)return;
+ const previous=new Map(vault.notes.map(n=>[n.path,n.source_hash]));
+ const reloadPaths=new Set(result.snapshot.notes.filter(n=>n.path===path||previous.get(n.path)!==n.source_hash).map(n=>n.path));
+ vault=result.snapshot;metrics.scanMs=vault.scan_ms;invalidateGraph();hideSuggestions();changed=false;$('#notice').classList.remove('show');
+ reader.metadataRefresh(reloadPaths);renderList();renderReadErrors();
+ status(result.warning||'タグを保存しました');
+ $('#pane-tags-'+reader.model.activePane)?.querySelector('[data-add-tag]')?.focus();
+}});
 
 terminalPanel=ShioriTerminal.create({document,invoke,listen,getContext:()=>!vaultBusy&&vault?{token:vault.token,root:vault.root}:null,onBusy:busy=>{terminalBusy=busy;setVaultBusy(vaultBusy);},onComplete:token=>{if(vault?.token===token){changed=true;$('#notice').classList.add('show');}}});
 
@@ -140,10 +150,10 @@ function renderReadErrors(){
  if(errors.length)status(`${errors.length}件の読み取りエラー（サイドバーで詳細を確認）`);
  else $('#readErrors').open=false;
 }
-function setVaultBusy(busy){vaultBusy=busy;for(const id of ['reload','update','open'])$('#'+id).disabled=busy||(id==='open'&&terminalBusy);$('#reload').setAttribute('aria-busy',String(busy));terminalPanel?.contextChanged();}
+function setVaultBusy(busy){vaultBusy=busy;for(const id of ['reload','update','open'])$('#'+id).disabled=busy||tagEditing||(id==='open'&&terminalBusy);$('#reload').setAttribute('aria-busy',String(busy));terminalPanel?.contextChanged();}
 
 async function load(path=null){
- if(vaultBusy||terminalBusy)return;setVaultBusy(true);clearTimeout(timer);
+ if(vaultBusy||terminalBusy||tagEditing)return;setVaultBusy(true);clearTimeout(timer);
  status('HTMLを解析しています…');
  try{
   vault=await invoke('open_vault',{path});metrics.scanMs=vault.scan_ms;
@@ -208,7 +218,7 @@ $('#search').addEventListener('keydown',e=>{
 });
 
 async function refresh(){
- if(vaultBusy||!vault)return;setVaultBusy(true);hideSuggestions();status('Vault全体を再読込しています…');
+ if(vaultBusy||tagEditing||!vault)return;setVaultBusy(true);hideSuggestions();status('Vault全体を再読込しています…');
  try{
   const wasGraph=graphMode;
   vault=await invoke('refresh_vault');metrics.scanMs=vault.scan_ms;invalidateGraph();
@@ -219,7 +229,7 @@ async function refresh(){
  }catch(e){status(String(e));}finally{setVaultBusy(false);}
 }
 $('#reload').onclick=refresh;$('#update').onclick=refresh;
-setInterval(async()=>{if(!vault||vaultBusy||revisionBusy||changed)return;revisionBusy=true;try{const rev=await invoke('vault_revision');if(rev!==vault.revision){changed=true;$('#notice').classList.add('show');}}catch(e){status(String(e));}finally{revisionBusy=false;}},2000);
+setInterval(async()=>{if(!vault||vaultBusy||tagEditing||revisionBusy||changed)return;revisionBusy=true;const epoch=revisionEpoch,token=vault.token;try{const rev=await invoke('vault_revision');if(epoch===revisionEpoch&&token===vault?.token&&!vaultBusy&&rev!==vault.revision){changed=true;$('#notice').classList.add('show');}}catch(e){status(String(e));}finally{revisionBusy=false;}},2000);
 $('#splitter').onpointerdown=e=>{e.preventDefault();const shield=document.createElement('div');Object.assign(shield.style,{position:'fixed',inset:'0',zIndex:50,cursor:'col-resize'});document.body.append(shield);const move=e=>document.documentElement.style.setProperty('--sidebar',`${Math.max(210,Math.min(460,window.innerWidth-$('.view-nav').offsetWidth-325,e.clientX-$('.view-nav').getBoundingClientRect().right))}px`);shield.onpointermove=move;shield.onpointerup=()=>shield.remove();};
 function setTag(value){
  const parsed=ShioriSearch.parse($('#search').value);

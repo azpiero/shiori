@@ -16,7 +16,7 @@ A local HTML knowledge library. Let an AI assistant write and update your notes,
 
 Your vault is a folder of ordinary HTML, CSS, and images. HTML files remain the source of truth: shiori reads them without rewriting the originals, preserving the layouts, tables, and illustrations that make each note useful.
 
-**Status:** early desktop prototype for macOS, with a read-only viewer and an integrated terminal. The interface and bundled sample notes are currently in Japanese.
+**Status:** early desktop prototype for macOS, with HTML reading, per-note tag editing, and an integrated terminal. The interface and bundled sample notes are currently in Japanese.
 
 ## Screenshots
 
@@ -33,7 +33,7 @@ Earlier macOS prototype showing the bundled sample vault in dark mode. These scr
 - Compare notes in two side-by-side panes, each with its own tabs and document search.
 - Move between highlighted matches independently in each tab.
 - Explore a graph connecting notes to their tags. Select a tag to filter or a note to read it.
-- Browse a compact title list and hover over a note title to see its path. Tags appear below each reader pane’s tab bar; buttons marked ↗ open the tag graph and update the search field.
+- Browse a compact title list and hover over a note title to see its path. Tags appear below each reader pane’s tab bar; tag names filter the sidebar without leaving the reader. Use × or ＋ to prepare a tag edit.
 - Switch between light and dark themes and resize the sidebar.
 - Reload the entire vault from the button beside its name, or apply an external-change notification.
 - Expand the sidebar’s read-error details to see which files could not be loaded and why.
@@ -57,11 +57,15 @@ Tags use case-sensitive exact matching: `tag: 開発` does not include `開発/I
 
 Type `tag:` to see up to eight matching tag suggestions. Use ↑/↓ and Enter to insert a suggestion, Escape to dismiss, or click a candidate. Enter with no candidate selected opens the first matching note. Quoted tag names support JSON escapes such as `\"` and `\\`; names beginning with `tag:` must also be quoted. Empty clauses and unclosed quotes are ignored until completed; a complete but unknown tag returns no matches. IME composition is applied after confirmation.
 
-The search field is the source of filter state. Selecting a tag in the graph or a reader pane's ↗ tag button replaces the tag clauses with that tag while preserving free text. Remove the `tag:` clause to clear its filter. The **NOTES** count shows matching notes rather than a separate vault total.
+The search field is the source of filter state. Selecting a tag in the graph or a reader pane's tag-name button replaces the tag clauses with that tag while preserving free text. Remove the `tag:` clause to clear its filter. The **NOTES** count shows matching notes rather than a separate vault total.
 
 ## Read with panes and tabs
 
-Each pane shows the tags of its selected tab below the tab bar, or **タグなし** for an untagged note. Empty tabs have no tag row. Many tags wrap within a bounded, scrollable row. The sidebar keeps titles only, including the reminder for a current note outside the filter; discover tags through `tag:` suggestions or the graph. Tag editing is not implemented; see the [proposed editing design](docs/TAG_EDITING.md).
+Each pane shows the tags of its selected tab below the tab bar, or **タグなし** for an untagged note. Empty tabs have no tag row. Many tags wrap within a bounded, scrollable row. The sidebar keeps titles only, including the reminder for a current note outside the filter; discover tags through `tag:` suggestions or the graph. Use **×** beside a tag to prepare its removal, or **＋** to open the tag editor. Existing tags are suggested as you type; choose **追加** (Add) to add the input to the draft, then **保存** (Save) to write the changes. **取消** (Cancel) or Escape discards the draft. Tag-name clicks only filter and never write a file. Use the navigation rail to open the graph.
+
+Edits change only `meta[name="note-tag"]` elements in an explicit HTML head. Other source bytes are retained. Supported notes are UTF-8, at most 16 MiB, with unambiguous head markup; malformed or unsupported head structures, read-only files, and symlink targets are rejected. A note can have up to 128 exact, case-sensitive tags, each at most 256 UTF-8 bytes without control characters. Empty or whitespace-only tags are rejected; duplicate values are removed.
+
+Save checks the original source hash and refuses external changes. On conflict, cancel, reload the vault, and review the newer note before editing again. Successful saves update both panes, search candidates, and graph data while preserving tabs and queries. Edited notes and any other notes whose source hash changed reload, resetting their scroll/match position; unchanged iframes remain attached. Scan errors after a write are reported as **saved**, with details in the sidebar. A final hash check and atomic replacement cannot eliminate the small race with unrelated external editors; see the [tag editing contract](docs/TAG_EDITING.md).
 
 The active pane has an accented top border. Opening a note from the sidebar or graph normally replaces its active tab. Click inside a pane or use its pane button to make it active.
 
@@ -174,7 +178,7 @@ On first launch, the app opens eight bundled sample notes. Subsequent launches r
 
 The canonical vault path is stored as `last_vault` in `settings.json` under Tauri's app configuration directory (on macOS, `~/Library/Application Support/dev.takeru.shiori/`). Vault tokens and reader tabs are not stored. If the saved folder is unavailable or settings cannot be read, the app opens the samples and displays the reason in the sidebar. The saved path is retained so a temporarily disconnected volume can be restored on a later launch. Selecting another folder replaces it; a settings write failure is shown without preventing the folder from opening. To reset the remembered folder, quit the app and remove `settings.json`. Theme preferences remain in local storage.
 
-Read-only status remains visible in the status bar, including while loading or showing errors. The development diagnostics panel and log collection have been removed; failed note reads are listed under **読み取りエラー** (Read errors) in the sidebar. The status bar retains basic load timings.
+The status bar identifies body reading and explicit tag editing, including while loading or showing errors. The development diagnostics panel and log collection have been removed; failed note reads are listed under **読み取りエラー** (Read errors) in the sidebar. The status bar retains basic load timings.
 
 ### Build a macOS app bundle
 
@@ -246,7 +250,7 @@ The `notes/`, `assets/`, and `styles/` layout is the Skill's default for a new v
 
 ## Limitations and security model
 
-The viewer is read-only; commands in the terminal can edit source files. Direct tag editing, automatic link repair, navigation history, and Git synchronization are not implemented.
+The reader can add and remove tags through an explicit save, but does not edit body content. Commands in the terminal can edit source files. Global tag renaming, automatic link repair, navigation history, and Git synchronization are not implemented.
 
 Notes are served through a vault-scoped protocol after resolving paths and symlinks. A sandboxed iframe, Content Security Policy, and display-copy sanitization restrict scripts, forms, frames, and external resources. Original HTML remains unchanged. External links are currently disabled.
 
