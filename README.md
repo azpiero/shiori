@@ -16,7 +16,7 @@ A local HTML knowledge library. Let an AI assistant write and update your notes,
 
 Your vault is a folder of ordinary HTML, CSS, and images. HTML files remain the source of truth: shiori reads them without rewriting the originals, preserving the layouts, tables, and illustrations that make each note useful.
 
-**Status:** early desktop prototype for macOS, with HTML reading, per-note tag editing, folder creation/renaming and note moves, and an integrated terminal. The interface and bundled sample notes are currently in Japanese.
+**Status:** early desktop prototype for macOS, with HTML reading, per-note tag editing, and an integrated terminal. The interface and bundled sample notes are currently in Japanese.
 
 ## Screenshots
 
@@ -24,7 +24,7 @@ Current macOS app with the bundled sample vault in dark mode. The first capture 
 
 | Read notes and use the terminal | Explore note links |
 | --- | --- |
-| ![shiori sample note with tags, folder tree, and integrated terminal](docs/assets/screenshot-reader.jpg) | ![shiori sample vault with eight notes in the HTML link graph](docs/assets/screenshot-graph.jpg) |
+| ![shiori sample note with tags and the integrated terminal](docs/assets/screenshot-reader.jpg) | ![shiori sample vault with eight notes in the HTML link graph](docs/assets/screenshot-graph.jpg) |
 
 
 ## Features
@@ -32,7 +32,7 @@ Current macOS app with the bundled sample vault in dark mode. The first capture 
 - Read local HTML notes with images, tables, shared CSS, and static diagrams.
 - Search titles and text, filter by tags, and edit a note's tags inline.
 - Compare notes in two panes with independent tabs and document search.
-- Browse folders, create or rename directories, and drag notes between them.
+- Browse every note in one flat list; organise with tags rather than directories.
 - Explore the HTML links between notes in a local graph.
 - Open a shell with **>_** in the left rail and run `claude`, `codex`, or other installed tools yourself.
 - Switch light/dark themes, resize panes, and apply external file changes.
@@ -55,13 +55,11 @@ Build and launch the app using the steps below. The first launch opens `sample-v
 | Resize panes | Drag the divider; double-click for equal widths |
 | Find in the current document | ⌘F, type a phrase, Enter; ⌘G / ⌘⇧G moves between matches |
 | Clear document search | Escape in its input, **×**, or Edit → Find → Clear Note Search |
-| Create/rename a folder | Right-click a folder → **新規フォルダ** / **名称変更**; Enter saves, Escape cancels |
-| Move a note | Drag its title onto a folder; keyboard: Space on note, Tab to folder, Enter |
 | Open graph / terminal | Graph icon / **>_** in the left rail |
 | Apply external edits | **更新を反映** in the change notification |
 | Change theme | Theme button at the bottom of the left rail |
 
-Two panes and 12 tabs share one vault. Switching tabs preserves document scroll; reload and theme changes reset it. Folder moves preserve note IDs and source bytes but do not repair links automatically. The graph uses HTML links, not shared tags. See [detailed behavior](docs/requirements.md#detailed-usage-contracts-moved-from-readme-42) and the [tag-editing contract](docs/TAG_EDITING.md).
+Two panes and 12 tabs share one vault. Switching tabs preserves document scroll; reload and theme changes reset it. The sidebar lists every note in one flat list regardless of its directory; organise notes with tags. The graph uses HTML links, not shared tags. See [detailed behavior](docs/requirements.md#detailed-usage-contracts-moved-from-readme-42) and the [tag-editing contract](docs/TAG_EDITING.md).
 
 ## Workflow: AI writes, shiori reads, Git keeps history
 

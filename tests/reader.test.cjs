@@ -186,16 +186,6 @@ test('metadata snapshots update both panes but reload only changed notes and pre
  assert.equal(reader.model.activePane,1);assert.equal(reader.model.tab.id,other.id);
 });
 
-test('a moved note follows its new path in both panes while keeping tabs and queries',()=>{
- const {reader,vault,setVault}=setup();const left=reader.open('a.html','','current','alpha'),right=reader.open('a.html','','side','beta');const ids=[left.id,right.id];
- setVault({...vault,revision:'moved',notes:vault.notes.map(n=>n.path==='a.html'?{...n,path:'folder/a.html'}:n)});reader.moved('a.html','folder/a.html',new Set(['folder/a.html']));
- assert.deepEqual(reader.model.all().map(t=>t.id),ids);assert.equal(left.path,'folder/a.html');assert.equal(right.path,'folder/a.html');assert.equal(left.query,'alpha');assert.equal(right.query,'beta');assert.equal(reader.model.activePane,1);assert.match(right.url,/folder\/a.html/);
-});
-
-test('renaming a directory follows descendant tabs without changing sibling prefixes',()=>{
- const {reader,vault,setVault}=setup();vault.notes=[{path:'notes/a/n.html',title:'A'},{path:'notes/ab/n.html',title:'B'}];const a=reader.open('notes/a/n.html','','current','query'),b=reader.open('notes/ab/n.html','','side');setVault({...vault,notes:[{path:'notes/renamed/n.html',title:'A'},vault.notes[1]]});reader.moved('notes/a','notes/renamed',new Set(['notes/renamed/n.html']));assert.equal(a.path,'notes/renamed/n.html');assert.equal(a.query,'query');assert.equal(b.path,'notes/ab/n.html');
-});
-
 test('tab surface selection follows aria-selected across switches in both panes',()=>{
  const {reader,document}=setup();const a=reader.open('a.html');reader.open('b.html','','tab');reader.open('c.html','','side');
  const check=()=>{for(const tab of document.querySelector('#readerPanel').querySelectorAll('[role="tab"]'))assert.equal(tab.parentNode.classList.contains('active'),tab.getAttribute('aria-selected')==='true');};

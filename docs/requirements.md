@@ -830,6 +830,15 @@ Other current limits:
 - Applying external changes or changing the theme resets document scroll positions in all open tabs.
 - Theme switching does not force arbitrary user HTML to adopt the app's colors.
 
+## Issue #62: Flat note list; tags replace directories (2026-09-15)
+
+- Organise notes with tags only. Directories remain a storage location, not an organising axis: the scan stays recursive so existing hierarchical vaults still open, and the Skill keeps the `notes/` / `assets/` / `styles/` convention.
+- The sidebar lists every scanned note in one flat list, no longer restricted to `notes/`. Root-level `assets/` and `styles/` stay excluded by the scanner. Titles carry the full path in `title`/`aria-label`; duplicate titles are not disambiguated, and the Skill is responsible for avoiding them.
+- Remove the folder tree, collapse state, folder context menu, inline rename input, keyboard move selection and drag-and-drop targets, with their CSS. The shared popup menu used by the vault footer is renamed from `.folder-menu` to `.popup-menu`.
+- Remove the `create_note_folder`, `rename_note_folder`, `preview_note_move` and `move_note` commands and the `folders` field from snapshots. Tag editing remains the only vault write.
+- Remove `reader.moved()`: no in-app operation changes a note's path, and externally renamed files are still reconciled by path on reload.
+- Ordering stays filename order from the scanner until [#64](https://github.com/azpiero/shiori/issues/64) introduces creation order from UUIDv7 IDs. Relative links in an externally flattened vault are repaired in [#63](https://github.com/azpiero/shiori/issues/63).
+
 
 ### Contribution checks
 

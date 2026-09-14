@@ -306,3 +306,10 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - Skill structure validation passed. Generated a reproducible inventory of 307 target-filtered Cargo dependencies, including build dependencies and license-expression counts. Identified 32 crate archives without standalone notice files; binary-distribution attribution remains a release prerequisite.
 - Replaced both historical screenshots with maintainer-supplied native captures: reader plus terminal, and link graph. Recorded actual dimensions, conversion, and known/unknown capture conditions in assets/GENERATION.md. Automated native capture remained unavailable (service timeout / Apple Events denial); no browser mocks were substituted.
 - Maintainer approved MIT for the application, Skills, sample notes, and images/logos, with copyright name azpiero. Added LICENSE and Cargo metadata; third-party terms remain separate.
+
+## Issue #62: Flat note list (2026-09-15)
+
+- Removed the folder tree, folder create/rename, note moves and the snapshot `folders` field: 6 files deleted (342 lines) plus their handlers, CSS and tests.
+- Rust: 23 tests passed, 1 benchmark ignored. JavaScript: 64 tests passed after removing the folder, note-move and `reader.moved` suites.
+- The list now shows every scanned note regardless of directory, so a vault whose notes sit outside `notes/` is no longer empty in the sidebar.
+- Native packaged viewer operation and the appearance of a flattened vault remain manual checks.
