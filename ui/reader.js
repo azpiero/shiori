@@ -177,7 +177,6 @@
     const input=$('#pane-query-'+i);input.focus();input.setSelectionRange(0,input.value.length);
    },tagBusy(busy){tagWriting=busy;for(const i of [0,1])$('#pane-tags-'+i).querySelectorAll('button, input').forEach(el=>el.disabled=busy);},model,frames,open,render,activate,moveHit,syncFocusedFrame,
    reset(){stopDrag();ratio=.5;model.reset();render();notify();},
-   moved(oldPath,newPath,paths){for(const tab of model.all())if(tab.path===oldPath||tab.path.startsWith(oldPath+'/'))tab.path=newPath+tab.path.slice(oldPath.length);model.reconcile(getVault().notes);for(const tab of model.all())if(paths.has(tab.path))navigate(tab);render();notify();},
    metadataRefresh(paths){model.reconcile(getVault().notes);for(const tab of model.all())if(paths.has(tab.path))navigate(tab);render();notify();},
    refresh(){model.reconcile(getVault().notes);for(const tab of model.all())navigate(tab);render();notify();},
    theme(){for(const tab of model.all())navigate(tab);render();},

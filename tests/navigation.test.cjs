@@ -6,8 +6,6 @@ const ShioriGraph=require('../ui/graph.js');const ShioriGraphView=require('../ui
 const ShioriSearch=require('../ui/search.js');
 const ShioriReader=require('../ui/reader.js');
 const ShioriTagEditor=require('../ui/tag-editor.js');
-const ShioriFolders=require('../ui/folders.js');
-const ShioriNoteMove=require('../ui/note-move.js');
 const {create:terminalCreate}=require('../ui/terminal.js');
 const terminalStub=require('./terminal-stub.cjs');
 const ShioriTerminal={create:options=>terminalCreate({...options,...terminalStub})};
@@ -21,7 +19,7 @@ async function setup(initialErrors=[],initialWarnings=[]){
  const notes=Array.from({length:160},(_,i)=>({path:`notes/${i}.html`,title:`Note ${i}`,text:'knowledge',tags:[i%2?'odd':'even'],headings:[]}));
  const vault={root:'/test/vault',token:'test-token',revision:'r1',notes,errors:initialErrors,warnings:initialWarnings,scan_ms:1};
  refreshResult=vault;
- const context=vm.createContext({document,URL,performance,ShioriToasts,ShioriSearch,ShioriReader,ShioriTagEditor,ShioriFolders,ShioriNoteMove,ShioriTerminal,ShioriGraph,ShioriGraphView,localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(fn){intervals.push(fn);},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(commands[name])return commands[name](args);if(name==='terminal_start')return {cwd:'/test/workspace',vault:vault.root};if(name==='terminal_stop')return;if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
+ const context=vm.createContext({document,URL,performance,ShioriToasts,ShioriSearch,ShioriReader,ShioriTagEditor,ShioriTerminal,ShioriGraph,ShioriGraphView,localStorage:{getItem:()=>null,setItem(){}},setTimeout,clearTimeout,setInterval(fn){intervals.push(fn);},window:{__TAURI__:{core:{invoke:async (name,args)=>{calls.push({name,args});if(commands[name])return commands[name](args);if(name==='terminal_start')return {cwd:'/test/workspace',vault:vault.root};if(name==='terminal_stop')return;if(name==='plugin:dialog|open')return '/another-vault';if(name==='open_vault')return vault;if(name==='refresh_vault'){if(refreshError)throw refreshError;return refreshResult;}throw new Error(name);}},event:{listen:(name,fn)=>events.set(name,fn)}}}});
  const run=code=>vm.runInContext(code,context);
  run(fs.readFileSync(require.resolve('../ui/app.js'),'utf8'));
  await new Promise(resolve=>setImmediate(resolve));
@@ -106,7 +104,7 @@ test('scan errors remain accessible after note load and clear after a successful
  assert.equal(get('#readErrors').hidden,true);assert.equal(get('#readErrors').open,false);assert.equal(get('#readErrorsList').innerHTML,'');
 });
 
-test('startup requests the default vault; folder and theme controls work',async()=>{
+test('startup requests the default vault; vault and theme controls work',async()=>{
  const {run,get,calls}=await setup();
  assert.equal(calls[0].name,'open_vault');assert.equal(calls[0].args.path,null);
  await get('#open').onclick();assert.ok(calls.some(c=>c.name==='open_vault'&&c.args.path==='/another-vault'));
@@ -216,30 +214,6 @@ test('a revision poll started before an edit cannot announce the completed save 
  commands.vault_revision=()=> 'external';await intervals[0]();assert.equal(run('changed'),true);
 });
 
-test('notes-only folder rows support creation, rename and direct internal drops',async()=>{
- const {run,get,vault,calls,commands}=await setup();vault.folders=['','archive','notes','notes/empty'];run('renderList()');
- const row=path=>get('#notes').querySelectorAll('[data-folder]').find(el=>el.dataset.folder===path);
- assert.equal(row(''),undefined);assert.equal(row('archive'),undefined);assert.equal(get('#notes').querySelector('[data-create-folder]'),null);assert.ok(row('notes').querySelector('.folder-icon'));assert.ok(get('#notes').querySelector('.document-icon'));assert.ok(row('notes/empty'));assert.equal(get('#notes').querySelector('[data-move]'),null);
- get('#notes').onclick({target:row('notes')});assert.equal(row('notes').getAttribute('aria-expanded'),'false');get('#search').value='Note 0';run('applySearch()');assert.equal(row('notes/empty'),undefined);assert.equal(row('notes').getAttribute('aria-expanded'),'true');get('#search').value='';run('applySearch()');
- commands.preview_note_move=()=>({destination:'notes/empty/0.html',references:[],warnings:[],omitted:0,expected_hash:'h',expected_revision:'r1'});
- commands.move_note=()=>({moved:true,old_path:'notes/0.html',path:'notes/empty/0.html',warnings:[],snapshot:{...vault,revision:'r2',notes:vault.notes.map(n=>n.path==='notes/0.html'?{...n,path:'notes/empty/0.html'}:n)}});
- const transfer={value:'',setData(type,value){this.value=value;},getData(){return this.value;},effectAllowed:'',dropEffect:''},source=get('#notes').querySelector('[data-path]');
- get('#notes').ondrop({target:row('notes/empty'),preventDefault(){}});assert.equal(calls.filter(c=>c.name==='move_note').length,0);
- get('#notes').ondragstart({target:source,dataTransfer:transfer,preventDefault(){}});get('#notes').ondrop({target:row('notes/empty'),dataTransfer:transfer,preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));
- assert.equal(calls.filter(c=>c.name==='move_note').length,1);assert.equal(run('selected'),'notes/empty/0.html');assert.equal(get('#move-folder'),null);
- commands.create_note_folder=args=>({path:'notes/'+args.name,old_path:null,snapshot:{...vault,folders:['notes','notes/new'],revision:'r3'}});
- get('#notes').oncontextmenu({target:row('notes'),clientX:20,clientY:40,preventDefault(){}});get('#folderMenu').onclick({target:get('#folderMenu').querySelector('[data-action="create"]')});get('#folderName').value='new';await run('saveFolder()');assert.ok(row('notes/new'));assert.equal(get('#folderName'),null);
- commands.rename_note_folder=()=>({old_path:'notes/new',path:'notes/renamed',snapshot:{...vault,folders:['notes','notes/renamed'],revision:'r4'}});
- get('#notes').oncontextmenu({target:row('notes/new'),clientX:20,clientY:40,preventDefault(){}});get('#folderMenu').onclick({target:get('#folderMenu').querySelector('[data-action="rename"]')});get('#folderName').value='renamed';await run('saveFolder()');assert.ok(row('notes/renamed'));assert.equal(get('#moveReport'),null);
-});
-
-test('Space then a destination folder moves a note without a destination modal',async()=>{
- const {run,get,vault,commands}=await setup();vault.folders=['notes','notes/empty'];run('renderList()');
- commands.preview_note_move=()=>({destination:'notes/empty/0.html',references:[],warnings:[],omitted:0,expected_hash:'h',expected_revision:'r1'});
- commands.move_note=()=>({moved:true,old_path:'notes/0.html',path:'notes/empty/0.html',warnings:[],snapshot:{...vault,revision:'r2',notes:vault.notes.map(n=>n.path==='notes/0.html'?{...n,path:'notes/empty/0.html'}:n)}});
- get('#notes').onkeydown({key:' ',target:get('#notes').querySelector('[data-path]'),preventDefault(){}});
- get('#notes').onclick({target:get('#notes').querySelectorAll('[data-folder]').find(b=>b.dataset.folder==='notes/empty')});await new Promise(resolve=>setImmediate(resolve));assert.equal(run('selected'),'notes/empty/0.html');assert.equal(run('changed'),false);
-});
 
 test('poll errors use persistent deduplicated toasts, reset on recovery, and footer is absent',async()=>{
  const {run,get,vault,commands,intervals}=await setup();assert.equal(get('#status'),null);assert.equal(get('#timing'),null);assert.equal(get('.statusbar'),null);assert.equal(get('.toast'),null);
