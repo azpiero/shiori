@@ -839,6 +839,15 @@ Other current limits:
 - Remove `reader.moved()`: no in-app operation changes a note's path, and externally renamed files are still reconciled by path on reload.
 - Ordering stays filename order from the scanner until [#64](https://github.com/azpiero/shiori/issues/64) introduces creation order from UUIDv7 IDs. Relative links in an externally flattened vault are repaired in [#63](https://github.com/azpiero/shiori/issues/63).
 
+## Issue #64: UUIDv7 identifiers and creation order (2026-09-15)
+
+- New notes carry a UUIDv7 `note-id`; its 48-bit Unix millisecond prefix supplies the creation time. The Skill generates one explicitly because `uuidgen` and most libraries still emit version 4.
+- Existing identifiers are never rewritten, version 4 included: an ID is the note's identity, and rewriting one would invent a creation time that never happened.
+- The scanner reads `meta[name="note-id"]` into each note and orders the snapshot once, so the sidebar, the graph and the note opened at startup share one order.
+- Notes with a valid UUIDv7 sort newest first. Notes whose ID is version 4, malformed or absent carry no time and follow in title order. Both groups tie-break on path, so repeated scans never reshuffle.
+- Validation rejects anything that is not a 36-character hyphenated hex UUID with version nibble `7` and an RFC 4122 variant, rather than reading a timestamp out of an arbitrary string.
+- Duplicate identifiers are not reported; they only affect tie-breaking, which stays deterministic through the path comparison.
+
 
 ### Contribution checks
 

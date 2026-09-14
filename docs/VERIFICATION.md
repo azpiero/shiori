@@ -313,3 +313,11 @@ Terminal workspace setup now copies both bundled Skills, including their support
 - Rust: 23 tests passed, 1 benchmark ignored. JavaScript: 64 tests passed after removing the folder, note-move and `reader.moved` suites.
 - The list now shows every scanned note regardless of directory, so a vault whose notes sit outside `notes/` is no longer empty in the sidebar.
 - Native packaged viewer operation and the appearance of a flattened vault remain manual checks.
+
+## Issue #64: Creation-order note list (2026-09-15)
+
+- Rust: 24 tests passed, 1 benchmark ignored. Added coverage for timestamp extraction, rejection of version 4/malformed/short/non-hex/bad-variant identifiers, and the scan order across v7, v4 and missing IDs.
+- JavaScript: 64 tests passed. `ShioriSearch.filter` sorts stably, so the scanner's order survives filtering; a text query still floats title matches first.
+- The current vault's 11 notes all carry version 4 identifiers, so they list in title order until new notes are written; this was the expected pre-migration state rather than a defect.
+- Native packaged viewer operation and the appearance of a mixed v7/v4 vault remain manual checks.
+

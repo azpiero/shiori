@@ -32,7 +32,7 @@ Current macOS app with the bundled sample vault in dark mode. The first capture 
 - Read local HTML notes with images, tables, shared CSS, and static diagrams.
 - Search titles and text, filter by tags, and edit a note's tags inline.
 - Compare notes in two panes with independent tabs and document search.
-- Browse every note in one flat list; organise with tags rather than directories.
+- Browse every note in one flat list, newest first; organise with tags rather than directories.
 - Explore the HTML links between notes in a local graph.
 - Open a shell with **>_** in the left rail and run `claude`, `codex`, or other installed tools yourself.
 - Switch light/dark themes, resize panes, and apply external file changes.
@@ -59,7 +59,7 @@ Build and launch the app using the steps below. The first launch opens `sample-v
 | Apply external edits | **更新を反映** in the change notification |
 | Change theme | Theme button at the bottom of the left rail |
 
-Two panes and 12 tabs share one vault. Switching tabs preserves document scroll; reload and theme changes reset it. The sidebar lists every note in one flat list regardless of its directory; organise notes with tags. The graph uses HTML links, not shared tags. See [detailed behavior](docs/requirements.md#detailed-usage-contracts-moved-from-readme-42) and the [tag-editing contract](docs/TAG_EDITING.md).
+Two panes and 12 tabs share one vault. Switching tabs preserves document scroll; reload and theme changes reset it. The sidebar lists every note in one flat list regardless of its directory, newest first by the UUIDv7 timestamp in its `note-id`; notes whose ID predates that convention follow in title order. Organise notes with tags. The graph uses HTML links, not shared tags. See [detailed behavior](docs/requirements.md#detailed-usage-contracts-moved-from-readme-42) and the [tag-editing contract](docs/TAG_EDITING.md).
 
 ## Workflow: AI writes, shiori reads, Git keeps history
 
