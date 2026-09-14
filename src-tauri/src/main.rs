@@ -21,7 +21,7 @@ struct State { vault: Mutex<Option<Vault>> }
 #[derive(Serialize)]
 struct Heading { id: String, text: String }
 #[derive(Serialize)]
-struct Note { path: String, title: String, tags: Vec<String>, headings: Vec<Heading>, links: Vec<String>, text: String, size: u64, source_hash: String }
+struct Note { path: String, title: String, id: Option<String>, tags: Vec<String>, headings: Vec<Heading>, links: Vec<String>, text: String, size: u64, source_hash: String }
 #[derive(Serialize)]
 struct Snapshot { warnings: Vec<String>, root: String, token: String, notes: Vec<Note>, errors: Vec<String>, revision: String, scan_ms: u128 }
 fn current(state: &State) -> Result<Vault, String> { state.vault.lock().map_err(|_| "state error")?.clone().ok_or("Vaultが未選択です".into()) }
@@ -43,12 +43,26 @@ fn parse_note(path: &Path, root: &Path) -> Result<Note,String> {
     let source_hash = tag_editing::digest(source.as_bytes());
     let doc = kuchiki::parse_html().one(source);
     let title = doc.select_first("title").ok().map(|n| n.text_contents().trim().to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| path.file_stem().unwrap_or_default().to_string_lossy().into());
+    let id = doc.select_first("meta[name='note-id']").ok().and_then(|n| n.attributes.borrow().get("content").map(str::trim).filter(|s| !s.is_empty()).map(String::from));
     let tags = doc.select("meta[name='note-tag']").unwrap().filter_map(|n| n.attributes.borrow().get("content").map(String::from)).collect();
     let headings = doc.select("h1[id],h2[id],h3[id],h4[id],h5[id],h6[id]").unwrap().map(|n| Heading { id:n.attributes.borrow().get("id").unwrap_or("").to_string(), text:n.text_contents() }).collect();
     for n in doc.select("script,style,template,noscript").unwrap().collect::<Vec<_>>() { n.as_node().detach(); }
     let links = doc.select("a[href]").unwrap().filter_map(|n| n.attributes.borrow().get("href").map(String::from)).collect();
     let text = doc.select_first("body").map(|n| n.text_contents()).unwrap_or_default();
-    Ok(Note { path:path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().into(), title, tags, headings, links, text, size:meta.len(), source_hash })
+    Ok(Note { path:path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().into(), title, id, tags, headings, links, text, size:meta.len(), source_hash })
+}
+// UUIDv7 carries a 48-bit big-endian Unix millisecond timestamp in its first 12
+// hex digits, so a valid identifier orders notes by the moment they were written.
+// Version 4 identifiers and missing ones carry no time and sort separately.
+fn uuid_v7_millis(id: &str) -> Option<u64> {
+    let bytes = id.as_bytes();
+    if bytes.len() != 36 { return None; }
+    for (index, byte) in bytes.iter().enumerate() {
+        let hyphen = matches!(index, 8 | 13 | 18 | 23);
+        if hyphen != (*byte == b'-') || (!hyphen && !byte.is_ascii_hexdigit()) { return None; }
+    }
+    if bytes[14] != b'7' || !matches!(bytes[19].to_ascii_lowercase(), b'8' | b'9' | b'a' | b'b') { return None; }
+    u64::from_str_radix(&(id[0..8].to_string() + &id[9..13]), 16).ok()
 }
 fn scan(vault: &Vault) -> Snapshot {
     let start = Instant::now(); let mut notes = Vec::new(); let mut errors = Vec::new();
@@ -61,6 +75,16 @@ fn scan(vault: &Vault) -> Snapshot {
             Err(e) => errors.push(e.to_string()), _ => ()
         }
     }
+    // Newest authored note first; identifiers without a time keep a stable
+    // title order behind them so the list never reshuffles between scans.
+    let mut ordered: Vec<(Option<u64>, Note)> = notes.into_iter().map(|n| (n.id.as_deref().and_then(uuid_v7_millis), n)).collect();
+    ordered.sort_by(|(a_time, a), (b_time, b)| match (a_time, b_time) {
+        (Some(a_time), Some(b_time)) => b_time.cmp(a_time).then_with(|| a.path.cmp(&b.path)),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => a.title.cmp(&b.title).then_with(|| a.path.cmp(&b.path)),
+    });
+    let notes: Vec<Note> = ordered.into_iter().map(|(_, note)| note).collect();
     Snapshot { warnings:vec![], root:vault.root.to_string_lossy().into(), token:vault.token.clone(), notes, errors, revision:revision(&vault.root), scan_ms:start.elapsed().as_millis() }
 }
 #[tauri::command]
@@ -246,6 +270,35 @@ mod tests {
         let note = parse_note(&path, &root).unwrap();
         assert_eq!(note.links, vec!["b.html?x=1&y=2#h", "https://example.com"]);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), source);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test] fn uuid_v7_identifiers_order_notes_by_creation_time_ahead_of_untimed_ones() {
+        // 0x0198... encodes a Unix millisecond timestamp; the later value sorts first.
+        let older = "01980000-0000-7000-8000-000000000001";
+        let newer = "01990000-0000-7abc-b000-000000000002";
+        assert!(uuid_v7_millis(newer) > uuid_v7_millis(older));
+        assert_eq!(uuid_v7_millis(older), Some(0x0198_0000_0000));
+        for rejected in ["245ac20a-8849-4ad3-a833-15a5ccc58b75", "01980000-0000-7000-c000-000000000001",
+                         "01980000-0000-7000-8000-00000000000", "0198000g-0000-7000-8000-000000000001",
+                         "019800000000-7000-8000-000000000001", ""] {
+            assert_eq!(uuid_v7_millis(rejected), None, "{rejected}");
+        }
+        let root = std::env::temp_dir().join(format!("shiori-order-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let write = |name: &str, id: Option<&str>| {
+            let meta = id.map(|v| format!("<meta name='note-id' content='{v}'>")).unwrap_or_default();
+            std::fs::write(root.join(name), format!("<html><head><title>{name}</title>{meta}</head><body>x</body></html>")).unwrap();
+        };
+        write("b-old-v7.html", Some(older));
+        write("a-new-v7.html", Some(newer));
+        write("d-v4.html", Some("245ac20a-8849-4ad3-a833-15a5ccc58b75"));
+        write("c-none.html", None);
+        let vault = Vault { root: root.canonicalize().unwrap(), token: "t".into() };
+        let snapshot = scan(&vault);
+        let order: Vec<&str> = snapshot.notes.iter().map(|n| n.path.as_str()).collect();
+        assert_eq!(order, ["a-new-v7.html", "b-old-v7.html", "c-none.html", "d-v4.html"]);
+        assert_eq!(snapshot.notes[0].id.as_deref(), Some(newer));
+        assert_eq!(snapshot.notes[2].id, None);
         std::fs::remove_dir_all(root).unwrap();
     }
     #[test] fn display_removes_active_content_and_preserves_text() {

@@ -18,7 +18,13 @@ The app organises notes by tag, not by directory: it lists every note in one fla
 ## Metadata and links
 
 - Use UTF-8, doctype, `html lang`, charset, viewport, title, and exactly one h1 describing the same subject.
-- Generate a UUID with a tool for each new note's single `note-id`. Preserve existing note and heading IDs when editing or renaming. A duplicate created as a separate note needs a new UUID. A note created or edited by this Skill must have a valid `note-id`; add a generated UUID when it is missing in a requested file. The viewer can still read legacy notes without IDs; paths drive navigation and links. Repair missing IDs only in requested files; keep heading IDs unique and stable.
+- Generate a **UUIDv7** with a tool for each new note's single `note-id`; its embedded timestamp is what orders the sidebar, newest first. `uuidgen` and most libraries still emit version 4, which carries no time, so generate it explicitly:
+
+  ```sh
+  python3 -c "import os,time,uuid;b=bytearray(os.urandom(16));b[0:6]=int(time.time()*1000).to_bytes(6,'big');b[6]=b[6]&0x0F|0x70;b[8]=b[8]&0x3F|0x80;print(uuid.UUID(bytes=bytes(b)))"
+  ```
+
+- Preserve existing note and heading IDs when editing or renaming, including version 4 identifiers: rewriting one breaks the note's identity, and the viewer simply lists untimed notes after the timed ones in title order. A duplicate created as a separate note needs a new UUID. A note created or edited by this Skill must have a valid `note-id`; add a generated one when it is missing in a requested file. The viewer can still read legacy notes without IDs; paths drive navigation and links. Repair missing IDs only in requested files; keep heading IDs unique and stable.
 - Inspect `meta[name="note-tag"]` in related notes and reuse exact spellings. Add necessary new tags, one meta element per tag; no comma-separated values, duplicate tags, or leading `#`. Hierarchical tags such as `技術/Rust` are literal values; filtering uses exact matches without implied parents. The link graph connects notes through HTML links, not shared tags.
 - Verify internal targets before writing relative links. URL-encode each path segment while preserving `/`: encode filename `#` as `%23`, `%` as `%25`, and spaces as `%20`. Append a heading fragment after the path; HTML-escape attribute values as well.
 - External source URLs must be readable plain text, optionally inside `code`, rather than `a href="https://…"`: shiori removes external navigation links. Link only to local notes and local heading anchors.
